@@ -618,9 +618,7 @@ chmod 1777 tmp
         .where((String key) => key.startsWith('assets/xa'))
         .map((String key) => key.split('/').last)
         .toList();
-    for (String name in xaFiles) {
-      await Util.copyAsset("assets/$name", "${G.dataPath}/$name");
-    }
+    await Future.wait(xaFiles.map((String name) => Util.copyAsset("assets/$name", "${G.dataPath}/$name")));
     //-J
     G.updateText.value = AppLocalizations.of(G.homePageStateContext)!.installingContainerSystem;
     await Util.execute(
