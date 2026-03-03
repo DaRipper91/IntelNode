@@ -142,19 +142,31 @@ class Util {
 
   static dynamic getCurrentProp(String key) {
     dynamic m = jsonDecode(Util.getGlobal("containersInfo")[G.currentContainer]);
+
+    // Migrate legacy hardcoded VNC password for existing users
+    if ((key == "vncUrl" || key == "vncUri" || key == "vncPassword") &&
+        !m.containsKey("vncPassword")) {
+      // No stored password yet — generate one and persist it
+      String newPass = generateRandomPassword();
+      addCurrentProp("vncPassword", newPass);
+      m["vncPassword"] = newPass;
+      // Also migrate any existing URLs that have the old password
+      if (m.containsKey("vncUrl")) {
+        String updatedUrl = m["vncUrl"].toString().replaceAll(
+            "password=12345678", "password=$newPass");
+        addCurrentProp("vncUrl", updatedUrl);
+        m["vncUrl"] = updatedUrl;
+      }
+      if (m.containsKey("vncUri")) {
+        String updatedUri = m["vncUri"].toString().replaceAll(
+            "VncPassword=12345678", "VncPassword=$newPass");
+        addCurrentProp("vncUri", updatedUri);
+        m["vncUri"] = updatedUri;
+      }
+    }
+
     if (m.containsKey(key)) {
-      var val = m[key];
-      if (key == "vncUrl" && val.toString().contains("password=12345678")) {
-        val = val.toString().replaceAll(
-            "password=12345678", "password=${getCurrentProp("vncPassword")}");
-        addCurrentProp(key, val);
-      }
-      if (key == "vncUri" && val.toString().contains("VncPassword=12345678")) {
-        val = val.toString().replaceAll("VncPassword=12345678",
-            "VncPassword=${getCurrentProp("vncPassword")}");
-        addCurrentProp(key, val);
-      }
-      return val;
+      return m[key];
     }
     switch (key) {
       case "name" : return (value){addCurrentProp(key, value); return value;}("Debian Trixie");
@@ -684,6 +696,7 @@ done
 "vnc":"startnovnc &",
 "vncPassword":"$initialVncPassword",
 "vncUrl":"http://localhost:36082/vnc.html?host=localhost&port=36082&autoconnect=true&resize=remote&password=$initialVncPassword",
+"vncUri":"vnc://127.0.0.1:5904?VncPassword=$initialVncPassword&SecurityType=2",
 "commands":${jsonEncode(Localizations.localeOf(G.homePageStateContext).languageCode == 'zh' ? D.commands : D.commands4En)}
 }"""]);
     G.updateText.value = AppLocalizations.of(G.homePageStateContext)!.installationComplete;
