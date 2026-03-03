@@ -47,6 +47,10 @@ app.*.map.json
 
 /backup
 
+# Rootfs build artifacts
+extra/archroot-build/
+extra/flutter_project/
+
 assets/xa*
 assets/patch.tar.gz
 

@@ -48,7 +48,14 @@ sudo systemd-nspawn -D "$ROOTFS" --bind-ro=/etc/resolv.conf /bin/bash -c '
     # Enable parallel downloads and color
     sed -i "s/#ParallelDownloads = 5/ParallelDownloads = 5/" /etc/pacman.conf
     sed -i "s/#Color/Color/" /etc/pacman.conf
-    
+
+    # Disable sandbox (Landlock not available inside nspawn container)
+    sed -i "s/^#\?DisableSandbox.*/DisableSandbox/" /etc/pacman.conf
+    grep -q "^DisableSandbox" /etc/pacman.conf || echo "DisableSandbox" >> /etc/pacman.conf
+
+    # Create vconsole.conf to prevent mkinitcpio warning
+    touch /etc/vconsole.conf
+
     # Full system update
     pacman -Syu --noconfirm
 '
@@ -72,7 +79,7 @@ sudo systemd-nspawn -D "$ROOTFS" --bind-ro=/etc/resolv.conf /bin/bash -c "
         firefox \
         noto-fonts noto-fonts-cjk ttf-dejavu \
         sudo base-devel git wget curl \
-        bash-completion htop neofetch nano vim \
+        bash-completion htop nano vim \
         xdg-utils xdg-user-dirs dbus \
         xorg-server xorg-xinit xorg-xauth
 "
