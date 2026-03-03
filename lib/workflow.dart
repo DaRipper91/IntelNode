@@ -227,17 +227,18 @@ class Util {
     }
   }
 
-  static Future<void> waitForXServer() async {
+  static Future<void> waitForXServer({int timeoutSeconds = 60}) async {
     const host = '127.0.0.1';
     const port = 7897;
-    
-    while (true) {
-      bool isReady = await isXServerReady(host, port);
-      await Future.delayed(Duration(seconds: 1));
-      if (isReady) {
+    final deadline = DateTime.now().add(Duration(seconds: timeoutSeconds));
+
+    while (DateTime.now().isBefore(deadline)) {
+      if (await isXServerReady(host, port)) {
         return;
       }
+      await Future.delayed(Duration(seconds: 1));
     }
+    throw TimeoutException('X server did not start within $timeoutSeconds seconds');
   }
 
   static String getl10nText(String key, BuildContext context) {
