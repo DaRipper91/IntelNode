@@ -1,8 +1,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tiny_computer/workflow.dart';
-import 'package:tiny_computer/l10n/app_localizations.dart';
+import 'package:da_ripped_tiny_computer/workflow.dart';
+import 'package:da_ripped_tiny_computer/l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 void main() {
