@@ -1,0 +1,11 @@
+Beginning of dump -- C2ComponentStore: (unknown)
+
+  Supported components:
+
+    NONE
+
+  Active components:
+
+    NONE
+
+End of dump -- C2ComponentStore: (unknown)

@@ -32,14 +32,15 @@ flutter analyze
 
 ### Run tests
 ```bash
-flutter test
+flutter test                              # all tests
+flutter test test/validate_between_test.dart  # single test file
 ```
 
 ## Architecture
 
 ### Flutter App (`lib/`)
 - **`main.dart`** — App entry point, UI, terminal emulation (xterm), permissions, WebView for noVNC. Contains the main widget tree and display mode selection (noVNC/AVNC/Termux:X11).
-- **`workflow.dart`** — Container lifecycle: rootfs extraction, proot setup, VNC server management, Shizuku/rish integration.
+- **`workflow.dart`** — Container lifecycle: rootfs extraction, proot setup, VNC server management, Shizuku/rish integration. Contains the `Util` class (static helpers for file ops, shell execution, validation) and `G` class (static global state: paths, PTYs, current container index, BuildContext).
 - **`l10n/`** — Localization (Chinese/English). Configured via `l10n.yaml` with `generate: true` in pubspec.
 
 ### Rootfs Build System (`extra/`)
@@ -59,8 +60,13 @@ flutter test
 - **Shizuku integration is optional** — provides ADB-level shell for faster extraction and higher process priority, but app works without it.
 - **Custom git dependencies:** `x11_flutter` and `avnc_flutter` are pinned to specific commits from the `tiny-computer` GitHub org.
 
+## Testing Notes
+
+- Tests that use `Util` or localized strings need a `MaterialApp` with full localization delegates and a `Builder` that sets `G.homePageStateContext`. See `test/validate_between_test.dart` for the pattern.
+- Import test files with `package:da_ripped_tiny_computer/` (the actual Dart package name), not `package:tiny_computer/`.
+
 ## Conventions
 
 - Original upstream code has Chinese comments; new code uses English.
-- The Dart package is named `da_ripped_tiny_computer` but internal imports use `package:tiny_computer/`.
+- The Dart package is named `da_ripped_tiny_computer` but imports use `package:da_ripped_tiny_computer/`. Some upstream references may still say `package:tiny_computer/`.
 - The rootfs build script must run as root on an Arch/CachyOS host (or any Linux with qemu-user-static for cross-arch).
