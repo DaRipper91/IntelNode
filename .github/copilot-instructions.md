@@ -36,14 +36,17 @@ sudo ./extra/build-arch-rootfs.sh [--xfce|--lxqt] [--split-size SIZE]
 
 ### Flutter App (`lib/`)
 
-Only three Dart source files drive the entire app:
+Only four Dart source files drive the entire app:
 
 - **`main.dart`** — App entry point, full widget tree, terminal emulation (`xterm`), display mode selection (noVNC WebView / AVNC / Termux:X11), permissions.
-- **`workflow.dart`** — Everything else: container lifecycle, rootfs extraction, proot setup, VNC management, Shizuku/rish integration, and all shared state. Contains three key classes:
-  - `G` — Static global state: `dataPath`, `prefs` (SharedPreferences), `termPtys`, `currentContainer`, `homePageStateContext`, display state flags.
-  - `Util` — Static helpers: file/asset ops, shell execution via PTY, `validateBetween` (form validator), `getGlobal`/`getCurrentProp` for settings access.
+- **`workflow.dart`** — Everything else: container lifecycle, rootfs extraction, proot setup, VNC management, Shizuku/rish integration, and all shared state. Contains key classes:
+  - `G` — Static global state: `dataPath`, `prefs` (SharedPreferences), `settings` (GlobalSettings singleton), `termPtys`, `currentContainer`, `homePageStateContext`, display state flags.
+  - `Util` — Static helpers: file/asset ops, shell execution via PTY, `validateBetween` (form validator). `Util.getGlobal(key)` delegates to `G.settings.getGlobal(key)`.
   - `D` — Default values: default boot command, shortcut command lists (Chinese & English variants), default VNC/virgl/HiDPI options.
   - `Workflow` — Static async methods for first-time setup, bootstrap install, rootfs extraction, VNC start/stop.
+  - `ShizukuHelper` — Shizuku/rish integration with injectable `processRunner` for testability.
+- **`settings.dart`** — `GlobalSettings` singleton: typed property getters for every SharedPreferences key with automatic default-on-first-read. Never access `G.prefs` directly for known keys — use `Util.getGlobal(key)` or `G.settings.<property>`.
+- **`models.dart`** — `ContainerInfo` and `CommandInfo` data classes for container JSON serialization. `ContainerInfo` preserves unknown JSON fields in `additionalProps` for forward compatibility.
 - **`l10n/`** — Flutter gen-l10n localization (English + Simplified/Traditional Chinese). Template: `lib/l10n/intl_en.arb`.
 
 ### Rootfs / Asset Pipeline
@@ -65,7 +68,7 @@ Only three Dart source files drive the entire app:
 
 ### Settings / Preferences
 
-All persistent settings flow through `G.prefs` (SharedPreferences). `Util.getGlobal(key)` is the single access point — it reads the key if it exists, or writes and returns the default value on first call. Do not call `G.prefs` directly for known keys; always go through `Util.getGlobal`.
+All persistent settings flow through the `GlobalSettings` singleton (`G.settings`). `Util.getGlobal(key)` is the single access point — it delegates to `G.settings.getGlobal(key)`, which reads the key if it exists or writes and returns the default on first call. Do not call `G.prefs` directly for known keys; always go through `Util.getGlobal` or `G.settings.<property>`.
 
 Container-specific config (name, boot command, VNC URL, shortcut commands, bind mounts) is stored as a JSON string in the `containersInfo` string-list preference. Access it via `Util.getCurrentProp(key)` / `Util.setCurrentProp(key, value)` / `Util.addCurrentProp(key, value)`.
 
