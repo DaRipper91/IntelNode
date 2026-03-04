@@ -12,7 +12,8 @@ void main() {
       }
 
       final stopwatch = Stopwatch()..start();
-      await Util.waitForXServer(timeoutSeconds: 5, isReadyCheck: mockIsReadyCheck);
+      await Util.waitForXServer(
+          timeoutSeconds: 5, isReadyCheck: mockIsReadyCheck);
       stopwatch.stop();
 
       expect(checkCount, 1);
@@ -31,7 +32,8 @@ void main() {
       }
 
       final stopwatch = Stopwatch()..start();
-      await Util.waitForXServer(timeoutSeconds: 5, isReadyCheck: mockIsReadyCheck);
+      await Util.waitForXServer(
+          timeoutSeconds: 5, isReadyCheck: mockIsReadyCheck);
       stopwatch.stop();
 
       expect(checkCount, 3);
@@ -41,7 +43,8 @@ void main() {
       expect(stopwatch.elapsedMilliseconds, lessThan(3000));
     });
 
-    test('throws TimeoutException if X server is never ready within timeout', () async {
+    test('throws TimeoutException if X server is never ready within timeout',
+        () async {
       int checkCount = 0;
       Future<bool> mockIsReadyCheck(String host, int port) async {
         checkCount++;
@@ -51,11 +54,13 @@ void main() {
       final stopwatch = Stopwatch()..start();
 
       try {
-        await Util.waitForXServer(timeoutSeconds: 2, isReadyCheck: mockIsReadyCheck);
+        await Util.waitForXServer(
+            timeoutSeconds: 2, isReadyCheck: mockIsReadyCheck);
         fail('Should have thrown TimeoutException');
       } catch (e) {
         expect(e, isA<TimeoutException>());
-        expect((e as TimeoutException).message, contains('X server did not start within 2 seconds'));
+        expect((e as TimeoutException).message,
+            contains('X server did not start within 2 seconds'));
       }
       stopwatch.stop();
 

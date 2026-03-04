@@ -48,10 +48,9 @@ class GlobalSettings {
   bool get useAvnc => prefs.getBool("useAvnc") ?? _setBool("useAvnc", true);
   bool get avncResizeDesktop =>
       prefs.getBool("avncResizeDesktop") ?? _setBool("avncResizeDesktop", true);
-  double get avncScaleFactor =>
-      (prefs.getDouble("avncScaleFactor") ??
-              _setDouble("avncScaleFactor", -0.5))
-          .clamp(-1.0, 1.0);
+  double get avncScaleFactor => (prefs.getDouble("avncScaleFactor") ??
+          _setDouble("avncScaleFactor", -0.5))
+      .clamp(-1.0, 1.0);
   bool get useX11 => prefs.getBool("useX11") ?? _setBool("useX11", false);
   String get defaultVirglCommand =>
       prefs.getString("defaultVirglCommand") ??

@@ -246,7 +246,8 @@ class Util {
     if (parsedValue < min || parsedValue > max) {
       return AppLocalizations.of(
         G.homePageStateContext,
-      )!.enterNumberBetween(min, max);
+      )!
+          .enterNumberBetween(min, max);
     }
     opr();
     return null;
@@ -778,7 +779,11 @@ class Workflow {
     await Util.copyAsset("assets/assets.zip", "${G.dataPath}/assets.zip");
     //patch.tar.gz存放了tiny文件夹
     //里面是一些补丁，会被挂载到~/.local/share/tiny
-    await Util.copyAsset("assets/patch.tar.gz", "${G.dataPath}/patch.tar.gz");
+    try {
+      await Util.copyAsset("assets/patch.tar.gz", "${G.dataPath}/patch.tar.gz");
+    } catch (e) {
+      print("Warning: Failed to copy patch.tar.gz: \$e");
+    }
     await Util.execute("""
 export DATA_DIR=${G.dataPath}
 export LD_LIBRARY_PATH=\$DATA_DIR/lib
@@ -809,7 +814,9 @@ ln -sf ../applib/libproot-loader.so \$DATA_DIR/lib/loader
 chmod -R +x bin/*
 chmod -R +x libexec/proot/*
 chmod 1777 tmp
-\$DATA_DIR/bin/tar zxf patch.tar.gz
+if [ -f "patch.tar.gz" ]; then
+  \$DATA_DIR/bin/tar zxf patch.tar.gz
+fi
 \$DATA_DIR/bin/busybox rm -rf assets.zip patch.tar.gz
 """);
   }
@@ -819,12 +826,14 @@ chmod 1777 tmp
     //首先设置bootstrap
     G.updateText.value = AppLocalizations.of(
       G.homePageStateContext,
-    )!.installingBootPackage;
+    )!
+        .installingBootPackage;
     await setupBootstrap();
 
     G.updateText.value = AppLocalizations.of(
       G.homePageStateContext,
-    )!.copyingContainerSystem;
+    )!
+        .copyingContainerSystem;
     //存放容器的文件夹0和存放硬链接的文件夹.l2s
     Util.createDirFromString("${G.dataPath}/containers/0/.l2s");
     //这个是容器rootfs，被split命令分成了xa*，放在assets里
@@ -846,7 +855,8 @@ chmod 1777 tmp
     //-J
     G.updateText.value = AppLocalizations.of(
       G.homePageStateContext,
-    )!.installingContainerSystem;
+    )!
+        .installingContainerSystem;
     await Util.execute("""
 export DATA_DIR=${G.dataPath}
 export PATH=\$DATA_DIR/bin:\$PATH
@@ -893,7 +903,8 @@ done
     ]);
     G.updateText.value = AppLocalizations.of(
       G.homePageStateContext,
-    )!.installationComplete;
+    )!
+        .installationComplete;
   }
 
   static Future<void> initData() async {
@@ -946,7 +957,8 @@ sed -i -E 's/echo "[^"]+" \\| vncpasswd -f/echo "${Util.getCurrentProp("vncPassw
     if (Util.getGlobal("reinstallBootstrap")) {
       G.updateText.value = AppLocalizations.of(
         G.homePageStateContext,
-      )!.reinstallingBootPackage;
+      )!
+          .reinstallingBootPackage;
       await setupBootstrap();
       G.prefs.setBool("reinstallBootstrap", false);
     }
@@ -1050,8 +1062,8 @@ clear""");
     Util.termWrite(
       (Util.getGlobal("autoLaunchVnc") as bool)
           ? ((Util.getGlobal("useX11") as bool)
-                ? """mkdir -p "\$HOME/.vnc" && bash /etc/X11/xinit/xinitrc &> "\$HOME/.vnc/x.log" &"""
-                : Util.getCurrentProp("vnc"))
+              ? """mkdir -p "\$HOME/.vnc" && bash /etc/X11/xinit/xinitrc &> "\$HOME/.vnc/x.log" &"""
+              : Util.getCurrentProp("vnc"))
           : "",
     );
     Util.termWrite("clear");
@@ -1173,10 +1185,19 @@ class ShizukuHelper {
 
   static bool get isAvailable => _available;
 
-  static Future<ProcessResult> run(String command) async {
+  static Future<ProcessResult> run(
+      String executable, List<String> arguments) async {
     if (!_available) {
-      return processRunner('sh', ['-c', command]);
+      return processRunner(executable, arguments);
     }
-    return processRunner('rish', ['-c', command]);
+
+    String escapeArg(String arg) {
+      return "'" + arg.replaceAll("'", "'\\''") + "'";
+    }
+
+    return processRunner('rish', [
+      '-c',
+      [executable, ...arguments.map(escapeArg)].join(' ')
+    ]);
   }
 }
