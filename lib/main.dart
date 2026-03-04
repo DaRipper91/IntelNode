@@ -1,20 +1,19 @@
-// main.dart  --  This file is part of tiny_computer.               
-                                                                        
-// Copyright (C) 2023 Caten Hu                                          
-                                                                        
-// Tiny Computer is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published    
-// by the Free Software Foundation, either version 3 of the License,    
-// or any later version.                               
-                                                                         
-// Tiny Computer is distributed in the hope that it will be useful,          
-// but WITHOUT ANY WARRANTY; without even the implied warranty          
-// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.              
-// See the GNU General Public License for more details.                 
-                                                                     
-// You should have received a copy of the GNU General Public License    
-// along with this program.  If not, see http://www.gnu.org/licenses/.
+// main.dart  --  This file is part of tiny_computer.
 
+// Copyright (C) 2023 Caten Hu
+
+// Tiny Computer is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published
+// by the Free Software Foundation, either version 3 of the License,
+// or any later version.
+
+// Tiny Computer is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty
+// of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see http://www.gnu.org/licenses/.
 
 import 'dart:async';
 import 'dart:math';
@@ -48,56 +47,57 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DynamicColorBuilder(
-        builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
-          return MaterialApp(
-            localizationsDelegates: const [
-              AppLocalizations.delegate,
-              GlobalMaterialLocalizations.delegate,
-              GlobalWidgetsLocalizations.delegate,
-              GlobalCupertinoLocalizations.delegate,
-            ],
-            supportedLocales: const [
-              Locale('en'),
-              Locale.fromSubtags(languageCode: 'zh'), // generic Chinese 'zh'
-              Locale.fromSubtags(
-                languageCode: 'zh',
-                scriptCode: 'Hans',
-              ), // generic simplified Chinese 'zh_Hans'
-              Locale.fromSubtags(
-                languageCode: 'zh',
-                scriptCode: 'Hant',
-              ), // generic traditional Chinese 'zh_Hant'
-              Locale.fromSubtags(
-                languageCode: 'zh',
-                scriptCode: 'Hans',
-                countryCode: 'CN',
-              ), // 'zh_Hans_CN'
-              Locale.fromSubtags(
-                languageCode: 'zh',
-                scriptCode: 'Hant',
-                countryCode: 'TW',
-              ), // 'zh_Hant_TW'
-              Locale.fromSubtags(
-                languageCode: 'zh',
-                scriptCode: 'Hant',
-                countryCode: 'HK',
-              ), // 'zh_Hant_HK'
-            ],
-            theme: ThemeData(
-              colorScheme: lightDynamic,
-              useMaterial3: true,
-            ),
-            darkTheme: ThemeData(
-              colorScheme: darkDynamic,
-              useMaterial3: true,
-            ),
-            home: MyHomePage(title: "Tiny Computer"),
-          );
-        }
+      builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
+        return MaterialApp(
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [
+            Locale('en'),
+            Locale.fromSubtags(languageCode: 'zh'), // generic Chinese 'zh'
+            Locale.fromSubtags(
+              languageCode: 'zh',
+              scriptCode: 'Hans',
+            ), // generic simplified Chinese 'zh_Hans'
+            Locale.fromSubtags(
+              languageCode: 'zh',
+              scriptCode: 'Hant',
+            ), // generic traditional Chinese 'zh_Hant'
+            Locale.fromSubtags(
+              languageCode: 'zh',
+              scriptCode: 'Hans',
+              countryCode: 'CN',
+            ), // 'zh_Hans_CN'
+            Locale.fromSubtags(
+              languageCode: 'zh',
+              scriptCode: 'Hant',
+              countryCode: 'TW',
+            ), // 'zh_Hant_TW'
+            Locale.fromSubtags(
+              languageCode: 'zh',
+              scriptCode: 'Hant',
+              countryCode: 'HK',
+            ), // 'zh_Hant_HK'
+          ],
+          theme: ThemeData(
+            colorSchemeSeed: lightDynamic == null ? Colors.blue : null,
+            colorScheme: lightDynamic,
+            useMaterial3: true,
+          ),
+          darkTheme: ThemeData(
+            colorSchemeSeed: darkDynamic == null ? Colors.blue : null,
+            colorScheme: darkDynamic,
+            useMaterial3: true,
+          ),
+          home: MyHomePage(title: "Tiny Computer"),
+        );
+      },
     );
   }
 }
-
 
 // Limit maximum aspect ratio to 1:1
 class AspectRatioMax1To1 extends StatelessWidget {
@@ -124,7 +124,6 @@ class AspectRatioMax1To1 extends StatelessWidget {
   }
 }
 
-
 class FakeLoadingStatus extends StatefulWidget {
   const FakeLoadingStatus({super.key});
 
@@ -133,7 +132,6 @@ class FakeLoadingStatus extends StatefulWidget {
 }
 
 class _FakeLoadingStatusState extends State<FakeLoadingStatus> {
-
   double _progressT = 0;
   Timer? _timer;
 
@@ -149,7 +147,9 @@ class _FakeLoadingStatusState extends State<FakeLoadingStatus> {
 
   @override
   Widget build(BuildContext context) {
-    return LinearProgressIndicator(value: 1 - pow(10, _progressT / -300).toDouble());
+    return LinearProgressIndicator(
+      value: 1 - pow(10, _progressT / -300).toDouble(),
+    );
   }
 
   @override
@@ -167,8 +167,15 @@ class SettingPage extends StatefulWidget {
 }
 
 class _SettingPageState extends State<SettingPage> {
-
-  final List<bool> _expandState = [false, false, false, false, false, false, false];
+  final List<bool> _expandState = [
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+  ];
 
   double _avncScaleFactor = Util.getGlobal("avncScaleFactor") as double;
 
@@ -178,466 +185,991 @@ class _SettingPageState extends State<SettingPage> {
       elevation: 1,
       expandedHeaderPadding: const EdgeInsets.all(0),
       expansionCallback: (panelIndex, isExpanded) {
-      setState(() {
-        _expandState[panelIndex] = isExpanded;
-      });
-    },children: [
-      ExpansionPanel(
-        isExpanded: _expandState[0],
-        headerBuilder: ((context, isExpanded) {
-          return ListTile(title: Text(AppLocalizations.of(context)!.advancedSettings), subtitle: Text(AppLocalizations.of(context)!.restartAfterChange));
-        }), body: Padding(padding: const EdgeInsets.all(12), child: Column(children: [
-          Wrap(alignment: WrapAlignment.center, spacing: 4.0, runSpacing: 4.0, children: [
-            OutlinedButton(style: D.commandButtonStyle, child: Text(AppLocalizations.of(context)!.resetStartupCommand), onPressed: () {
-              showDialog(context: context, builder: (context) {
-                return AlertDialog(title: Text(AppLocalizations.of(context)!.attention), content: Text(AppLocalizations.of(context)!.confirmResetCommand), actions: [
-                  TextButton(onPressed:() {
-                    Navigator.of(context).pop();
-                  }, child: Text(AppLocalizations.of(context)!.cancel)),
-                  TextButton(onPressed:() async {
-                    await Util.setCurrentProp("boot", Localizations.localeOf(context).languageCode == 'zh' ? D.boot : D.boot.replaceFirst('LANG=zh_CN.UTF-8', 'LANG=en_US.UTF-8').replaceFirst('公共', 'Public').replaceFirst('图片', 'Pictures').replaceFirst('音乐', 'Music').replaceFirst('视频', 'Videos').replaceFirst('下载', 'Downloads').replaceFirst('文档', 'Documents').replaceFirst('照片', 'Photos'));
-                    G.bootTextChange.value = !G.bootTextChange.value;
-                    if (!context.mounted) return;
-                    Navigator.of(context).pop();
-                  }, child: Text(AppLocalizations.of(context)!.yes)),
-                ]);
-              });
-            }),
-            OutlinedButton(style: D.commandButtonStyle, child: Text(AppLocalizations.of(context)!.signal9ErrorPage), onPressed: () async {
-              await D.androidChannel.invokeMethod("launchSignal9Page", {});
-            }),
-          ]),
-          const SizedBox.square(dimension: 8),
-          TextFormField(maxLines: null, initialValue: Util.getCurrentProp("name"), decoration: InputDecoration(border: OutlineInputBorder(), labelText: AppLocalizations.of(context)!.containerName), onChanged: (value) async {
-            await Util.setCurrentProp("name", value);
+        setState(() {
+          _expandState[panelIndex] = isExpanded;
+        });
+      },
+      children: [
+        ExpansionPanel(
+          isExpanded: _expandState[0],
+          headerBuilder: ((context, isExpanded) {
+            return ListTile(
+              title: Text(AppLocalizations.of(context)!.advancedSettings),
+              subtitle: Text(AppLocalizations.of(context)!.restartAfterChange),
+            );
           }),
-          const SizedBox.square(dimension: 8),
-          ValueListenableBuilder(valueListenable: G.bootTextChange, builder:(context, v, child) {
-            return TextFormField(maxLines: null, initialValue: Util.getCurrentProp("boot"), decoration: InputDecoration(border: OutlineInputBorder(), labelText: AppLocalizations.of(context)!.startupCommand), onChanged: (value) async {
-              await Util.setCurrentProp("boot", value);
-            });
-          }),
-          const SizedBox.square(dimension: 8),
-          TextFormField(maxLines: null, initialValue: Util.getCurrentProp("vnc"), decoration: InputDecoration(border: OutlineInputBorder(), labelText: AppLocalizations.of(context)!.vncStartupCommand), onChanged: (value) async {
-            await Util.setCurrentProp("vnc", value);
-          }),
-          const SizedBox.square(dimension: 8),
-          const Divider(height: 2, indent: 8, endIndent: 8),
-          const SizedBox.square(dimension: 16),
-          Text(AppLocalizations.of(context)!.shareUsageHint),
-          const SizedBox.square(dimension: 16),
-          Wrap(alignment: WrapAlignment.center, spacing: 4.0, runSpacing: 4.0, children: [
-            OutlinedButton(style: D.commandButtonStyle, child: Text(AppLocalizations.of(context)!.copyShareLink), onPressed: () async {
-              final String? ip = await NetworkInfo().getWifiIP();
-              if (!context.mounted) return;
-              if (G.wasX11Enabled) {
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(AppLocalizations.of(context)!.x11InvalidHint))
-                );
-                return;
-              }
-              if (ip == null) {
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(AppLocalizations.of(context)!.cannotGetIpAddress))
-                );
-                return;
-              }
-              FlutterClipboard.copy((Util.getCurrentProp("vncUrl") as String).replaceAll(RegExp.escape("localhost"), ip)).then((value) {
-                if (!context.mounted) return;
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(AppLocalizations.of(context)!.shareLinkCopied))
-                );
-              });
-            }),
-          ]),
-          const SizedBox.square(dimension: 16),
-          TextFormField(maxLines: null, initialValue: Util.getCurrentProp("vncUrl"), decoration: InputDecoration(border: OutlineInputBorder(), labelText: AppLocalizations.of(context)!.webRedirectUrl), onChanged: (value) async {
-            await Util.setCurrentProp("vncUrl", value);
-          }),
-          const SizedBox.square(dimension: 8),
-          TextFormField(maxLines: null, initialValue: Util.getCurrentProp("vncUri"), decoration: InputDecoration(border: OutlineInputBorder(), labelText: AppLocalizations.of(context)!.vncLink), onChanged: (value) async {
-            await Util.setCurrentProp("vncUri", value);
-          }),
-          const SizedBox.square(dimension: 8),
-        ],))),
-      ExpansionPanel(
-        isExpanded: _expandState[1],
-        headerBuilder: ((context, isExpanded) {
-          return ListTile(title: Text(AppLocalizations.of(context)!.globalSettings), subtitle: Text(AppLocalizations.of(context)!.enableTerminalEditing));
-        }), body: Padding(padding: const EdgeInsets.all(12), child: Column(children: [
-          TextFormField(autovalidateMode: AutovalidateMode.onUserInteraction, initialValue: (Util.getGlobal("termMaxLines") as int).toString(), decoration: InputDecoration(border: OutlineInputBorder(), labelText: AppLocalizations.of(context)!.terminalMaxLines),
-            keyboardType: TextInputType.number,
-            validator: (value) {
-              return Util.validateBetween(value, 1024, 2147483647, () async {
-                await G.prefs.setInt("termMaxLines", int.parse(value!));
-              });
-            },),
-          const SizedBox.square(dimension: 16),
-          TextFormField(autovalidateMode: AutovalidateMode.onUserInteraction, initialValue: (Util.getGlobal("defaultAudioPort") as int).toString(), decoration: InputDecoration(border: OutlineInputBorder(), labelText: AppLocalizations.of(context)!.pulseaudioPort),
-            keyboardType: TextInputType.number,
-            validator: (value) {
-              return Util.validateBetween(value, 0, 65535, () async {
-                await G.prefs.setInt("defaultAudioPort", int.parse(value!));
-              });
-            }
-          ),
-          const SizedBox.square(dimension: 16),
-          SwitchListTile(title: Text(AppLocalizations.of(context)!.enableTerminal), value: Util.getGlobal("isTerminalWriteEnabled") as bool, onChanged:(value) {
-            G.prefs.setBool("isTerminalWriteEnabled", value);
-            setState(() {});
-          },),
-          const SizedBox.square(dimension: 8),
-          SwitchListTile(title: Text(AppLocalizations.of(context)!.enableTerminalKeypad), value: Util.getGlobal("isTerminalCommandsEnabled") as bool, onChanged:(value) {
-            G.prefs.setBool("isTerminalCommandsEnabled", value);
-            setState(() {
-              G.terminalPageChange.value = !G.terminalPageChange.value;
-            });
-          },),
-          const SizedBox.square(dimension: 8),
-          SwitchListTile(title: Text(AppLocalizations.of(context)!.terminalStickyKeys), value: Util.getGlobal("isStickyKey") as bool, onChanged:(value) {
-            G.prefs.setBool("isStickyKey", value);
-            setState(() {});
-          },),
-          const SizedBox.square(dimension: 8),
-          SwitchListTile(title: Text(AppLocalizations.of(context)!.keepScreenOn), value: Util.getGlobal("wakelock") as bool, onChanged:(value) {
-            G.prefs.setBool("wakelock", value);
-            WakelockPlus.toggle(enable: value);
-            setState(() {});
-          },),
-          const SizedBox.square(dimension: 8),
-          const Divider(height: 2, indent: 8, endIndent: 8),
-          const SizedBox.square(dimension: 16),
-          Text(AppLocalizations.of(context)!.restartRequiredHint),
-          const SizedBox.square(dimension: 8),
-          SwitchListTile(title: Text(AppLocalizations.of(context)!.startWithGUI), value: Util.getGlobal("autoLaunchVnc") as bool, onChanged:(value) {
-            G.prefs.setBool("autoLaunchVnc", value);
-            setState(() {});
-          },),
-          const SizedBox.square(dimension: 8),
-          SwitchListTile(title: Text(AppLocalizations.of(context)!.reinstallBootPackage), value: Util.getGlobal("reinstallBootstrap") as bool, onChanged:(value) {
-            G.prefs.setBool("reinstallBootstrap", value);
-            setState(() {});
-          },),
-          const SizedBox.square(dimension: 8),
-          SwitchListTile(title: Text(AppLocalizations.of(context)!.getifaddrsBridge), subtitle: Text(AppLocalizations.of(context)!.fixGetifaddrsPermission), value: Util.getGlobal("getifaddrsBridge") as bool, onChanged:(value) {
-            G.prefs.setBool("getifaddrsBridge", value);
-            setState(() {});
-          },),
-        ],))),
-      ExpansionPanel(
-        isExpanded: _expandState[2],
-        headerBuilder: ((context, isExpanded) {
-          return ListTile(title: Text(AppLocalizations.of(context)!.displaySettings));
-        }), body: Padding(padding: const EdgeInsets.all(12), child: Column(children: [
-          const SizedBox.square(dimension: 16),
-          Text(AppLocalizations.of(context)!.hidpiAdvantages),
-          const SizedBox.square(dimension: 16),
-          TextFormField(maxLines: null, initialValue: Util.getGlobal("defaultHidpiOpt") as String, decoration: InputDecoration(border: OutlineInputBorder(), labelText: AppLocalizations.of(context)!.hidpiEnvVar),
-            onChanged: (value) async {
-              await G.prefs.setString("defaultHidpiOpt", value);
-            },
-          ),
-          const SizedBox.square(dimension: 8),
-          SwitchListTile(title: Text(AppLocalizations.of(context)!.hidpiSupport), subtitle: Text(AppLocalizations.of(context)!.applyOnNextLaunch), value: Util.getGlobal("isHidpiEnabled") as bool, onChanged:(value) {
-            G.prefs.setBool("isHidpiEnabled", value);
-            // 开启高分辨率后把缩放比调为原来的两倍 +log4(2) = 0.5
-            _avncScaleFactor += value ? 0.5 : -0.5;
-            _avncScaleFactor = _avncScaleFactor.clamp(-1, 1);
-            G.prefs.setDouble("avncScaleFactor", _avncScaleFactor);
-            // Termux:X11 并不是设置缩放比例本身，而是倍率
-            X11Flutter.setX11ScaleFactor(value ? 0.5 : 2.0);
-            setState(() {});
-          },),
-          const SizedBox.square(dimension: 16),
-          const Divider(height: 2, indent: 8, endIndent: 8),
-          const SizedBox.square(dimension: 16),
-          Text(AppLocalizations.of(context)!.avncAdvantages),
-          const SizedBox.square(dimension: 16),
-          Wrap(alignment: WrapAlignment.center, spacing: 4.0, runSpacing: 4.0, children: [
-            OutlinedButton(style: D.commandButtonStyle, child: Text(AppLocalizations.of(context)!.avncSettings), onPressed: () async {
-              await AvncFlutter.launchPrefsPage();
-            }),
-            OutlinedButton(style: D.commandButtonStyle, child: Text(AppLocalizations.of(context)!.aboutAVNC), onPressed: () async {
-              await AvncFlutter.launchAboutPage();
-            }),
-            OutlinedButton(style: D.commandButtonStyle, onPressed: Util.getGlobal("avncResizeDesktop") as bool ? null : () async {
-              final s = WidgetsBinding.instance.platformDispatcher.views.first.physicalSize;
-              final w0 = max(s.width, s.height);
-              final h0 = min(s.width, s.height);
-              String w = (w0 * 0.75).round().toString();
-              String h = (h0 * 0.75).round().toString();
-              showDialog(context: context, builder: (context) {
-                return AlertDialog(title: Text(AppLocalizations.of(context)!.resolutionSettings), content: SingleChildScrollView(child: Column(children: [
-                  Text("${AppLocalizations.of(context)!.deviceScreenResolution} ${w0.round()}x${h0.round()}"),
-                  const SizedBox.square(dimension: 8),
-                  TextFormField(autovalidateMode: AutovalidateMode.onUserInteraction, initialValue: w, decoration: InputDecoration(border: OutlineInputBorder(), labelText: AppLocalizations.of(context)!.width), keyboardType: TextInputType.number,
-                    validator: (value) {
-                      return Util.validateBetween(value, 200, 7680, () {
-                        w = value!;
-                      });
-                    }
-                  ),
-                  const SizedBox.square(dimension: 8),
-                  TextFormField(autovalidateMode: AutovalidateMode.onUserInteraction, initialValue: h, decoration: InputDecoration(border: OutlineInputBorder(), labelText: AppLocalizations.of(context)!.height), keyboardType: TextInputType.number,
-                    validator: (value) {
-                      return Util.validateBetween(value, 200, 7680, () {
-                        h = value!;
-                      });
-                    }
-                  ),
-                ])), actions: [
-                  TextButton(onPressed:() {
-                    Navigator.of(context).pop();
-                  }, child: Text(AppLocalizations.of(context)!.cancel)),
-                  TextButton(onPressed:() async {
-                    Util.termWrite("""sed -i -E "s@^(VNC_RESOLUTION)=.*@\\1=${w}x${h}@" \$(command -v startvnc)""");
-                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("${w}x${h}. ${AppLocalizations.of(context)!.applyOnNextLaunch}"))
-                    );
-                    if (!context.mounted) return;
-                    Navigator.of(context).pop();
-                  }, child: Text(AppLocalizations.of(context)!.save)),
-                ]);
-              });
-            }, child: Text(AppLocalizations.of(context)!.avncResolution)),
-          ]),
-          const SizedBox.square(dimension: 8),
-          SwitchListTile(title: Text(AppLocalizations.of(context)!.useAVNCByDefault), subtitle: Text(AppLocalizations.of(context)!.applyOnNextLaunch), value: Util.getGlobal("useAvnc") as bool, onChanged:(value) {
-            G.prefs.setBool("useAvnc", value);
-            setState(() {});
-          },),
-          const SizedBox.square(dimension: 8),
-          SwitchListTile(title: Text(AppLocalizations.of(context)!.avncScreenResize), value: Util.getGlobal("avncResizeDesktop") as bool, onChanged:(value) {
-            G.prefs.setBool("avncResizeDesktop", value);
-            setState(() {});
-          },),
-          const SizedBox.square(dimension: 8),
-          ListTile(
-            title: Text(AppLocalizations.of(context)!.avncResizeFactor),
-            onTap: () {},
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          body: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
               children: [
-                SizedBox(height: 8),
-                Text('${AppLocalizations.of(context)!.avncResizeFactorValue} ${pow(4, _avncScaleFactor).toStringAsFixed(2)}x'),
-                SizedBox(height: 12),
-                Slider(
-                  value: _avncScaleFactor,
-                  min: -1,
-                  max: 1,
-                  divisions: 96,
-                  onChangeEnd: (double value) {
-                    G.prefs.setDouble("avncScaleFactor", value);
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 4.0,
+                  runSpacing: 4.0,
+                  children: [
+                    OutlinedButton(
+                      style: D.commandButtonStyle,
+                      child: Text(
+                        AppLocalizations.of(context)!.resetStartupCommand,
+                      ),
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) {
+                            return AlertDialog(
+                              title: Text(
+                                AppLocalizations.of(context)!.attention,
+                              ),
+                              content: Text(
+                                AppLocalizations.of(
+                                  context,
+                                )!.confirmResetCommand,
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.of(context).pop();
+                                  },
+                                  child: Text(
+                                    AppLocalizations.of(context)!.cancel,
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: () async {
+                                    await Util.setCurrentProp(
+                                      "boot",
+                                      Localizations.localeOf(
+                                                context,
+                                              ).languageCode ==
+                                              'zh'
+                                          ? D.boot
+                                          : D.boot
+                                                .replaceFirst(
+                                                  'LANG=zh_CN.UTF-8',
+                                                  'LANG=en_US.UTF-8',
+                                                )
+                                                .replaceFirst('公共', 'Public')
+                                                .replaceFirst('图片', 'Pictures')
+                                                .replaceFirst('音乐', 'Music')
+                                                .replaceFirst('视频', 'Videos')
+                                                .replaceFirst('下载', 'Downloads')
+                                                .replaceFirst('文档', 'Documents')
+                                                .replaceFirst('照片', 'Photos'),
+                                    );
+                                    G.bootTextChange.value =
+                                        !G.bootTextChange.value;
+                                    if (!context.mounted) return;
+                                    Navigator.of(context).pop();
+                                  },
+                                  child: Text(
+                                    AppLocalizations.of(context)!.yes,
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                      },
+                    ),
+                    OutlinedButton(
+                      style: D.commandButtonStyle,
+                      child: Text(
+                        AppLocalizations.of(context)!.signal9ErrorPage,
+                      ),
+                      onPressed: () async {
+                        await D.androidChannel.invokeMethod(
+                          "launchSignal9Page",
+                          {},
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox.square(dimension: 8),
+                TextFormField(
+                  maxLines: null,
+                  initialValue: Util.getCurrentProp("name"),
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: AppLocalizations.of(context)!.containerName,
+                  ),
+                  onChanged: (value) async {
+                    await Util.setCurrentProp("name", value);
                   },
-                  onChanged: Util.getGlobal("avncResizeDesktop") as bool ? (double value) {
-                    _avncScaleFactor = value;
+                ),
+                const SizedBox.square(dimension: 8),
+                ValueListenableBuilder(
+                  valueListenable: G.bootTextChange,
+                  builder: (context, v, child) {
+                    return TextFormField(
+                      maxLines: null,
+                      initialValue: Util.getCurrentProp("boot"),
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(),
+                        labelText: AppLocalizations.of(context)!.startupCommand,
+                      ),
+                      onChanged: (value) async {
+                        await Util.setCurrentProp("boot", value);
+                      },
+                    );
+                  },
+                ),
+                const SizedBox.square(dimension: 8),
+                TextFormField(
+                  maxLines: null,
+                  initialValue: Util.getCurrentProp("vnc"),
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: AppLocalizations.of(context)!.vncStartupCommand,
+                  ),
+                  onChanged: (value) async {
+                    await Util.setCurrentProp("vnc", value);
+                  },
+                ),
+                const SizedBox.square(dimension: 8),
+                const Divider(height: 2, indent: 8, endIndent: 8),
+                const SizedBox.square(dimension: 16),
+                Text(AppLocalizations.of(context)!.shareUsageHint),
+                const SizedBox.square(dimension: 16),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 4.0,
+                  runSpacing: 4.0,
+                  children: [
+                    OutlinedButton(
+                      style: D.commandButtonStyle,
+                      child: Text(AppLocalizations.of(context)!.copyShareLink),
+                      onPressed: () async {
+                        final String? ip = await NetworkInfo().getWifiIP();
+                        if (!context.mounted) return;
+                        if (G.wasX11Enabled) {
+                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                AppLocalizations.of(context)!.x11InvalidHint,
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+                        if (ip == null) {
+                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                AppLocalizations.of(
+                                  context,
+                                )!.cannotGetIpAddress,
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+                        FlutterClipboard.copy(
+                          (Util.getCurrentProp("vncUrl") as String).replaceAll(
+                            RegExp.escape("localhost"),
+                            ip,
+                          ),
+                        ).then((value) {
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                AppLocalizations.of(context)!.shareLinkCopied,
+                              ),
+                            ),
+                          );
+                        });
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox.square(dimension: 16),
+                TextFormField(
+                  maxLines: null,
+                  initialValue: Util.getCurrentProp("vncUrl"),
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: AppLocalizations.of(context)!.webRedirectUrl,
+                  ),
+                  onChanged: (value) async {
+                    await Util.setCurrentProp("vncUrl", value);
+                  },
+                ),
+                const SizedBox.square(dimension: 8),
+                TextFormField(
+                  maxLines: null,
+                  initialValue: Util.getCurrentProp("vncUri"),
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: AppLocalizations.of(context)!.vncLink,
+                  ),
+                  onChanged: (value) async {
+                    await Util.setCurrentProp("vncUri", value);
+                  },
+                ),
+                const SizedBox.square(dimension: 8),
+              ],
+            ),
+          ),
+        ),
+        ExpansionPanel(
+          isExpanded: _expandState[1],
+          headerBuilder: ((context, isExpanded) {
+            return ListTile(
+              title: Text(AppLocalizations.of(context)!.globalSettings),
+              subtitle: Text(
+                AppLocalizations.of(context)!.enableTerminalEditing,
+              ),
+            );
+          }),
+          body: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              children: [
+                TextFormField(
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  initialValue: (Util.getGlobal("termMaxLines") as int)
+                      .toString(),
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: AppLocalizations.of(context)!.terminalMaxLines,
+                  ),
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    return Util.validateBetween(
+                      value,
+                      1024,
+                      2147483647,
+                      () async {
+                        await G.prefs.setInt("termMaxLines", int.parse(value!));
+                      },
+                    );
+                  },
+                ),
+                const SizedBox.square(dimension: 16),
+                TextFormField(
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  initialValue: (Util.getGlobal("defaultAudioPort") as int)
+                      .toString(),
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: AppLocalizations.of(context)!.pulseaudioPort,
+                  ),
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    return Util.validateBetween(value, 0, 65535, () async {
+                      await G.prefs.setInt(
+                        "defaultAudioPort",
+                        int.parse(value!),
+                      );
+                    });
+                  },
+                ),
+                const SizedBox.square(dimension: 16),
+                SwitchListTile(
+                  title: Text(AppLocalizations.of(context)!.enableTerminal),
+                  value: Util.getGlobal("isTerminalWriteEnabled") as bool,
+                  onChanged: (value) {
+                    G.prefs.setBool("isTerminalWriteEnabled", value);
                     setState(() {});
-                  } : null,
+                  },
+                ),
+                const SizedBox.square(dimension: 8),
+                SwitchListTile(
+                  title: Text(
+                    AppLocalizations.of(context)!.enableTerminalKeypad,
+                  ),
+                  value: Util.getGlobal("isTerminalCommandsEnabled") as bool,
+                  onChanged: (value) {
+                    G.prefs.setBool("isTerminalCommandsEnabled", value);
+                    setState(() {
+                      G.terminalPageChange.value = !G.terminalPageChange.value;
+                    });
+                  },
+                ),
+                const SizedBox.square(dimension: 8),
+                SwitchListTile(
+                  title: Text(AppLocalizations.of(context)!.terminalStickyKeys),
+                  value: Util.getGlobal("isStickyKey") as bool,
+                  onChanged: (value) {
+                    G.prefs.setBool("isStickyKey", value);
+                    setState(() {});
+                  },
+                ),
+                const SizedBox.square(dimension: 8),
+                SwitchListTile(
+                  title: Text(AppLocalizations.of(context)!.keepScreenOn),
+                  value: Util.getGlobal("wakelock") as bool,
+                  onChanged: (value) {
+                    G.prefs.setBool("wakelock", value);
+                    WakelockPlus.toggle(enable: value);
+                    setState(() {});
+                  },
+                ),
+                const SizedBox.square(dimension: 8),
+                const Divider(height: 2, indent: 8, endIndent: 8),
+                const SizedBox.square(dimension: 16),
+                Text(AppLocalizations.of(context)!.restartRequiredHint),
+                const SizedBox.square(dimension: 8),
+                SwitchListTile(
+                  title: Text(AppLocalizations.of(context)!.startWithGUI),
+                  value: Util.getGlobal("autoLaunchVnc") as bool,
+                  onChanged: (value) {
+                    G.prefs.setBool("autoLaunchVnc", value);
+                    setState(() {});
+                  },
+                ),
+                const SizedBox.square(dimension: 8),
+                SwitchListTile(
+                  title: Text(
+                    AppLocalizations.of(context)!.reinstallBootPackage,
+                  ),
+                  value: Util.getGlobal("reinstallBootstrap") as bool,
+                  onChanged: (value) {
+                    G.prefs.setBool("reinstallBootstrap", value);
+                    setState(() {});
+                  },
+                ),
+                const SizedBox.square(dimension: 8),
+                SwitchListTile(
+                  title: Text(AppLocalizations.of(context)!.getifaddrsBridge),
+                  subtitle: Text(
+                    AppLocalizations.of(context)!.fixGetifaddrsPermission,
+                  ),
+                  value: Util.getGlobal("getifaddrsBridge") as bool,
+                  onChanged: (value) {
+                    G.prefs.setBool("getifaddrsBridge", value);
+                    setState(() {});
+                  },
                 ),
               ],
             ),
           ),
-          const SizedBox.square(dimension: 16),
-          const Divider(height: 2, indent: 8, endIndent: 8),
-          const SizedBox.square(dimension: 16),
-          Text(AppLocalizations.of(context)!.termuxX11Advantages),
-          const SizedBox.square(dimension: 16),
-          Wrap(alignment: WrapAlignment.center, spacing: 4.0, runSpacing: 4.0, children: [
-            OutlinedButton(style: D.commandButtonStyle, child: Text(AppLocalizations.of(context)!.termuxX11Preferences), onPressed: () async {
-              await X11Flutter.launchX11PrefsPage();
-            }),
-          ]),
-          const SizedBox.square(dimension: 8),
-          SwitchListTile(title: Text(AppLocalizations.of(context)!.useTermuxX11ByDefault), subtitle: Text(AppLocalizations.of(context)!.disableVNC), value: Util.getGlobal("useX11") as bool, onChanged:(value) {
-            G.prefs.setBool("useX11", value);
-            if (!value && Util.getGlobal("dri3")) {
-              G.prefs.setBool("dri3", false);
-            }
-            setState(() {});
-          },),
-          const SizedBox.square(dimension: 16),
-        ],))),
-      ExpansionPanel(
-        isExpanded: _expandState[3],
-        headerBuilder: ((context, isExpanded) {
-          return ListTile(title: Text(AppLocalizations.of(context)!.fileAccess));
-        }), body: Padding(padding: const EdgeInsets.all(12), child: Column(children: [
-          Text(AppLocalizations.of(context)!.fileAccessHint),
-          const SizedBox.square(dimension: 16),
-          Wrap(alignment: WrapAlignment.center, spacing: 4.0, runSpacing: 4.0, children: [
-            OutlinedButton(style: D.commandButtonStyle, child: Text(AppLocalizations.of(context)!.requestStoragePermission), onPressed: () {
-              Permission.storage.request();
-            }),
-            OutlinedButton(style: D.commandButtonStyle, child: Text(AppLocalizations.of(context)!.requestAllFilesAccess), onPressed: () {
-              Permission.manageExternalStorage.request();
-            }),
-            OutlinedButton(style: D.commandButtonStyle, child: Text(AppLocalizations.of(context)!.fileAccessGuide), onPressed: () {
-              launchUrl(Uri.parse("https://gitee.com/caten/tc-hints/blob/master/pool/fileaccess.md"), mode: LaunchMode.externalApplication);
-            }),
-          ]),
-          const SizedBox.square(dimension: 16),
-        ],))),
-      ExpansionPanel(
-        isExpanded: _expandState[4],
-        headerBuilder: ((context, isExpanded) {
-          return ListTile(title: Text(AppLocalizations.of(context)!.graphicsAcceleration), subtitle: Text(AppLocalizations.of(context)!.experimentalFeature));
-        }), body: Padding(padding: const EdgeInsets.all(12), child: Column(children: [
-          Text(AppLocalizations.of(context)!.graphicsAccelerationHint),
-          const SizedBox.square(dimension: 16),
-          TextFormField(maxLines: null, initialValue: Util.getGlobal("defaultVirglCommand") as String, decoration: InputDecoration(border: OutlineInputBorder(), labelText: AppLocalizations.of(context)!.virglServerParams),
-            onChanged: (value) async {
-              await G.prefs.setString("defaultVirglCommand", value);
-            },
+        ),
+        ExpansionPanel(
+          isExpanded: _expandState[2],
+          headerBuilder: ((context, isExpanded) {
+            return ListTile(
+              title: Text(AppLocalizations.of(context)!.displaySettings),
+            );
+          }),
+          body: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              children: [
+                const SizedBox.square(dimension: 16),
+                Text(AppLocalizations.of(context)!.hidpiAdvantages),
+                const SizedBox.square(dimension: 16),
+                TextFormField(
+                  maxLines: null,
+                  initialValue: Util.getGlobal("defaultHidpiOpt") as String,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: AppLocalizations.of(context)!.hidpiEnvVar,
+                  ),
+                  onChanged: (value) async {
+                    await G.prefs.setString("defaultHidpiOpt", value);
+                  },
+                ),
+                const SizedBox.square(dimension: 8),
+                SwitchListTile(
+                  title: Text(AppLocalizations.of(context)!.hidpiSupport),
+                  subtitle: Text(
+                    AppLocalizations.of(context)!.applyOnNextLaunch,
+                  ),
+                  value: Util.getGlobal("isHidpiEnabled") as bool,
+                  onChanged: (value) {
+                    G.prefs.setBool("isHidpiEnabled", value);
+                    // 开启高分辨率后把缩放比调为原来的两倍 +log4(2) = 0.5
+                    _avncScaleFactor += value ? 0.5 : -0.5;
+                    _avncScaleFactor = _avncScaleFactor.clamp(-1, 1);
+                    G.prefs.setDouble("avncScaleFactor", _avncScaleFactor);
+                    // Termux:X11 并不是设置缩放比例本身，而是倍率
+                    X11Flutter.setX11ScaleFactor(value ? 0.5 : 2.0);
+                    setState(() {});
+                  },
+                ),
+                const SizedBox.square(dimension: 16),
+                const Divider(height: 2, indent: 8, endIndent: 8),
+                const SizedBox.square(dimension: 16),
+                Text(AppLocalizations.of(context)!.avncAdvantages),
+                const SizedBox.square(dimension: 16),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 4.0,
+                  runSpacing: 4.0,
+                  children: [
+                    OutlinedButton(
+                      style: D.commandButtonStyle,
+                      child: Text(AppLocalizations.of(context)!.avncSettings),
+                      onPressed: () async {
+                        await AvncFlutter.launchPrefsPage();
+                      },
+                    ),
+                    OutlinedButton(
+                      style: D.commandButtonStyle,
+                      child: Text(AppLocalizations.of(context)!.aboutAVNC),
+                      onPressed: () async {
+                        await AvncFlutter.launchAboutPage();
+                      },
+                    ),
+                    OutlinedButton(
+                      style: D.commandButtonStyle,
+                      onPressed: Util.getGlobal("avncResizeDesktop") as bool
+                          ? null
+                          : () async {
+                              final s = WidgetsBinding
+                                  .instance
+                                  .platformDispatcher
+                                  .views
+                                  .first
+                                  .physicalSize;
+                              final w0 = max(s.width, s.height);
+                              final h0 = min(s.width, s.height);
+                              String w = (w0 * 0.75).round().toString();
+                              String h = (h0 * 0.75).round().toString();
+                              showDialog(
+                                context: context,
+                                builder: (context) {
+                                  return AlertDialog(
+                                    title: Text(
+                                      AppLocalizations.of(
+                                        context,
+                                      )!.resolutionSettings,
+                                    ),
+                                    content: SingleChildScrollView(
+                                      child: Column(
+                                        children: [
+                                          Text(
+                                            "${AppLocalizations.of(context)!.deviceScreenResolution} ${w0.round()}x${h0.round()}",
+                                          ),
+                                          const SizedBox.square(dimension: 8),
+                                          TextFormField(
+                                            autovalidateMode: AutovalidateMode
+                                                .onUserInteraction,
+                                            initialValue: w,
+                                            decoration: InputDecoration(
+                                              border: OutlineInputBorder(),
+                                              labelText: AppLocalizations.of(
+                                                context,
+                                              )!.width,
+                                            ),
+                                            keyboardType: TextInputType.number,
+                                            validator: (value) {
+                                              return Util.validateBetween(
+                                                value,
+                                                200,
+                                                7680,
+                                                () {
+                                                  w = value!;
+                                                },
+                                              );
+                                            },
+                                          ),
+                                          const SizedBox.square(dimension: 8),
+                                          TextFormField(
+                                            autovalidateMode: AutovalidateMode
+                                                .onUserInteraction,
+                                            initialValue: h,
+                                            decoration: InputDecoration(
+                                              border: OutlineInputBorder(),
+                                              labelText: AppLocalizations.of(
+                                                context,
+                                              )!.height,
+                                            ),
+                                            keyboardType: TextInputType.number,
+                                            validator: (value) {
+                                              return Util.validateBetween(
+                                                value,
+                                                200,
+                                                7680,
+                                                () {
+                                                  h = value!;
+                                                },
+                                              );
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () {
+                                          Navigator.of(context).pop();
+                                        },
+                                        child: Text(
+                                          AppLocalizations.of(context)!.cancel,
+                                        ),
+                                      ),
+                                      TextButton(
+                                        onPressed: () async {
+                                          Util.termWrite(
+                                            """sed -i -E "s@^(VNC_RESOLUTION)=.*@\\1=${w}x${h}@" \$(command -v startvnc)""",
+                                          );
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).hideCurrentSnackBar();
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                "${w}x${h}. ${AppLocalizations.of(context)!.applyOnNextLaunch}",
+                                              ),
+                                            ),
+                                          );
+                                          if (!context.mounted) return;
+                                          Navigator.of(context).pop();
+                                        },
+                                        child: Text(
+                                          AppLocalizations.of(context)!.save,
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+                            },
+                      child: Text(AppLocalizations.of(context)!.avncResolution),
+                    ),
+                  ],
+                ),
+                const SizedBox.square(dimension: 8),
+                SwitchListTile(
+                  title: Text(AppLocalizations.of(context)!.useAVNCByDefault),
+                  subtitle: Text(
+                    AppLocalizations.of(context)!.applyOnNextLaunch,
+                  ),
+                  value: Util.getGlobal("useAvnc") as bool,
+                  onChanged: (value) {
+                    G.prefs.setBool("useAvnc", value);
+                    setState(() {});
+                  },
+                ),
+                const SizedBox.square(dimension: 8),
+                SwitchListTile(
+                  title: Text(AppLocalizations.of(context)!.avncScreenResize),
+                  value: Util.getGlobal("avncResizeDesktop") as bool,
+                  onChanged: (value) {
+                    G.prefs.setBool("avncResizeDesktop", value);
+                    setState(() {});
+                  },
+                ),
+                const SizedBox.square(dimension: 8),
+                ListTile(
+                  title: Text(AppLocalizations.of(context)!.avncResizeFactor),
+                  onTap: () {},
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(height: 8),
+                      Text(
+                        '${AppLocalizations.of(context)!.avncResizeFactorValue} ${pow(4, _avncScaleFactor).toStringAsFixed(2)}x',
+                      ),
+                      SizedBox(height: 12),
+                      Slider(
+                        value: _avncScaleFactor,
+                        min: -1,
+                        max: 1,
+                        divisions: 96,
+                        onChangeEnd: (double value) {
+                          G.prefs.setDouble("avncScaleFactor", value);
+                        },
+                        onChanged: Util.getGlobal("avncResizeDesktop") as bool
+                            ? (double value) {
+                                _avncScaleFactor = value;
+                                setState(() {});
+                              }
+                            : null,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox.square(dimension: 16),
+                const Divider(height: 2, indent: 8, endIndent: 8),
+                const SizedBox.square(dimension: 16),
+                Text(AppLocalizations.of(context)!.termuxX11Advantages),
+                const SizedBox.square(dimension: 16),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 4.0,
+                  runSpacing: 4.0,
+                  children: [
+                    OutlinedButton(
+                      style: D.commandButtonStyle,
+                      child: Text(
+                        AppLocalizations.of(context)!.termuxX11Preferences,
+                      ),
+                      onPressed: () async {
+                        await X11Flutter.launchX11PrefsPage();
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox.square(dimension: 8),
+                SwitchListTile(
+                  title: Text(
+                    AppLocalizations.of(context)!.useTermuxX11ByDefault,
+                  ),
+                  subtitle: Text(AppLocalizations.of(context)!.disableVNC),
+                  value: Util.getGlobal("useX11") as bool,
+                  onChanged: (value) {
+                    G.prefs.setBool("useX11", value);
+                    if (!value && Util.getGlobal("dri3")) {
+                      G.prefs.setBool("dri3", false);
+                    }
+                    setState(() {});
+                  },
+                ),
+                const SizedBox.square(dimension: 16),
+              ],
+            ),
           ),
-          const SizedBox.square(dimension: 8),
-          TextFormField(maxLines: null, initialValue: Util.getGlobal("defaultVirglOpt") as String, decoration: InputDecoration(border: OutlineInputBorder(), labelText: AppLocalizations.of(context)!.virglEnvVar),
-            onChanged: (value) async {
-              await G.prefs.setString("defaultVirglOpt", value);
-            },
+        ),
+        ExpansionPanel(
+          isExpanded: _expandState[3],
+          headerBuilder: ((context, isExpanded) {
+            return ListTile(
+              title: Text(AppLocalizations.of(context)!.fileAccess),
+            );
+          }),
+          body: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              children: [
+                Text(AppLocalizations.of(context)!.fileAccessHint),
+                const SizedBox.square(dimension: 16),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 4.0,
+                  runSpacing: 4.0,
+                  children: [
+                    OutlinedButton(
+                      style: D.commandButtonStyle,
+                      child: Text(
+                        AppLocalizations.of(context)!.requestStoragePermission,
+                      ),
+                      onPressed: () {
+                        Permission.storage.request();
+                      },
+                    ),
+                    OutlinedButton(
+                      style: D.commandButtonStyle,
+                      child: Text(
+                        AppLocalizations.of(context)!.requestAllFilesAccess,
+                      ),
+                      onPressed: () {
+                        Permission.manageExternalStorage.request();
+                      },
+                    ),
+                    OutlinedButton(
+                      style: D.commandButtonStyle,
+                      child: Text(
+                        AppLocalizations.of(context)!.fileAccessGuide,
+                      ),
+                      onPressed: () {
+                        launchUrl(
+                          Uri.parse(
+                            "https://gitee.com/caten/tc-hints/blob/master/pool/fileaccess.md",
+                          ),
+                          mode: LaunchMode.externalApplication,
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox.square(dimension: 16),
+              ],
+            ),
           ),
-          const SizedBox.square(dimension: 8),
-          SwitchListTile(title: Text(AppLocalizations.of(context)!.enableVirgl), subtitle: Text(AppLocalizations.of(context)!.applyOnNextLaunch), value: Util.getGlobal("virgl") as bool, onChanged:(value) {
-            G.prefs.setBool("virgl", value);
-            setState(() {});
-          },),
-          const SizedBox.square(dimension: 16),
-          const Divider(height: 2, indent: 8, endIndent: 8),
-          const SizedBox.square(dimension: 16),
-          Text(AppLocalizations.of(context)!.turnipAdvantages),
-          const SizedBox.square(dimension: 8),
-          TextFormField(maxLines: null, initialValue: Util.getGlobal("defaultTurnipOpt") as String, decoration: InputDecoration(border: OutlineInputBorder(), labelText: AppLocalizations.of(context)!.turnipEnvVar),
-            onChanged: (value) async {
-              await G.prefs.setString("defaultTurnipOpt", value);
-            },
+        ),
+        ExpansionPanel(
+          isExpanded: _expandState[4],
+          headerBuilder: ((context, isExpanded) {
+            return ListTile(
+              title: Text(AppLocalizations.of(context)!.graphicsAcceleration),
+              subtitle: Text(AppLocalizations.of(context)!.experimentalFeature),
+            );
+          }),
+          body: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              children: [
+                Text(AppLocalizations.of(context)!.graphicsAccelerationHint),
+                const SizedBox.square(dimension: 16),
+                TextFormField(
+                  maxLines: null,
+                  initialValue: Util.getGlobal("defaultVirglCommand") as String,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: AppLocalizations.of(context)!.virglServerParams,
+                  ),
+                  onChanged: (value) async {
+                    await G.prefs.setString("defaultVirglCommand", value);
+                  },
+                ),
+                const SizedBox.square(dimension: 8),
+                TextFormField(
+                  maxLines: null,
+                  initialValue: Util.getGlobal("defaultVirglOpt") as String,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: AppLocalizations.of(context)!.virglEnvVar,
+                  ),
+                  onChanged: (value) async {
+                    await G.prefs.setString("defaultVirglOpt", value);
+                  },
+                ),
+                const SizedBox.square(dimension: 8),
+                SwitchListTile(
+                  title: Text(AppLocalizations.of(context)!.enableVirgl),
+                  subtitle: Text(
+                    AppLocalizations.of(context)!.applyOnNextLaunch,
+                  ),
+                  value: Util.getGlobal("virgl") as bool,
+                  onChanged: (value) {
+                    G.prefs.setBool("virgl", value);
+                    setState(() {});
+                  },
+                ),
+                const SizedBox.square(dimension: 16),
+                const Divider(height: 2, indent: 8, endIndent: 8),
+                const SizedBox.square(dimension: 16),
+                Text(AppLocalizations.of(context)!.turnipAdvantages),
+                const SizedBox.square(dimension: 8),
+                TextFormField(
+                  maxLines: null,
+                  initialValue: Util.getGlobal("defaultTurnipOpt") as String,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: AppLocalizations.of(context)!.turnipEnvVar,
+                  ),
+                  onChanged: (value) async {
+                    await G.prefs.setString("defaultTurnipOpt", value);
+                  },
+                ),
+                const SizedBox.square(dimension: 8),
+                SwitchListTile(
+                  title: Text(AppLocalizations.of(context)!.enableTurnipZink),
+                  subtitle: Text(
+                    AppLocalizations.of(context)!.applyOnNextLaunch,
+                  ),
+                  value: Util.getGlobal("turnip") as bool,
+                  onChanged: (value) async {
+                    G.prefs.setBool("turnip", value);
+                    if (!value && Util.getGlobal("dri3")) {
+                      G.prefs.setBool("dri3", false);
+                    }
+                    setState(() {});
+                  },
+                ),
+                const SizedBox.square(dimension: 8),
+                SwitchListTile(
+                  title: Text(AppLocalizations.of(context)!.enableDRI3),
+                  subtitle: Text(
+                    AppLocalizations.of(context)!.applyOnNextLaunch,
+                  ),
+                  value: Util.getGlobal("dri3") as bool,
+                  onChanged: (value) async {
+                    if (value &&
+                        !(Util.getGlobal("turnip") &&
+                            Util.getGlobal("useX11"))) {
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            AppLocalizations.of(context)!.dri3Requirement,
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+                    G.prefs.setBool("dri3", value);
+                    setState(() {});
+                  },
+                ),
+                const SizedBox.square(dimension: 16),
+              ],
+            ),
           ),
-          const SizedBox.square(dimension: 8),
-          SwitchListTile(title: Text(AppLocalizations.of(context)!.enableTurnipZink), subtitle: Text(AppLocalizations.of(context)!.applyOnNextLaunch), value: Util.getGlobal("turnip") as bool, onChanged:(value) async {
-            G.prefs.setBool("turnip", value);
-            if (!value && Util.getGlobal("dri3")) {
-              G.prefs.setBool("dri3", false);
-            }
-            setState(() {});
-          },),
-          const SizedBox.square(dimension: 8),
-          SwitchListTile(title: Text(AppLocalizations.of(context)!.enableDRI3), subtitle: Text(AppLocalizations.of(context)!.applyOnNextLaunch), value: Util.getGlobal("dri3") as bool, onChanged:(value) async {
-            if (value && !(Util.getGlobal("turnip") && Util.getGlobal("useX11"))) {
-              if (!context.mounted) return;
-              ScaffoldMessenger.of(context).hideCurrentSnackBar();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(AppLocalizations.of(context)!.dri3Requirement))
-              );
-              return;
-            }
-            G.prefs.setBool("dri3", value);
-            setState(() {});
-          },),
-          const SizedBox.square(dimension: 16),
-        ],))),
-      ExpansionPanel(
-        isExpanded: _expandState[5],
-        headerBuilder: ((context, isExpanded) {
-          return ListTile(title: Text(AppLocalizations.of(context)!.windowsAppSupport), subtitle: Text(AppLocalizations.of(context)!.experimentalFeature),);
-        }), body: Padding(padding: const EdgeInsets.all(12), child: Column(children: [
-          Text(AppLocalizations.of(context)!.hangoverDescription),
-          const SizedBox.square(dimension: 8),
-          Wrap(alignment: WrapAlignment.center, spacing: 4.0, runSpacing: 4.0, children: [
-            OutlinedButton(style: D.commandButtonStyle, child: Text("${AppLocalizations.of(context)!.installHangoverStable}（11.0）"), onPressed: () async {
-              Util.termWrite("bash ~/.local/share/tiny/extra/install-hangover-stable");
-              G.pageIndex.value = 0;
-            }),
-            OutlinedButton(style: D.commandButtonStyle, child: Text(AppLocalizations.of(context)!.installHangoverLatest), onPressed: () async {
-              Util.termWrite("bash ~/.local/share/tiny/extra/install-hangover");
-              G.pageIndex.value = 0;
-            }),
-            OutlinedButton(style: D.commandButtonStyle, child: Text(AppLocalizations.of(context)!.uninstallHangover), onPressed: () async {
-              Util.termWrite("sudo pacman -Rns --noconfirm hangover*");
-              G.pageIndex.value = 0;
-            }),
-            OutlinedButton(style: D.commandButtonStyle, child: Text(AppLocalizations.of(context)!.clearWineData), onPressed: () async {
-              Util.termWrite("rm -rf ~/.wine");
-              G.pageIndex.value = 0;
-            }),
-          ]),
-          const SizedBox.square(dimension: 16),
-          const Divider(height: 2, indent: 8, endIndent: 8),
-          const SizedBox.square(dimension: 16),
-          Text(AppLocalizations.of(context)!.wineCommandsHint),
-          const SizedBox.square(dimension: 8),
-          Wrap(
-            alignment: WrapAlignment.center,
-            spacing: 4.0,
-            runSpacing: 4.0,
-            children: (Localizations.localeOf(context).languageCode == 'zh' 
-                ? D.wineCommands 
-                : D.wineCommands4En
-            ).asMap().entries.map<Widget>((e) {
-              return OutlinedButton(
-                style: D.commandButtonStyle,
-                child: Text(e.value["name"]!),
-                onPressed: () {
-                  Util.termWrite("${e.value["command"]!} &");
-                  G.pageIndex.value = 0;
-                },
-              );
-            }).toList(),
+        ),
+        ExpansionPanel(
+          isExpanded: _expandState[5],
+          headerBuilder: ((context, isExpanded) {
+            return ListTile(
+              title: Text(AppLocalizations.of(context)!.windowsAppSupport),
+              subtitle: Text(AppLocalizations.of(context)!.experimentalFeature),
+            );
+          }),
+          body: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              children: [
+                Text(AppLocalizations.of(context)!.hangoverDescription),
+                const SizedBox.square(dimension: 8),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 4.0,
+                  runSpacing: 4.0,
+                  children: [
+                    OutlinedButton(
+                      style: D.commandButtonStyle,
+                      child: Text(
+                        "${AppLocalizations.of(context)!.installHangoverStable}（11.0）",
+                      ),
+                      onPressed: () async {
+                        Util.termWrite(
+                          "bash ~/.local/share/tiny/extra/install-hangover-stable",
+                        );
+                        G.pageIndex.value = 0;
+                      },
+                    ),
+                    OutlinedButton(
+                      style: D.commandButtonStyle,
+                      child: Text(
+                        AppLocalizations.of(context)!.installHangoverLatest,
+                      ),
+                      onPressed: () async {
+                        Util.termWrite(
+                          "bash ~/.local/share/tiny/extra/install-hangover",
+                        );
+                        G.pageIndex.value = 0;
+                      },
+                    ),
+                    OutlinedButton(
+                      style: D.commandButtonStyle,
+                      child: Text(
+                        AppLocalizations.of(context)!.uninstallHangover,
+                      ),
+                      onPressed: () async {
+                        Util.termWrite(
+                          "sudo pacman -Rns --noconfirm hangover*",
+                        );
+                        G.pageIndex.value = 0;
+                      },
+                    ),
+                    OutlinedButton(
+                      style: D.commandButtonStyle,
+                      child: Text(AppLocalizations.of(context)!.clearWineData),
+                      onPressed: () async {
+                        Util.termWrite("rm -rf ~/.wine");
+                        G.pageIndex.value = 0;
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox.square(dimension: 16),
+                const Divider(height: 2, indent: 8, endIndent: 8),
+                const SizedBox.square(dimension: 16),
+                Text(AppLocalizations.of(context)!.wineCommandsHint),
+                const SizedBox.square(dimension: 8),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 4.0,
+                  runSpacing: 4.0,
+                  children:
+                      (Localizations.localeOf(context).languageCode == 'zh'
+                              ? D.wineCommands
+                              : D.wineCommands4En)
+                          .asMap()
+                          .entries
+                          .map<Widget>((e) {
+                            return OutlinedButton(
+                              style: D.commandButtonStyle,
+                              child: Text(e.value["name"]!),
+                              onPressed: () {
+                                Util.termWrite("${e.value["command"]!} &");
+                                G.pageIndex.value = 0;
+                              },
+                            );
+                          })
+                          .toList(),
+                ),
+                const SizedBox.square(dimension: 16),
+                const Divider(height: 2, indent: 8, endIndent: 8),
+                const SizedBox.square(dimension: 16),
+                Text(AppLocalizations.of(context)!.restartRequiredHint),
+                const SizedBox.square(dimension: 8),
+                SwitchListTile(
+                  title: Text(AppLocalizations.of(context)!.switchToJapanese),
+                  subtitle: const Text("システムを日本語に切り替える"),
+                  value: Util.getGlobal("isJpEnabled") as bool,
+                  onChanged: (value) async {
+                    if (value) {
+                      Util.termWrite(
+                        "sudo localedef -c -i ja_JP -f UTF-8 ja_JP.UTF-8",
+                      );
+                      G.pageIndex.value = 0;
+                    }
+                    G.prefs.setBool("isJpEnabled", value);
+                    setState(() {});
+                  },
+                ),
+              ],
+            ),
           ),
-          const SizedBox.square(dimension: 16),
-          const Divider(height: 2, indent: 8, endIndent: 8),
-          const SizedBox.square(dimension: 16),
-          Text(AppLocalizations.of(context)!.restartRequiredHint),
-          const SizedBox.square(dimension: 8),
-          SwitchListTile(title: Text(AppLocalizations.of(context)!.switchToJapanese), subtitle: const Text("システムを日本語に切り替える"), value: Util.getGlobal("isJpEnabled") as bool, onChanged:(value) async {
-            if (value) {
-                Util.termWrite("sudo localedef -c -i ja_JP -f UTF-8 ja_JP.UTF-8");
-                G.pageIndex.value = 0;
-            }
-            G.prefs.setBool("isJpEnabled", value);
-            setState(() {});
-          },),
-        ],))),
-      ExpansionPanel(
-        isExpanded: _expandState[6],
-        headerBuilder: ((context, isExpanded) {
-          return ListTile(title: Text(AppLocalizations.of(context)!.microphoneSupport), subtitle: Text(AppLocalizations.of(context)!.experimentalFeature));
-        }), body: Padding(padding: const EdgeInsets.all(12), child: Column(children: [
-          const SizedBox.square(dimension: 16),
-          SwitchListTile(title: Text(AppLocalizations.of(context)!.startStreaming), value: G.isStreaming, onChanged:(value) async {
-            if (value) {
-              await Permission.microphone.request();
-              if (await Permission.microphone.isGranted) {
-                String path = "/tmp/android_audio";
-                D.androidChannel.invokeMethod("startStreaming", {"path": "${G.dataPath}/containers/${G.currentContainer}$path"});
-                Util.termWrite("""
+        ),
+        ExpansionPanel(
+          isExpanded: _expandState[6],
+          headerBuilder: ((context, isExpanded) {
+            return ListTile(
+              title: Text(AppLocalizations.of(context)!.microphoneSupport),
+              subtitle: Text(AppLocalizations.of(context)!.experimentalFeature),
+            );
+          }),
+          body: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              children: [
+                const SizedBox.square(dimension: 16),
+                SwitchListTile(
+                  title: Text(AppLocalizations.of(context)!.startStreaming),
+                  value: G.isStreaming,
+                  onChanged: (value) async {
+                    if (value) {
+                      await Permission.microphone.request();
+                      if (await Permission.microphone.isGranted) {
+                        String path = "/tmp/android_audio";
+                        D.androidChannel.invokeMethod("startStreaming", {
+                          "path":
+                              "${G.dataPath}/containers/${G.currentContainer}$path",
+                        });
+                        Util.termWrite("""
 pactl load-module module-null-sink sink_name=AndroidSink sink_properties=device.description="Android_Audio_Stream"
 pactl load-module module-remap-source master=AndroidSink.monitor source_name=AndroidMic source_properties=device.description="Android_Virtual_Mic"
 pkill -f tiny_virtual_mic
 tiny_virtual_mic $path AndroidSink &""");
-                G.pageIndex.value = 0;
-              }
-            } else {
-              Util.termWrite("""
+                        G.pageIndex.value = 0;
+                      }
+                    } else {
+                      Util.termWrite("""
 pactl list short modules | grep "Android" | cut -f1 | xargs -L1 pactl unload-module
 pkill -f tiny_virtual_mic""");
-              G.pageIndex.value = 0;
-              D.androidChannel.invokeMethod("stopStreaming", {});
-            }
-            G.isStreaming = value;
-            setState(() {});
-          },),
-          const SizedBox.square(dimension: 16),
-        ],))),
-    ],);
+                      G.pageIndex.value = 0;
+                      D.androidChannel.invokeMethod("stopStreaming", {});
+                    }
+                    G.isStreaming = value;
+                    setState(() {});
+                  },
+                ),
+                const SizedBox.square(dimension: 16),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 
 class InfoPage extends StatefulWidget {
   final bool openFirstInfo;
 
-  const InfoPage({super.key, this.openFirstInfo=false});
+  const InfoPage({super.key, this.openFirstInfo = false});
 
   @override
   State<InfoPage> createState() => _InfoPageState();
@@ -645,7 +1177,7 @@ class InfoPage extends StatefulWidget {
 
 class _InfoPageState extends State<InfoPage> {
   final List<bool> _expandState = [false, false, false, false];
-  
+
   @override
   void initState() {
     super.initState();
@@ -661,44 +1193,88 @@ class _InfoPageState extends State<InfoPage> {
         _expandState[panelIndex] = isExpanded;
         WidgetsBinding.instance.addPostFrameCallback((_) => setState(() {}));
       },
-    children: [
-      ExpansionPanel(
-        headerBuilder: (context, isExpanded) {
-          return ListTile(title: Text(AppLocalizations.of(context)!.userManual));
-        },
-        body: Padding(padding: const EdgeInsets.all(8), child: Column(
-          children: [
-            Text(AppLocalizations.of(context)!.firstLoadInstructions),
-            const SizedBox.square(dimension: 16),
-            Wrap(alignment: WrapAlignment.center, spacing: 4.0, runSpacing: 4.0, children: [
-              OutlinedButton(style: D.commandButtonStyle, child: Text(AppLocalizations.of(context)!.requestStoragePermission), onPressed: () {
-                Permission.storage.request();
-              }),
-              OutlinedButton(style: D.commandButtonStyle, child: Text(AppLocalizations.of(context)!.requestAllFilesAccess), onPressed: () {
-                Permission.manageExternalStorage.request();
-              }),
-              OutlinedButton(style: D.commandButtonStyle, child: Text(AppLocalizations.of(context)!.ignoreBatteryOptimization), onPressed: () {
-                Permission.ignoreBatteryOptimizations.request();
-              }),
-            ]),
-            const SizedBox.square(dimension: 16),
-            Text(AppLocalizations.of(context)!.updateRequest),
-            const SizedBox.square(dimension: 16),
-            Wrap(alignment: WrapAlignment.center, spacing: 4.0, runSpacing: 4.0, children: D.links
-            .asMap().entries.map<Widget>((e) {
-              return OutlinedButton(style: D.commandButtonStyle, child: Text(Util.getl10nText(e.value["name"]!, context)), onPressed: () {
-                launchUrl(Uri.parse(e.value["value"]!), mode: LaunchMode.externalApplication);
-              });
-            }).toList()),
-          ],
-        )),
-        isExpanded: _expandState[0],
-      ),
-      ExpansionPanel(
-        isExpanded: _expandState[1],
-        headerBuilder: ((context, isExpanded) {
-          return ListTile(title: Text(AppLocalizations.of(context)!.openSourceLicenses));
-        }), body: const Padding(padding: EdgeInsets.all(8), child: Text("""
+      children: [
+        ExpansionPanel(
+          headerBuilder: (context, isExpanded) {
+            return ListTile(
+              title: Text(AppLocalizations.of(context)!.userManual),
+            );
+          },
+          body: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Column(
+              children: [
+                Text(AppLocalizations.of(context)!.firstLoadInstructions),
+                const SizedBox.square(dimension: 16),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 4.0,
+                  runSpacing: 4.0,
+                  children: [
+                    OutlinedButton(
+                      style: D.commandButtonStyle,
+                      child: Text(
+                        AppLocalizations.of(context)!.requestStoragePermission,
+                      ),
+                      onPressed: () {
+                        Permission.storage.request();
+                      },
+                    ),
+                    OutlinedButton(
+                      style: D.commandButtonStyle,
+                      child: Text(
+                        AppLocalizations.of(context)!.requestAllFilesAccess,
+                      ),
+                      onPressed: () {
+                        Permission.manageExternalStorage.request();
+                      },
+                    ),
+                    OutlinedButton(
+                      style: D.commandButtonStyle,
+                      child: Text(
+                        AppLocalizations.of(context)!.ignoreBatteryOptimization,
+                      ),
+                      onPressed: () {
+                        Permission.ignoreBatteryOptimizations.request();
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox.square(dimension: 16),
+                Text(AppLocalizations.of(context)!.updateRequest),
+                const SizedBox.square(dimension: 16),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 4.0,
+                  runSpacing: 4.0,
+                  children: D.links.asMap().entries.map<Widget>((e) {
+                    return OutlinedButton(
+                      style: D.commandButtonStyle,
+                      child: Text(Util.getl10nText(e.value["name"]!, context)),
+                      onPressed: () {
+                        launchUrl(
+                          Uri.parse(e.value["value"]!),
+                          mode: LaunchMode.externalApplication,
+                        );
+                      },
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+          isExpanded: _expandState[0],
+        ),
+        ExpansionPanel(
+          isExpanded: _expandState[1],
+          headerBuilder: ((context, isExpanded) {
+            return ListTile(
+              title: Text(AppLocalizations.of(context)!.openSourceLicenses),
+            );
+          }),
+          body: const Padding(
+            padding: EdgeInsets.all(8),
+            child: Text("""
 Flutter, path_provider, webview_flutter, url_launcher, shared_preferences
 
 Copyright 2014 The Flutter Authors. All rights reserved.
@@ -1068,29 +1644,48 @@ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
 THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-"""))),
-      ExpansionPanel(
-        isExpanded: _expandState[2],
-        headerBuilder: ((context, isExpanded) {
-          return ListTile(title: Text(AppLocalizations.of(context)!.permissionUsage));
-        }), body: Padding(padding: EdgeInsets.all(8), child: Text(AppLocalizations.of(context)!.privacyStatement))),
-      ExpansionPanel(
-        isExpanded: _expandState[3],
-        headerBuilder: ((context, isExpanded) {
-          return ListTile(title: Text(AppLocalizations.of(context)!.supportAuthor));
-        }), body: Column(
-        children: [
-          Padding(padding: EdgeInsets.all(8), child: Text(AppLocalizations.of(context)!.recommendApp)),
-          ElevatedButton(
-            onPressed: () {
-              launchUrl(Uri.parse("https://github.com/Cateners/tiny_computer"), mode: LaunchMode.externalApplication);
-            },
-            child: Text(AppLocalizations.of(context)!.projectUrl),
+"""),
           ),
-        ]
-      )),
-    ],
-  );
+        ),
+        ExpansionPanel(
+          isExpanded: _expandState[2],
+          headerBuilder: ((context, isExpanded) {
+            return ListTile(
+              title: Text(AppLocalizations.of(context)!.permissionUsage),
+            );
+          }),
+          body: Padding(
+            padding: EdgeInsets.all(8),
+            child: Text(AppLocalizations.of(context)!.privacyStatement),
+          ),
+        ),
+        ExpansionPanel(
+          isExpanded: _expandState[3],
+          headerBuilder: ((context, isExpanded) {
+            return ListTile(
+              title: Text(AppLocalizations.of(context)!.supportAuthor),
+            );
+          }),
+          body: Column(
+            children: [
+              Padding(
+                padding: EdgeInsets.all(8),
+                child: Text(AppLocalizations.of(context)!.recommendApp),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  launchUrl(
+                    Uri.parse("https://github.com/Cateners/tiny_computer"),
+                    mode: LaunchMode.externalApplication,
+                  );
+                },
+                child: Text(AppLocalizations.of(context)!.projectUrl),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -1100,36 +1695,48 @@ class LoadingPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(8),
-      child: AspectRatioMax1To1(child:
-        Column(
+      child: AspectRatioMax1To1(
+        child: Column(
           children: [
             const Padding(
               padding: EdgeInsets.fromLTRB(16, 16, 16, 16),
               child: FractionallySizedBox(
                 widthFactor: 0.4,
-                child: Image(
-                  image: AssetImage("images/icon.png")
-                )
+                child: Image(image: AssetImage("images/icon.png")),
               ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(0, 0, 0, 8),
-              child: ValueListenableBuilder(valueListenable: G.updateText, builder:(context, value, child) {
-                return Text(value, textScaler: const TextScaler.linear(2));
-              }),
+              child: ValueListenableBuilder(
+                valueListenable: G.updateText,
+                builder: (context, value, child) {
+                  return Text(
+                    value,
+                    textScaler: const TextScaler.linear(2),
+                    textAlign: TextAlign.center,
+                  );
+                },
+              ),
             ),
             const FakeLoadingStatus(),
-            const Expanded(child: Padding(padding: EdgeInsets.all(8), child: Card(child: Padding(padding: EdgeInsets.all(8), child: 
-              Scrollbar(child:
-                SingleChildScrollView(
-                  child: InfoPage(openFirstInfo: true)
-                )
-              )
-            ))
-            ,))
-          ]
-        )
-      )
+            const Expanded(
+              child: Padding(
+                padding: EdgeInsets.all(8),
+                child: Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(8),
+                    child: Scrollbar(
+                      child: SingleChildScrollView(
+                        child: InfoPage(openFirstInfo: true),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -1148,12 +1755,16 @@ RawGestureDetector forceScaleGestureDetector({
 }) {
   return RawGestureDetector(
     gestures: {
-      ForceScaleGestureRecognizer:GestureRecognizerFactoryWithHandlers<ForceScaleGestureRecognizer>(() {
-        return ForceScaleGestureRecognizer();
-      }, (detector) {
-        detector.onUpdate = onScaleUpdate;
-        detector.onEnd = onScaleEnd;
-      })
+      ForceScaleGestureRecognizer:
+          GestureRecognizerFactoryWithHandlers<ForceScaleGestureRecognizer>(
+            () {
+              return ForceScaleGestureRecognizer();
+            },
+            (detector) {
+              detector.onUpdate = onScaleUpdate;
+              detector.onEnd = onScaleEnd;
+            },
+          ),
     },
     child: child,
   );
@@ -1164,47 +1775,110 @@ class TerminalPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(children: [Expanded(child: forceScaleGestureDetector(onScaleUpdate: (details) {
-        G.termFontScale.value = (details.scale * (Util.getGlobal("termFontScale") as double)).clamp(0.2, 5);
-      }, onScaleEnd: (details) async {
-        await G.prefs.setDouble("termFontScale", G.termFontScale.value);
-      }, child: ValueListenableBuilder(valueListenable: G.termFontScale, builder:(context, value, child) {
-        return TerminalView(G.termPtys[G.currentContainer]!.terminal, textScaler: TextScaler.linear(G.termFontScale.value), keyboardType: TextInputType.multiline);
-      },) )), 
-      ValueListenableBuilder(valueListenable: G.terminalPageChange, builder:(context, value, child) {
-      return (Util.getGlobal("isTerminalCommandsEnabled") as bool)?Padding(padding: const EdgeInsets.all(8), child: Row(children: [AnimatedBuilder(
-          animation: G.keyboard,
-          builder: (context, child) => ToggleButtons(
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 24),
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            borderRadius: const BorderRadius.all(Radius.circular(8)),
-            isSelected: [G.keyboard.ctrl, G.keyboard.alt, G.keyboard.shift],
-            onPressed: (index) {
-              switch (index) {
-                case 0:
-                  G.keyboard.ctrl = !G.keyboard.ctrl;
-                  break;
-                case 1:
-                  G.keyboard.alt = !G.keyboard.alt;
-                  break;
-                case 2:
-                  G.keyboard.shift = !G.keyboard.shift;
-                  break;
-              }
+    return Column(
+      children: [
+        Expanded(
+          child: forceScaleGestureDetector(
+            onScaleUpdate: (details) {
+              G.termFontScale.value =
+                  (details.scale * (Util.getGlobal("termFontScale") as double))
+                      .clamp(0.2, 5);
             },
-            children: const [Text('Ctrl'), Text('Alt'), Text('Shift')],
+            onScaleEnd: (details) async {
+              await G.prefs.setDouble("termFontScale", G.termFontScale.value);
+            },
+            child: ValueListenableBuilder(
+              valueListenable: G.termFontScale,
+              builder: (context, value, child) {
+                return TerminalView(
+                  G.termPtys[G.currentContainer]!.terminal,
+                  textScaler: TextScaler.linear(G.termFontScale.value),
+                  keyboardType: TextInputType.multiline,
+                );
+              },
+            ),
           ),
         ),
-        const SizedBox.square(dimension: 8), 
-        Expanded(child: SizedBox(height: 24, child: ListView.separated(scrollDirection: Axis.horizontal, itemBuilder:(context, index) {
-          return OutlinedButton(style: D.controlButtonStyle, onPressed: () {
-            G.termPtys[G.currentContainer]!.terminal.keyInput(D.termCommands[index]["key"]! as TerminalKey);
-          }, child: Text(D.termCommands[index]["name"]! as String));
-        }, separatorBuilder:(context, index) {
-          return const SizedBox.square(dimension: 4);
-        }, itemCount: D.termCommands.length)))])):const SizedBox.square(dimension: 0);
-      })
-    ]);
+        ValueListenableBuilder(
+          valueListenable: G.terminalPageChange,
+          builder: (context, value, child) {
+            return (Util.getGlobal("isTerminalCommandsEnabled") as bool)
+                ? Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Row(
+                      children: [
+                        AnimatedBuilder(
+                          animation: G.keyboard,
+                          builder: (context, child) => ToggleButtons(
+                            constraints: const BoxConstraints(
+                              minWidth: 32,
+                              minHeight: 24,
+                            ),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            borderRadius: const BorderRadius.all(
+                              Radius.circular(8),
+                            ),
+                            isSelected: [
+                              G.keyboard.ctrl,
+                              G.keyboard.alt,
+                              G.keyboard.shift,
+                            ],
+                            onPressed: (index) {
+                              switch (index) {
+                                case 0:
+                                  G.keyboard.ctrl = !G.keyboard.ctrl;
+                                  break;
+                                case 1:
+                                  G.keyboard.alt = !G.keyboard.alt;
+                                  break;
+                                case 2:
+                                  G.keyboard.shift = !G.keyboard.shift;
+                                  break;
+                              }
+                            },
+                            children: const [
+                              Text('Ctrl'),
+                              Text('Alt'),
+                              Text('Shift'),
+                            ],
+                          ),
+                        ),
+                        const SizedBox.square(dimension: 8),
+                        Expanded(
+                          child: SizedBox(
+                            height: 24,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemBuilder: (context, index) {
+                                return OutlinedButton(
+                                  style: D.controlButtonStyle,
+                                  onPressed: () {
+                                    G.termPtys[G.currentContainer]!.terminal
+                                        .keyInput(
+                                          D.termCommands[index]["key"]!
+                                              as TerminalKey,
+                                        );
+                                  },
+                                  child: Text(
+                                    D.termCommands[index]["name"]! as String,
+                                  ),
+                                );
+                              },
+                              separatorBuilder: (context, index) {
+                                return const SizedBox.square(dimension: 4);
+                              },
+                              itemCount: D.termCommands.length,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : const SizedBox.square(dimension: 0);
+          },
+        ),
+      ],
+    );
   }
 }
 
@@ -1216,90 +1890,219 @@ class FastCommands extends StatefulWidget {
 }
 
 class _FastCommandsState extends State<FastCommands> {
-
   @override
   Widget build(BuildContext context) {
-    return Wrap(alignment: WrapAlignment.center, spacing: 4.0, runSpacing: 4.0, children: Util.getCurrentProp("commands")
-      .asMap().entries.map<Widget>((e) {
-      return OutlinedButton(style: D.commandButtonStyle, child: Text(e.value["name"]!), onPressed: () {
-        Util.termWrite(e.value["command"]!);
-        G.pageIndex.value = 0;
-      }, onLongPress: () {
-        String name = e.value["name"]!;
-        String command = e.value["command"]!;
-        showDialog(context: context, builder: (context) {
-          return AlertDialog(title: Text(AppLocalizations.of(context)!.commandEdit), content: SingleChildScrollView(child: Column(children: [
-            TextFormField(initialValue: name, decoration: InputDecoration(border: OutlineInputBorder(), labelText: AppLocalizations.of(context)!.commandName), onChanged: (value) {
-              name = value;
-            }),
-            const SizedBox.square(dimension: 8),
-            TextFormField(maxLines: null, initialValue: command, decoration: InputDecoration(border: OutlineInputBorder(), labelText: AppLocalizations.of(context)!.commandContent), onChanged: (value) {
-              command = value;
-            }),
-          ])), actions: [
-            TextButton(onPressed:() async {
-              await Util.setCurrentProp("commands", Util.getCurrentProp("commands")
-                ..removeAt(e.key));
-              setState(() {});
-              if (!context.mounted) return;
-              Navigator.of(context).pop();
-            }, child: Text(AppLocalizations.of(context)!.deleteItem)),
-            TextButton(onPressed:() {
-              Navigator.of(context).pop();
-            }, child: Text(AppLocalizations.of(context)!.cancel)),
-            TextButton(onPressed:() async {
-              await Util.setCurrentProp("commands", Util.getCurrentProp("commands")
-                ..setAll(e.key, [{"name": name, "command": command}]));
-              setState(() {});
-              if (!context.mounted) return;
-              Navigator.of(context).pop();
-            }, child: Text(AppLocalizations.of(context)!.save)),
-          ]);
-        },);
-      },);
-    }).toList()..add(OutlinedButton(style: D.commandButtonStyle, onPressed:() {
-        String name = "";
-        String command = "";
-        showDialog(context: context, builder: (context) {
-          return AlertDialog(title: Text(AppLocalizations.of(context)!.commandEdit), content: SingleChildScrollView(child: Column(children: [
-            TextFormField(initialValue: name, decoration: InputDecoration(border: OutlineInputBorder(), labelText: AppLocalizations.of(context)!.commandName), onChanged: (value) {
-              name = value;
-            }),
-            const SizedBox.square(dimension: 8),
-            TextFormField(maxLines: null, initialValue: command, decoration: InputDecoration(border: OutlineInputBorder(), labelText: AppLocalizations.of(context)!.commandContent), onChanged: (value) {
-              command = value;
-            }),
-          ])), actions: [
-            TextButton(onPressed:() {
-              launchUrl(Uri.parse("https://gitee.com/caten/tc-hints/blob/master/pool/extracommand.md"), mode: LaunchMode.externalApplication);
-            }, child: Text(AppLocalizations.of(context)!.more)),
-            TextButton(onPressed:() {
-              Navigator.of(context).pop();
-            }, child: Text(AppLocalizations.of(context)!.cancel)),
-            TextButton(onPressed:() async {
-              await Util.setCurrentProp("commands", Util.getCurrentProp("commands")
-                ..add({"name": name, "command": command}));
-              setState(() {});
-              if (!context.mounted) return;
-              Navigator.of(context).pop();
-            }, child: Text(AppLocalizations.of(context)!.add)),
-          ]);
-        },);
-    }, onLongPress: () {
-      showDialog(context: context, builder: (context) {
-        return AlertDialog(title: Text(AppLocalizations.of(context)!.resetCommand), content: Text(AppLocalizations.of(context)!.confirmResetAllCommands), actions: [
-          TextButton(onPressed:() {
-            Navigator.of(context).pop();
-          }, child: Text(AppLocalizations.of(context)!.cancel)),
-          TextButton(onPressed:() async {
-            await Util.setCurrentProp("commands", Localizations.localeOf(context).languageCode == 'zh' ? D.commands : D.commands4En);
-            setState(() {});
-            if (!context.mounted) return;
-            Navigator.of(context).pop();
-          }, child: Text(AppLocalizations.of(context)!.yes)),
-        ]);
-      });
-    }, child: Text(AppLocalizations.of(context)!.addShortcutCommand))));
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 4.0,
+      runSpacing: 4.0,
+      children:
+          Util.getCurrentProp("commands").asMap().entries.map<Widget>((e) {
+            return OutlinedButton(
+              style: D.commandButtonStyle,
+              child: Text(e.value["name"]!),
+              onPressed: () {
+                Util.termWrite(e.value["command"]!);
+                G.pageIndex.value = 0;
+              },
+              onLongPress: () {
+                String name = e.value["name"]!;
+                String command = e.value["command"]!;
+                showDialog(
+                  context: context,
+                  builder: (context) {
+                    return AlertDialog(
+                      title: Text(AppLocalizations.of(context)!.commandEdit),
+                      content: SingleChildScrollView(
+                        child: Column(
+                          children: [
+                            TextFormField(
+                              initialValue: name,
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(),
+                                labelText: AppLocalizations.of(
+                                  context,
+                                )!.commandName,
+                              ),
+                              onChanged: (value) {
+                                name = value;
+                              },
+                            ),
+                            const SizedBox.square(dimension: 8),
+                            TextFormField(
+                              maxLines: null,
+                              initialValue: command,
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(),
+                                labelText: AppLocalizations.of(
+                                  context,
+                                )!.commandContent,
+                              ),
+                              onChanged: (value) {
+                                command = value;
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () async {
+                            await Util.setCurrentProp(
+                              "commands",
+                              Util.getCurrentProp("commands")..removeAt(e.key),
+                            );
+                            setState(() {});
+                            if (!context.mounted) return;
+                            Navigator.of(context).pop();
+                          },
+                          child: Text(AppLocalizations.of(context)!.deleteItem),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                          child: Text(AppLocalizations.of(context)!.cancel),
+                        ),
+                        TextButton(
+                          onPressed: () async {
+                            await Util.setCurrentProp(
+                              "commands",
+                              Util.getCurrentProp("commands")..setAll(e.key, [
+                                {"name": name, "command": command},
+                              ]),
+                            );
+                            setState(() {});
+                            if (!context.mounted) return;
+                            Navigator.of(context).pop();
+                          },
+                          child: Text(AppLocalizations.of(context)!.save),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+            );
+          }).toList()..add(
+            OutlinedButton(
+              style: D.commandButtonStyle,
+              onPressed: () {
+                String name = "";
+                String command = "";
+                showDialog(
+                  context: context,
+                  builder: (context) {
+                    return AlertDialog(
+                      title: Text(AppLocalizations.of(context)!.commandEdit),
+                      content: SingleChildScrollView(
+                        child: Column(
+                          children: [
+                            TextFormField(
+                              initialValue: name,
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(),
+                                labelText: AppLocalizations.of(
+                                  context,
+                                )!.commandName,
+                              ),
+                              onChanged: (value) {
+                                name = value;
+                              },
+                            ),
+                            const SizedBox.square(dimension: 8),
+                            TextFormField(
+                              maxLines: null,
+                              initialValue: command,
+                              decoration: InputDecoration(
+                                border: OutlineInputBorder(),
+                                labelText: AppLocalizations.of(
+                                  context,
+                                )!.commandContent,
+                              ),
+                              onChanged: (value) {
+                                command = value;
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            launchUrl(
+                              Uri.parse(
+                                "https://gitee.com/caten/tc-hints/blob/master/pool/extracommand.md",
+                              ),
+                              mode: LaunchMode.externalApplication,
+                            );
+                          },
+                          child: Text(AppLocalizations.of(context)!.more),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                          child: Text(AppLocalizations.of(context)!.cancel),
+                        ),
+                        TextButton(
+                          onPressed: () async {
+                            await Util.setCurrentProp(
+                              "commands",
+                              Util.getCurrentProp("commands")
+                                ..add({"name": name, "command": command}),
+                            );
+                            setState(() {});
+                            if (!context.mounted) return;
+                            Navigator.of(context).pop();
+                          },
+                          child: Text(AppLocalizations.of(context)!.add),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+              onLongPress: () {
+                showDialog(
+                  context: context,
+                  builder: (context) {
+                    return AlertDialog(
+                      title: Text(AppLocalizations.of(context)!.resetCommand),
+                      content: Text(
+                        AppLocalizations.of(context)!.confirmResetAllCommands,
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                          child: Text(AppLocalizations.of(context)!.cancel),
+                        ),
+                        TextButton(
+                          onPressed: () async {
+                            await Util.setCurrentProp(
+                              "commands",
+                              Localizations.localeOf(context).languageCode ==
+                                      'zh'
+                                  ? D.commands
+                                  : D.commands4En,
+                            );
+                            setState(() {});
+                            if (!context.mounted) return;
+                            Navigator.of(context).pop();
+                          },
+                          child: Text(AppLocalizations.of(context)!.yes),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+              child: Text(AppLocalizations.of(context)!.addShortcutCommand),
+            ),
+          ),
+    );
   }
 }
 
@@ -1319,10 +2122,13 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(Duration.zero,() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeWorkflow();
     });
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky, overlays: []);
+    SystemChrome.setEnabledSystemUIMode(
+      SystemUiMode.immersiveSticky,
+      overlays: [],
+    );
   }
 
   Future<void> _initializeWorkflow() async {
@@ -1330,6 +2136,8 @@ class _MyHomePageState extends State<MyHomePage> {
       await Workflow.workflow();
     } catch (e, st) {
       debugPrint('Workflow error: $e\n$st');
+      G.updateText.value = 'Error initializing app:\n$e';
+      return; // Do not set isLoadingComplete to true so we stay on the LoadingPage
     }
     if (mounted) {
       setState(() {
@@ -1344,22 +2152,26 @@ class _MyHomePageState extends State<MyHomePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isLoadingComplete ? Util.getCurrentProp("name") : widget.title),
+        title: Text(
+          isLoadingComplete ? Util.getCurrentProp("name") : widget.title,
+        ),
         actions: [
           Visibility(
-              visible: isLoadingComplete,
-              child: IconButton.filledTonal(
-                  onPressed: () {
-                    if (G.wasX11Enabled) {
-                      Workflow.launchX11();
-                    } else if (G.wasAvncEnabled) {
-                      Workflow.launchAvnc();
-                    } else {
-                      Workflow.launchBrowser();
-                    }
-                  },
-                  icon: const Icon(Icons.play_arrow),
-                  tooltip: AppLocalizations.of(context)!.enterGUI))
+            visible: isLoadingComplete,
+            child: IconButton.filledTonal(
+              onPressed: () {
+                if (G.wasX11Enabled) {
+                  Workflow.launchX11();
+                } else if (G.wasAvncEnabled) {
+                  Workflow.launchAvnc();
+                } else {
+                  Workflow.launchBrowser();
+                }
+              },
+              icon: const Icon(Icons.play_arrow),
+              tooltip: AppLocalizations.of(context)!.enterGUI,
+            ),
+          ),
         ],
       ),
       body: isLoadingComplete
@@ -1382,7 +2194,9 @@ class _MyHomePageState extends State<MyHomePage> {
                                   padding: EdgeInsets.all(16),
                                   child: FractionallySizedBox(
                                     widthFactor: 0.4,
-                                    child: Image(image: AssetImage("images/icon.png")),
+                                    child: Image(
+                                      image: AssetImage("images/icon.png"),
+                                    ),
                                   ),
                                 ),
                                 FastCommands(),
@@ -1420,8 +2234,14 @@ class _MyHomePageState extends State<MyHomePage> {
             child: NavigationBar(
               selectedIndex: G.pageIndex.value,
               destinations: [
-                NavigationDestination(icon: const Icon(Icons.monitor), label: AppLocalizations.of(context)!.terminal),
-                NavigationDestination(icon: const Icon(Icons.video_settings), label: AppLocalizations.of(context)!.control),
+                NavigationDestination(
+                  icon: const Icon(Icons.monitor),
+                  label: AppLocalizations.of(context)!.terminal,
+                ),
+                NavigationDestination(
+                  icon: const Icon(Icons.video_settings),
+                  label: AppLocalizations.of(context)!.control,
+                ),
               ],
               onDestinationSelected: (index) {
                 G.pageIndex.value = index;
