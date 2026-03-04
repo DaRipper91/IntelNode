@@ -63,7 +63,11 @@ On subsequent launches the container starts in seconds.
 
 ## Changelog
 
-### Unreleased (on master)
+### v2.0.5
+- **Fix:** Added missing `assets/patch.tar.gz` — the overlay archive mounted into the container at `~/.local/share/tiny` was absent from previous builds, causing container customizations and shortcuts to be missing on first launch
+- **Chore:** Renamed `tiny_computer_debug_report.md` → `DEBUG_REPORT.md`
+
+### v2.0.4
 - **Security:** `ShizukuHelper.run` signature changed to `run(String executable, List<String> arguments)` — arguments are now POSIX-single-quote-escaped before being passed to `rish -c`, preventing command injection via shell metacharacters
 - **Tests:** `Util.termWrite` coverage (`workflow_term_write_test.dart`)
 - **Tests:** `Util.addCurrentProp` coverage (`workflow_test/add_current_prop_test.dart`)
