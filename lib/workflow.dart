@@ -246,7 +246,8 @@ class Util {
     if (parsedValue < min || parsedValue > max) {
       return AppLocalizations.of(
         G.homePageStateContext,
-      )!.enterNumberBetween(min, max);
+      )!
+          .enterNumberBetween(min, max);
     }
     opr();
     return null;
@@ -819,12 +820,14 @@ chmod 1777 tmp
     //首先设置bootstrap
     G.updateText.value = AppLocalizations.of(
       G.homePageStateContext,
-    )!.installingBootPackage;
+    )!
+        .installingBootPackage;
     await setupBootstrap();
 
     G.updateText.value = AppLocalizations.of(
       G.homePageStateContext,
-    )!.copyingContainerSystem;
+    )!
+        .copyingContainerSystem;
     //存放容器的文件夹0和存放硬链接的文件夹.l2s
     Util.createDirFromString("${G.dataPath}/containers/0/.l2s");
     //这个是容器rootfs，被split命令分成了xa*，放在assets里
@@ -846,7 +849,8 @@ chmod 1777 tmp
     //-J
     G.updateText.value = AppLocalizations.of(
       G.homePageStateContext,
-    )!.installingContainerSystem;
+    )!
+        .installingContainerSystem;
     await Util.execute("""
 export DATA_DIR=${G.dataPath}
 export PATH=\$DATA_DIR/bin:\$PATH
@@ -893,7 +897,8 @@ done
     ]);
     G.updateText.value = AppLocalizations.of(
       G.homePageStateContext,
-    )!.installationComplete;
+    )!
+        .installationComplete;
   }
 
   static Future<void> initData() async {
@@ -946,7 +951,8 @@ sed -i -E 's/echo "[^"]+" \\| vncpasswd -f/echo "${Util.getCurrentProp("vncPassw
     if (Util.getGlobal("reinstallBootstrap")) {
       G.updateText.value = AppLocalizations.of(
         G.homePageStateContext,
-      )!.reinstallingBootPackage;
+      )!
+          .reinstallingBootPackage;
       await setupBootstrap();
       G.prefs.setBool("reinstallBootstrap", false);
     }
@@ -1050,8 +1056,8 @@ clear""");
     Util.termWrite(
       (Util.getGlobal("autoLaunchVnc") as bool)
           ? ((Util.getGlobal("useX11") as bool)
-                ? """mkdir -p "\$HOME/.vnc" && bash /etc/X11/xinit/xinitrc &> "\$HOME/.vnc/x.log" &"""
-                : Util.getCurrentProp("vnc"))
+              ? """mkdir -p "\$HOME/.vnc" && bash /etc/X11/xinit/xinitrc &> "\$HOME/.vnc/x.log" &"""
+              : Util.getCurrentProp("vnc"))
           : "",
     );
     Util.termWrite("clear");
