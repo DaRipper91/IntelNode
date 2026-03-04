@@ -59,13 +59,14 @@ void main() {
     await ShizukuHelper.init(); // Sets _available to true
     expect(ShizukuHelper.isAvailable, true);
 
-    await ShizukuHelper.run('ls -l');
+    await ShizukuHelper.run('ls', ['-l']);
     expect(lastExec[0], 'rish');
     expect(lastExec[1], '-c');
-    expect(lastExec[2], 'ls -l');
+    // Arguments are shell-escaped and joined for safe rish invocation.
+    expect(lastExec[2], "'ls' '-l'");
   });
 
-  test('ShizukuHelper.run uses sh when not available', () async {
+  test('ShizukuHelper.run uses direct exec when not available', () async {
     List<String> lastExec = [];
     ShizukuHelper.processRunner = (executable, arguments, {
       workingDirectory, environment, includeParentEnvironment = true, runInShell = false, stdoutEncoding, stderrEncoding
@@ -77,9 +78,31 @@ void main() {
     await ShizukuHelper.init(); // Sets _available to false
     expect(ShizukuHelper.isAvailable, false);
 
-    await ShizukuHelper.run('ls -l');
-    expect(lastExec[0], 'sh');
-    expect(lastExec[1], '-c');
-    expect(lastExec[2], 'ls -l');
+    await ShizukuHelper.run('ls', ['-l']);
+    // Without Shizuku, we exec directly — no shell wrapper.
+    expect(lastExec[0], 'ls');
+    expect(lastExec[1], '-l');
+    expect(lastExec.length, 2);
+  });
+
+  test('ShizukuHelper.run escapes injection attempts in rish mode', () async {
+    List<String> lastExec = [];
+    ShizukuHelper.processRunner = (executable, arguments, {
+      workingDirectory, environment, includeParentEnvironment = true, runInShell = false, stdoutEncoding, stderrEncoding
+    }) async {
+      lastExec = [executable, ...arguments];
+      if (executable == 'sh' && arguments.contains('command -v rish')) {
+        return ProcessResult(0, 0, '/system/bin/rish', '');
+      }
+      return ProcessResult(0, 0, 'success', '');
+    };
+
+    await ShizukuHelper.init();
+    expect(ShizukuHelper.isAvailable, true);
+
+    await ShizukuHelper.run('echo', ['hello; rm -rf /']);
+    expect(lastExec[0], 'rish');
+    // The injected semicolon must be contained inside quoted argument.
+    expect(lastExec[2], "'echo' 'hello; rm -rf /'");
   });
 }

@@ -1177,10 +1177,19 @@ class ShizukuHelper {
 
   static bool get isAvailable => _available;
 
-  static Future<ProcessResult> run(String command) async {
+  // Single-quote escapes an argument for safe use inside a shell command string.
+  static String _escapeArg(String arg) => "'${arg.replaceAll("'", "'\\''")}'";
+
+  static Future<ProcessResult> run(
+    String executable,
+    List<String> arguments,
+  ) async {
     if (!_available) {
-      return processRunner('sh', ['-c', command]);
+      return processRunner(executable, arguments);
     }
-    return processRunner('rish', ['-c', command]);
+    // rish only accepts a single command string, so we shell-escape every
+    // argument to prevent command injection.
+    final cmdString = [executable, ...arguments].map(_escapeArg).join(' ');
+    return processRunner('rish', ['-c', cmdString]);
   }
 }
