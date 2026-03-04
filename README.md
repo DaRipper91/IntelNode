@@ -63,6 +63,11 @@ On subsequent launches the container starts in seconds.
 
 ## Changelog
 
+### v2.0.7
+- **New:** Desktop environment selection dialog on first launch — choose XFCE4 or LXQt; the unchosen DE is purged on first container boot to reclaim ~400 MB
+- **New:** Termux:X11 is now the default display backend for new installs (lower latency than AVNC/noVNC)
+- **Note:** DE selection requires a rootfs rebuild with both DEs pre-installed; bundled rootfs update follows in v2.1.0
+
 ### v2.0.6
 - **Fix:** VNC fails to start — exit code 127 on `startnovnc` (command not found)
   - The Arch rootfs ships `start-desktop`, `start-vnc`, and `start-novnc`; no `startnovnc` (no hyphen) was ever created

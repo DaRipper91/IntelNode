@@ -552,4 +552,4 @@ Submit bug reports at: https://github.com/DaRipper91/DaRipped_tiny_computer/issu
 
 ---
 
-*Manual version: 2.0.6 · Last updated: 2026-03-04*
+*Manual version: 2.0.7 · Last updated: 2026-03-04*
