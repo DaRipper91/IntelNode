@@ -112,5 +112,12 @@
   "avncResizeFactor": "螢幕縮放比",
   "avncResizeFactorValue": "目前縮放為",
   "microphoneSupport": "麥克風支援",
-  "startStreaming": "開啟麥克風"
+  "startStreaming": "開啟麥克風",
+  "chooseDesktop": "選擇桌面環境",
+  "chooseDesktopDesc": "請選擇一個桌面環境，另一個將被移除以節省約 400 MB 儲存空間。之後可透過 pacman 重新安裝。",
+  "desktopXfce": "XFCE4",
+  "desktopXfceDesc": "經典、功能豐富的桌面環境，相容性最佳。",
+  "desktopLxqt": "LXQt",
+  "desktopLxqtDesc": "輕量級現代 Qt 桌面環境，記憶體佔用更低。",
+  "selectThisDesktop": "選擇"
 }

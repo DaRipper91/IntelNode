@@ -762,6 +762,57 @@ class Workflow {
     //Permission.manageExternalStorage.request();
   }
 
+  // Shows a full-screen DE selection dialog on first launch.
+  // Returns "xfce" or "lxqt".
+  static Future<String> _showDeSelectionDialog() async {
+    final completer = Completer<String>();
+    final l10n = AppLocalizations.of(G.homePageStateContext)!;
+    showDialog<void>(
+      context: G.homePageStateContext,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(l10n.chooseDesktop),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(l10n.chooseDesktopDesc),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _DeCard(
+                      name: l10n.desktopXfce,
+                      description: l10n.desktopXfceDesc,
+                      buttonLabel: l10n.selectThisDesktop,
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        completer.complete('xfce');
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _DeCard(
+                      name: l10n.desktopLxqt,
+                      description: l10n.desktopLxqtDesc,
+                      buttonLabel: l10n.selectThisDesktop,
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        completer.complete('lxqt');
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    return completer.future;
+  }
+
   static Future<void> setupBootstrap() async {
     //用来共享数据文件的文件夹
     Util.createDirFromString("${G.dataPath}/share");
@@ -942,6 +993,24 @@ sed -i -E 's/echo "[^"]+" \\| vncpasswd -f/echo "${Util.getCurrentProp("vncPassw
       }
       G.settings.getifaddrsBridge =
           (await DeviceInfoPlugin().androidInfo).version.sdkInt >= 31;
+
+      // Show DE selection dialog and configure xinitrc + purge unchosen DE
+      final String deChoice = await _showDeSelectionDialog();
+      G.settings.selectedDE = deChoice;
+      final String deExec = deChoice == 'lxqt' ? 'startlxqt' : 'startxfce4';
+      final String deDesktop = deChoice == 'lxqt' ? 'LXQt' : 'XFCE';
+      final String removePackages = deChoice == 'lxqt'
+          ? 'xfce4 xfce4-goodies xfce4-terminal'
+          : 'lxqt openbox';
+      G.postCommand += """
+cat > /home/tiny/.xinitrc << 'XINITRC'
+#!/bin/bash
+export XDG_SESSION_TYPE=x11
+export XDG_CURRENT_DESKTOP=$deDesktop
+exec $deExec
+XINITRC
+chmod +x /home/tiny/.xinitrc
+pacman -Rns --noconfirm $removePackages 2>/dev/null || true""";
     }
     G.currentContainer = G.settings.defaultContainer;
 
@@ -1147,6 +1216,44 @@ clear""");
         (value) => G.wasAvncEnabled ? launchAvnc() : launchBrowser(),
       );
     }
+  }
+}
+
+// Simple card widget used in the DE selection dialog.
+class _DeCard extends StatelessWidget {
+  final String name;
+  final String description;
+  final String buttonLabel;
+  final VoidCallback onTap;
+
+  const _DeCard({
+    required this.name,
+    required this.description,
+    required this.buttonLabel,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              name,
+              style: Theme.of(context).textTheme.titleMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(description, textAlign: TextAlign.center),
+            const SizedBox(height: 12),
+            FilledButton(onPressed: onTap, child: Text(buttonLabel)),
+          ],
+        ),
+      ),
+    );
   }
 }
 

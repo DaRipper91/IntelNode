@@ -60,20 +60,12 @@ sudo systemd-nspawn -D "$ROOTFS" --bind-ro=/etc/resolv.conf /bin/bash -c '
     pacman -Syu --noconfirm
 '
 
-# Step 4: Install desktop environment
-echo "[4/8] Installing desktop environment..."
-if [ "$DE" = "--xfce" ] || [ "$DE" = "xfce" ]; then
-    DESKTOP_PKGS="xfce4 xfce4-goodies xfce4-terminal"
-elif [ "$DE" = "--lxqt" ] || [ "$DE" = "lxqt" ]; then
-    DESKTOP_PKGS="lxqt openbox"
-else
-    echo "Unknown DE: $DE (use --xfce or --lxqt)"
-    exit 1
-fi
-
+# Step 4: Install desktop environments (both installed; user picks one at first launch)
+echo "[4/8] Installing desktop environments..."
 sudo systemd-nspawn -D "$ROOTFS" --bind-ro=/etc/resolv.conf /bin/bash -c "
     pacman -S --noconfirm \
-        $DESKTOP_PKGS \
+        xfce4 xfce4-goodies xfce4-terminal \
+        lxqt openbox \
         tigervnc \
         python python-websockify python-numpy \
         firefox \
@@ -109,18 +101,18 @@ sudo systemd-nspawn -D "$ROOTFS" /bin/bash -c '
     locale-gen
     echo "LANG=en_US.UTF-8" > /etc/locale.conf
     
-    # X session init
+    # X session init — sources ~/.xinitrc which the app writes on first launch
     cat > /etc/X11/xinit/xinitrc << "XINITRC"
 #!/bin/bash
-export XDG_SESSION_TYPE=x11
-export XDG_CURRENT_DESKTOP=XFCE
-exec startxfce4
+exec bash ~/.xinitrc
 XINITRC
     chmod +x /etc/X11/xinit/xinitrc
     
-    # User xinitrc
+    # User xinitrc — XFCE4 as default; app overwrites this on first launch
     su - tiny -c "cat > ~/.xinitrc << EOF
 #!/bin/bash
+export XDG_SESSION_TYPE=x11
+export XDG_CURRENT_DESKTOP=XFCE
 exec startxfce4
 EOF
 chmod +x ~/.xinitrc"
@@ -137,8 +129,7 @@ chown -R tiny:tiny /home/tiny/.vnc
 cat > /home/tiny/.vnc/xstartup << "XS"
 #!/bin/bash
 unset SESSION_MANAGER DBUS_SESSION_BUS_ADDRESS
-export XDG_SESSION_TYPE=x11 XDG_CURRENT_DESKTOP=XFCE
-exec startxfce4
+exec bash ~/.xinitrc
 XS
 chmod +x /home/tiny/.vnc/xstartup
 su - tiny -c "vncserver :4 -geometry 2424x1080 -depth 24 -localhost no"

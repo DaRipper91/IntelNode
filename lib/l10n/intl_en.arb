@@ -112,5 +112,12 @@
   "avncResizeFactor": "Screen Scaling Ratio", 
   "avncResizeFactorValue": "Current scaling is",
   "microphoneSupport": "Microphone Support",
-  "startStreaming": "Start Microphone"
+  "startStreaming": "Start Microphone",
+  "chooseDesktop": "Choose Your Desktop",
+  "chooseDesktopDesc": "Select a desktop environment. The other will be removed to save ~400 MB of storage. You can reinstall either later with pacman.",
+  "desktopXfce": "XFCE4",
+  "desktopXfceDesc": "Classic, feature-rich desktop. Best compatibility.",
+  "desktopLxqt": "LXQt",
+  "desktopLxqtDesc": "Lightweight, modern Qt-based desktop. Lower RAM usage.",
+  "selectThisDesktop": "Select"
 }

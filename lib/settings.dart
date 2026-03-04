@@ -53,6 +53,11 @@ class GlobalSettings {
               _setDouble("avncScaleFactor", -0.5))
           .clamp(-1.0, 1.0);
   bool get useX11 => prefs.getBool("useX11") ?? _setBool("useX11", true);
+  // "xfce" or "lxqt" — empty string means not yet chosen (first launch)
+  String get selectedDE =>
+      prefs.getString("selectedDE") ?? "";
+  set selectedDE(String value) => prefs.setString("selectedDE", value);
+
   String get defaultVirglCommand =>
       prefs.getString("defaultVirglCommand") ??
       _setString(
@@ -158,6 +163,8 @@ class GlobalSettings {
         return defaultHidpiOpt;
       case "containersInfo":
         return containersInfo;
+      case "selectedDE":
+        return selectedDE;
       default:
         return null;
     }
