@@ -45,14 +45,14 @@ class GlobalSettings {
       prefs.getBool("isHidpiEnabled") ?? _setBool("isHidpiEnabled", false);
   bool get isJpEnabled =>
       prefs.getBool("isJpEnabled") ?? _setBool("isJpEnabled", false);
-  bool get useAvnc => prefs.getBool("useAvnc") ?? _setBool("useAvnc", true);
+  bool get useAvnc => prefs.getBool("useAvnc") ?? _setBool("useAvnc", false);
   bool get avncResizeDesktop =>
       prefs.getBool("avncResizeDesktop") ?? _setBool("avncResizeDesktop", true);
   double get avncScaleFactor =>
       (prefs.getDouble("avncScaleFactor") ??
               _setDouble("avncScaleFactor", -0.5))
           .clamp(-1.0, 1.0);
-  bool get useX11 => prefs.getBool("useX11") ?? _setBool("useX11", false);
+  bool get useX11 => prefs.getBool("useX11") ?? _setBool("useX11", true);
   String get defaultVirglCommand =>
       prefs.getString("defaultVirglCommand") ??
       _setString(
