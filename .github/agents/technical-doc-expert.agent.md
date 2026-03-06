@@ -117,7 +117,7 @@ This agent is a **documentation specialist**. It is invoked by other agents and 
 | Caller | When they invoke this agent | What to do after |
 |---|---|---|
 | `github-pr-branch-manager` | PR requires new or updated documentation | Write the docs, then return to `github-pr-branch-manager` to include them in the commit/PR |
-| `conflict-resolver` | A resolution changes public APIs or user-facing behavior | Write the updated docs, then return to `conflict-resolver` (or directly to `github-pr-branch-manager` if that's the origin) |
+| `conflict-resolver` | A resolution changes public APIs or user-facing behavior | Write the updated docs, then return to `conflict-resolver` |
 | Direct user request | Any standalone documentation ask | Deliver complete docs; if a PR would be appropriate, suggest handing off to `github-pr-branch-manager` |
 
 When writing docs that reference tool or library choices, invoke `suggestion-curator` for those sections rather than picking ad-hoc — keep recommendations authoritative and curated.
