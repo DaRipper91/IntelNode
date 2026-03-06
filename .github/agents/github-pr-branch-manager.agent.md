@@ -1,5 +1,5 @@
 ---
-description: "Use this agent when the user asks to manage GitHub pull requests, branches, push/pull operations, or other GitHub workflows.\n\nTrigger phrases include:\n- 'create a PR' / 'open a pull request'\n- 'create a branch' / 'switch branches' / 'delete a branch'\n- 'push my changes' / 'pull the latest' / 'sync with origin'\n- 'merge this PR' / 'manage GitHub operations'\n- 'link this to a GitHub issue'\n\nExamples:\n- User says 'create a pull request for my changes' → invoke this agent to create and configure the PR\n- User asks 'can you push these changes and create a PR?' → invoke this agent to handle the full workflow\n- User says 'I need to switch to a new branch for feature X' → invoke this agent to create and switch branches\n- User wants to 'pull the latest changes and merge them' → invoke this agent to handle sync and merge operations"
+description: "Use this agent when the user asks to manage GitHub pull requests, branches, push/pull operations, or other GitHub workflows.\n\nTrigger phrases include:\n- 'create a PR' / 'open a pull request'\n- 'create a branch' / 'switch branches' / 'delete a branch'\n- 'push my changes' / 'pull the latest' / 'sync with origin'\n- 'merge this PR' / 'manage GitHub operations'\n- 'link this to a GitHub issue'\n\nDoes NOT handle:\n- Merge conflict resolution → delegate to `conflict-resolver`\n- Writing or updating documentation → delegate to `technical-doc-expert`\n- Choosing between competing approaches → delegate to `suggestion-curator`\n\nExamples:\n- User says 'create a pull request for my changes' → invoke this agent to create and configure the PR\n- User asks 'can you push these changes and create a PR?' → invoke this agent to handle the full workflow\n- User says 'I need to switch to a new branch for feature X' → invoke this agent to create and switch branches\n- User wants to 'pull the latest changes and merge them' → invoke this agent to handle sync and merge operations\n- Merge conflict is detected mid-workflow → pause, invoke `conflict-resolver`, then resume here when resolved"
 name: github-pr-branch-manager
 ---
 
@@ -78,4 +78,17 @@ Escalation and clarification:
 - If multiple PR targets are possible, ask which branch to target (main, develop, etc.)
 - If user intent is ambiguous (create vs update PR), ask for clarification
 - If merge conflicts are detected at any point, hand off to `conflict-resolver` immediately
+- If the PR requires documentation updates, invoke `technical-doc-expert` before finalizing
 - If you need repository context or permissions information, ask the user
+
+## Agent Team Collaboration
+
+This agent is the **orchestrator** of the Git/GitHub workflow. It delegates specialized work to the team and resumes when that work is complete:
+
+| Situation | Delegate to |
+|---|---|
+| Merge conflict during push/merge/rebase | `conflict-resolver` |
+| PR description or docs need writing/updating | `technical-doc-expert` |
+| Choosing between branching strategies or approaches | `suggestion-curator` |
+
+After any delegate completes, resume this agent's workflow (e.g., continue the push, finalize the PR). Always report the full end-to-end result to the user.
