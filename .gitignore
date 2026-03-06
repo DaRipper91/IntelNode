@@ -69,3 +69,4 @@ android/keystore.properties
 android/local.properties
 # Bug reports directory
 Bug_Reports/
+wget-log
