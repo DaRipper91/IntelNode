@@ -70,6 +70,39 @@ pacman -S --noconfirm \
     xorg-server xorg-xinit xorg-xauth
 ```
 
+> **LXQt alternative:** To build an LXQt rootfs instead of XFCE, replace the `xfce4 xfce4-goodies xfce4-terminal` packages with:
+> ```bash
+> pacman -S --noconfirm \
+>     lxqt lxqt-panel lxqt-session qterminal \
+>     openbox obconf
+> ```
+> All other packages in the block above remain the same.
+
+---
+
+#### Note: Building a Dual-DE Rootfs (for v2.0.7+ DE Selection Dialog)
+
+Starting with **v2.0.7**, the app shows a DE selection dialog on first container boot. This dialog lets the user choose between XFCE and LXQt, then **purges the unchosen DE** (~400 MB reclaimed). This feature only activates when the rootfs contains **both** DEs — if only one DE is detected, the dialog is silently skipped and the single DE is used as-is.
+
+To build a dual-DE rootfs (the format expected by the v2.0.7 dialog), install **both** package sets inside the container:
+
+```bash
+# XFCE
+pacman -S --noconfirm xfce4 xfce4-goodies xfce4-terminal
+
+# LXQt
+pacman -S --noconfirm lxqt lxqt-panel lxqt-session qterminal openbox obconf
+```
+
+Then proceed with the shared packages (tigervnc, novnc, fonts, etc.) as listed above.
+
+**Key points:**
+- The automated script (`build-arch-rootfs.sh --xfce` or `--lxqt`) always produces a **single-DE** rootfs. Dual-DE requires combining both package sets manually, as shown above.
+- Single-DE builds are fully supported — the selection dialog simply won't appear.
+- The purge step runs once on first boot inside the container, not at APK install time.
+
+---
+
 ### 5. Inside the Container: User and Locale Setup
 
 Create the default `tiny` user and configure the system locale.
@@ -128,5 +161,7 @@ The Android build system has a limit on asset file sizes. Split the large tarbal
 split -b 98M archlinux.tar.xz
 ```
 
-This will produce files named `xaa`, `xab`, etc. These are the files you need to copy into the `assets/` directory of the Flutter project before building the APK.
+This will produce chunk files named `xaa`, `xab`, etc. Copy these into the `assets/` directory of the Flutter project before building the APK — the app reassembles them at runtime using those exact filenames (`xaa`, `xab`, …) to reconstruct `archlinux.tar.xz` on the device.
+
+> **Note:** The Flutter app resolves these chunks by name at runtime. If you add or remove chunks (e.g. by changing the `-b` size), update the corresponding asset list in the app's `pubspec.yaml` and the runtime reassembly logic to match.
 

@@ -78,9 +78,13 @@ This is a fork of [Cateners/tiny_computer](https://github.com/Cateners/tiny_comp
 ### 1.3 First Launch Walkthrough
 
 1. **Open the app.** A loading screen with a progress bar appears.
-2. **Wait for extraction.** The app unpacks ~1.1 GB of Arch Linux files into your device's private storage. This takes **5–15 minutes** depending on your device's storage speed. Do not close the app.
-3. **Desktop appears.** Once setup is complete, the XFCE desktop loads in the built-in noVNC viewer automatically.
-4. **Subsequent launches** are fast (seconds), since the rootfs is already extracted.
+2. **Choose your Desktop Environment.** A **Desktop Environment Selection** dialog appears before extraction begins. Select either:
+   - **XFCE4** — traditional layout, lower memory footprint
+   - **LXQt** — modern Qt-based desktop, also lightweight
+   The unchosen DE is automatically purged from the container on first boot, reclaiming ~400 MB of storage. This choice is **permanent** for that container — a full reset (see [§5.8](#58-resetting--starting-fresh)) is required to change it.
+3. **Wait for extraction.** The app unpacks ~1.1 GB of Arch Linux files into your device's private storage. This takes **5–15 minutes** depending on your device's storage speed. Do not close the app.
+4. **Desktop appears.** Once setup is complete, the chosen desktop environment loads in the built-in viewer automatically.
+5. **Subsequent launches** are fast (seconds), since the rootfs is already extracted.
 
 > ⚠️ **Do not close the app or lock the screen during first-launch setup** — some devices pause background processes when the screen is off.
 
@@ -165,7 +169,7 @@ Uninstall via Android **Settings → Apps → DaRipped Tiny Computer → Uninsta
 
 This removes the app AND all Linux data stored in the app's private directory (the extracted rootfs). You will need to re-extract on fresh install.
 
-> To keep your data across reinstalls, back up `/data/user/0/com.fct.da_ripped_tiny_computer/` using a file manager with root access or ADB before uninstalling.
+> To keep your data across reinstalls, back up `/data/user/0/com.daripper91.daripped/` using a file manager with root access or ADB before uninstalling.
 
 ---
 
@@ -276,7 +280,7 @@ For the lowest latency display:
 2. In the app's **Settings → Display Backend**, select **Termux:X11**
 3. Restart the container — the XFCE session will open in the Termux:X11 app instead of the built-in viewer
 
-> Termux:X11 requires the companion Termux app to be installed alongside it.
+> **As of v2.0.7, Termux:X11 is the default display backend for new installs.** The companion Termux app must also be installed alongside Termux:X11 for it to function.
 
 ---
 
@@ -342,7 +346,7 @@ Each container is described by a JSON object stored in `SharedPreferences` under
 
 **From Android's perspective**, the rootfs lives at:
 ```
-/data/user/0/com.fct.da_ripped_tiny_computer/files/containers/0/
+/data/user/0/com.daripper91.daripped/files/containers/0/
 ```
 (accessible via ADB or root file managers)
 
@@ -528,7 +532,7 @@ If the container is corrupted or you want a clean slate:
 **Option B — Via ADB:**
 ```bash
 adb shell
-rm -rf /data/user/0/com.fct.da_ripped_tiny_computer/files/containers/
+rm -rf /data/user/0/com.daripper91.daripped/files/containers/
 ```
 Then relaunch the app.
 
@@ -552,4 +556,4 @@ Submit bug reports at: https://github.com/DaRipper91/DaRipped_tiny_computer/issu
 
 ---
 
-*Manual version: 2.0.7 · Last updated: 2026-03-04*
+*Manual version: 2.0.7 · Last updated: 2026-03-06*
