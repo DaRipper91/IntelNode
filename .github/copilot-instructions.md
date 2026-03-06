@@ -51,7 +51,7 @@ Only four Dart source files drive the entire app:
 
 ### Rootfs / Asset Pipeline
 
-- The Arch Linux ARM rootfs is **not** stored in git. Build it with `extra/build-arch-rootfs.sh`, then copy the split chunks (`xaa`, `xab`, …) to `assets/`.
+- The Arch Linux ARM rootfs is **not** stored in git. Build it with `extra/build-arch-rootfs.sh`, then copy the split chunks (`xaa`, `xab`, …) to `assets/`. The script must run as root on an Arch/CachyOS host (or any Linux with `qemu-user-static` installed for cross-arch support).
 - Chunks are capped at **98 MB** to work around Android APK asset size limits. They are reassembled at runtime before extraction.
 - `assets/assets.zip` — bootstrap binaries (proot, busybox, tar, pulseaudio, virgl, etc.), symlinked into `$DATA_DIR/bin` and `$DATA_DIR/lib` on first launch.
 - `assets/patch.tar.gz` — overlay files mounted into the container at `~/.local/share/tiny`.
@@ -79,7 +79,7 @@ The Dart package name is `da_ripped_tiny_computer`. Always import with `package:
 ### Localization
 
 - Generated via `flutter gen-l10n` (`generate: true` in `pubspec.yaml`). Never edit generated files in `lib/l10n/app_localizations*.dart`.
-- Add new strings to **both** `lib/l10n/intl_en.arb` and `lib/l10n/intl_zh.arb`.
+- Add new strings to **all three** ARB files: `lib/l10n/intl_en.arb`, `lib/l10n/intl_zh.arb` (Simplified Chinese), and `lib/l10n/intl_zh_Hant.arb` (Traditional Chinese).
 - ARB entries have no `@key` placeholder metadata blocks — parameterized strings use positional args without metadata.
 
 ### Testing
@@ -89,6 +89,11 @@ Tests that use `Util` methods touching localized strings (e.g., `validateBetween
 2. Use a `Builder` child that sets `G.homePageStateContext = context` before assertions.
 
 See `test/validate_between_test.dart` for the canonical pattern.
+
+For dependency injection in tests:
+- `ShizukuHelper.processRunner` is a static field — assign a mock function in `setUp()` and reset to `Process.run` after each test.
+- `Util.waitForXServer` accepts an optional `isReadyCheck` callback (`Future<bool> Function(String host, int port)`).
+- `Util.isXServerReady` accepts an optional `connectSocket` function to avoid real network calls.
 
 ### Comments
 
