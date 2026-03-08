@@ -1,6 +1,6 @@
 {
   "@@locale": "en",
-  "appTitle": "Tiny Computer",
+  "appTitle": "IntelNode",
   "installingBootPackage": "Installing Bootstrap Package...",
   "copyingContainerSystem": "Preparing Arch Rootfs...",
   "installingContainerSystem": "Installing Arch Linux...",
