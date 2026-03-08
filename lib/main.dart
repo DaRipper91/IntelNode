@@ -238,23 +238,7 @@ class _SettingPageState extends State<SettingPage> {
                                   onPressed: () async {
                                     await Util.setCurrentProp(
                                       "boot",
-                                      Localizations.localeOf(
-                                                context,
-                                              ).languageCode ==
-                                              'zh'
-                                          ? D.boot
-                                          : D.boot
-                                                .replaceFirst(
-                                                  'LANG=zh_CN.UTF-8',
-                                                  'LANG=en_US.UTF-8',
-                                                )
-                                                .replaceFirst('公共', 'Public')
-                                                .replaceFirst('图片', 'Pictures')
-                                                .replaceFirst('音乐', 'Music')
-                                                .replaceFirst('视频', 'Videos')
-                                                .replaceFirst('下载', 'Downloads')
-                                                .replaceFirst('文档', 'Documents')
-                                                .replaceFirst('照片', 'Photos'),
+                                      Workflow.getBootCommand(),
                                     );
                                     G.bootTextChange.value =
                                         !G.bootTextChange.value;

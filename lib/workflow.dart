@@ -190,12 +190,12 @@ class Util {
         return (value) {
           addCurrentProp(key, value);
           return value;
-        }("Debian Trixie");
+        }("Arch Linux");
       case "boot":
         return (value) {
           addCurrentProp(key, value);
           return value;
-        }(D.boot);
+        }(Workflow.getBootCommand());
       case "vnc":
         return (value) {
           addCurrentProp(key, value);
@@ -735,9 +735,6 @@ WINEDLLOVERRIDES="d3d8=b,d3d9=b,d3d10core=b,d3d11=b,dxgi=b" wine reg add 'HKEY_C
     {"name": "F12", "key": TerminalKey.f12},
   ];
 
-  static const String boot =
-      "PROOT_NO_SECCOMP=1 \$DATA_DIR/bin/proot -H --change-id=1000:1000 --pwd=/home/tiny --rootfs=\$CONTAINER_DIR --mount=/system --mount=/apex --mount=/sys --mount=/data --kill-on-exit --mount=/storage --sysvipc -L --link2symlink --mount=/proc --mount=/dev --mount=/data/data/com.termux/files/usr/tmp:/tmp --mount=\$CONTAINER_DIR/tmp:/dev/shm --mount=/dev/urandom:/dev/random --mount=/proc/self/fd:/dev/fd --mount=/proc/self/fd/0:/dev/stdin --mount=/proc/self/fd/1:/dev/stdout --mount=/proc/self/fd/2:/dev/stderr --mount=/dev/null:/dev/tty0 --mount=/storage/self/primary:/media/sd --mount=\$DATA_DIR/share:/home/tiny/Public --mount=\$DATA_DIR/tiny:/home/tiny/.local/share/tiny --mount=/storage/self/primary/Fonts:/usr/share/fonts/wpsm --mount=/storage/self/primary/AppFiles/Fonts:/usr/share/fonts/yozom --mount=/system/fonts:/usr/share/fonts/androidm --mount=/storage/self/primary/Pictures:/home/tiny/Pictures --mount=/storage/self/primary/Music:/home/tiny/Music --mount=/storage/self/primary/Movies:/home/tiny/Videos --mount=/storage/self/primary/Download:/home/tiny/Downloads --mount=/storage/self/primary/DCIM:/home/tiny/Photos --mount=/storage/self/primary/Documents:/home/tiny/Documents \$EXTRA_MOUNT /usr/bin/env -i HOME=/home/tiny USER=tiny LANG=en_US.UTF-8 TERM=xterm-256color PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin PULSE_SERVER=tcp:127.0.0.1:4718 DISPLAY=:4 \$EXTRA_OPT /bin/bash /usr/local/bin/start-arch.sh";
-
   static final ButtonStyle commandButtonStyle = OutlinedButton.styleFrom(
     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
     minimumSize: const Size(0, 0),
@@ -799,6 +796,65 @@ class Workflow {
     return Util.generateRandomPassword();
   }
 
+  static String getBootCommand({String extraMount = "", String extraOpt = ""}) {
+    final builder = ProotCommandBuilder();
+    builder.addEnv("PROOT_NO_SECCOMP", "1");
+    builder.addFlag("-H");
+    builder.addFlag("--change-id=1000:1000");
+    builder.setPwd("/home/tiny");
+    builder.setRootfs("\$CONTAINER_DIR");
+    
+    // System mounts
+    builder.addMount("/system");
+    builder.addMount("/apex");
+    builder.addMount("/sys");
+    builder.addMount("/data");
+    builder.addMount("/storage");
+    builder.addMount("/proc");
+    builder.addMount("/dev");
+    builder.addMount("/data/data/com.termux/files/usr/tmp", target: "/tmp");
+    builder.addMount("\$CONTAINER_DIR/tmp", target: "/dev/shm");
+    builder.addMount("/dev/urandom", target: "/dev/random");
+    
+    // Device node simulation
+    builder.addMount("/proc/self/fd", target: "/dev/fd");
+    builder.addMount("/proc/self/fd/0", target: "/dev/stdin");
+    builder.addMount("/proc/self/fd/1", target: "/dev/stdout");
+    builder.addMount("/proc/self/fd/2", target: "/dev/stderr");
+    builder.addMount("/dev/null", target: "/dev/tty0");
+    
+    // Storage mounts
+    builder.addMount("/storage/self/primary", target: "/media/sd");
+    builder.addMount("\$DATA_DIR/share", target: "/home/tiny/Public");
+    builder.addMount("\$DATA_DIR/tiny", target: "/home/tiny/.local/share/tiny");
+    
+    // Font mounts
+    builder.addMount("/storage/self/primary/Fonts", target: "/usr/share/fonts/wpsm");
+    builder.addMount("/storage/self/primary/AppFiles/Fonts", target: "/usr/share/fonts/yozom");
+    builder.addMount("/system/fonts", target: "/usr/share/fonts/androidm");
+    
+    // User directory mounts
+    builder.addMount("/storage/self/primary/Pictures", target: "/home/tiny/Pictures");
+    builder.addMount("/storage/self/primary/Music", target: "/home/tiny/Music");
+    builder.addMount("/storage/self/primary/Movies", target: "/home/tiny/Videos");
+    builder.addMount("/storage/self/primary/Download", target: "/home/tiny/Downloads");
+    builder.addMount("/storage/self/primary/DCIM", target: "/home/tiny/Photos");
+    builder.addMount("/storage/self/primary/Documents", target: "/home/tiny/Documents");
+    
+    builder.addFlag("--kill-on-exit");
+    builder.addFlag("--sysvipc");
+    builder.addFlag("-L");
+    builder.addFlag("--link2symlink");
+    
+    // Append the extraMount string (already formatted as flags)
+    String cmd = builder.build();
+    if (extraMount.isNotEmpty) cmd += " $extraMount";
+    
+    cmd += " /usr/bin/env -i HOME=/home/tiny USER=tiny LANG=en_US.UTF-8 TERM=xterm-256color PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin PULSE_SERVER=tcp:127.0.0.1:4718 DISPLAY=:4 $extraOpt /bin/bash /usr/local/bin/start-arch.sh";
+    
+    return cmd;
+  }
+
   static Future<bool> grantPermissions() async {
     final status = await Permission.storage.request();
     return status.isGranted || status.isLimited;
@@ -857,51 +913,76 @@ class Workflow {
   }
 
   static Future<void> setupBootstrap() async {
-    //用来共享数据文件的文件夹
+    // Shared data directory
     Util.createDirFromString("${G.dataPath}/share");
-    //用来存放可执行文件的文件夹
+    // Binary directory
     Util.createDirFromString("${G.dataPath}/bin");
-    //用来存放库的文件夹
+    // Library directory
     Util.createDirFromString("${G.dataPath}/lib");
-    //挂载到/dev/shm的文件夹
+    // Shm mount directory
     Util.createDirFromString("${G.dataPath}/tmp");
-    //给proot的tmp文件夹，虽然我不知道为什么proot要这个
+    // PRoot temporary directory
     Util.createDirFromString("${G.dataPath}/proot_tmp");
-    //给pulseaudio的tmp文件夹
+    // PulseAudio temporary directory
     Util.createDirFromString("${G.dataPath}/pulseaudio_tmp");
-    //解压后得到bin文件夹和libexec文件夹
-    //bin存放了proot, pulseaudio, tar等
-    //libexec存放了proot loader
-    await Util.copyAsset("assets/assets.zip", "${G.dataPath}/assets.zip");
-    //patch.tar.gz存放了tiny文件夹
-    //里面是一些补丁，会被挂载到~/.local/share/tiny
-    await Util.copyAsset("assets/patch.tar.gz", "${G.dataPath}/patch.tar.gz");
-    await Util.execute("""
-export DATA_DIR=${G.dataPath}
-export LD_LIBRARY_PATH=\$DATA_DIR/lib
-cd \$DATA_DIR
-ln -sf ../applib/libexec_busybox.so \$DATA_DIR/bin/busybox
-ln -sf ../applib/libexec_busybox.so \$DATA_DIR/bin/sh
-ln -sf ../applib/libexec_busybox.so \$DATA_DIR/bin/cat
-ln -sf ../applib/libexec_busybox.so \$DATA_DIR/bin/xz
-ln -sf ../applib/libexec_busybox.so \$DATA_DIR/bin/gzip
-ln -sf ../applib/libexec_proot.so \$DATA_DIR/bin/proot
-ln -sf ../applib/libexec_tar.so \$DATA_DIR/bin/tar
-ln -sf ../applib/libexec_virgl_test_server.so \$DATA_DIR/bin/virgl_test_server
-ln -sf ../applib/libexec_getifaddrs_bridge_server.so \$DATA_DIR/bin/getifaddrs_bridge_server
-ln -sf ../applib/libexec_pulseaudio.so \$DATA_DIR/bin/pulseaudio
-ln -sf ../applib/libacl.so \$DATA_DIR/lib/libacl.so
-ln -sf ../applib/libandroid-selinux.so \$DATA_DIR/lib/libandroid-selinux.so
-ln -sf ../applib/libattr.so \$DATA_DIR/lib/libattr.so
-ln -sf ../applib/libbusybox.so \$DATA_DIR/lib/libbusybox.so.1.37.0
-ln -sf ../applib/libiconv.so \$DATA_DIR/lib/libiconv.so
-ln -sf ../applib/libpcre2-8.so \$DATA_DIR/lib/libpcre2-8.so
-ln -sf ../applib/libtalloc.so \$DATA_DIR/lib/libtalloc.so.2
-ln -sf ../applib/libvirglrenderer.so \$DATA_DIR/lib/libvirglrenderer.so
-ln -sf ../applib/libepoxy.so \$DATA_DIR/lib/libepoxy.so
-ln -sf ../applib/libproot-loader32.so \$DATA_DIR/lib/loader32
-ln -sf ../applib/libproot-loader.so \$DATA_DIR/lib/loader
 
+    await Util.copyAsset("assets/assets.zip", "${G.dataPath}/assets.zip");
+    // patch.tar.gz contains the 'tiny' folder with customization scripts
+    await Util.copyAsset("assets/patch.tar.gz", "${G.dataPath}/patch.tar.gz");
+    await Util.copyAsset(
+      "assets/scripts/start-arch.sh",
+      "${G.dataPath}/tiny/extra/start-arch.sh",
+    );
+    await Util.copyAsset(
+      "assets/scripts/start-desktop",
+      "${G.dataPath}/tiny/extra/start-desktop",
+    );
+
+    final List<String> binSymlinks = [
+      'busybox',
+      'sh',
+      'cat',
+      'xz',
+      'gzip',
+      'proot',
+      'tar',
+      'virgl_test_server',
+      'getifaddrs_bridge_server',
+      'pulseaudio'
+    ];
+    final List<String> libSymlinks = [
+      'libacl.so',
+      'libandroid-selinux.so',
+      'libattr.so',
+      'libbusybox.so.1.37.0',
+      'libiconv.so',
+      'libpcre2-8.so',
+      'libtalloc.so.2',
+      'libvirglrenderer.so',
+      'libepoxy.so',
+      'loader32',
+      'loader'
+    ];
+
+    StringBuffer script = StringBuffer();
+    script.writeln("export DATA_DIR=${G.dataPath}");
+    script.writeln("export LD_LIBRARY_PATH=\$DATA_DIR/lib");
+    script.writeln("cd \$DATA_DIR");
+
+    for (var bin in binSymlinks) {
+      script.writeln("ln -sf ../applib/libexec_$bin.so \$DATA_DIR/bin/$bin");
+    }
+    for (var lib in libSymlinks) {
+      if (lib == 'loader32') {
+        script.writeln("ln -sf ../applib/libproot-loader32.so \$DATA_DIR/lib/loader32");
+      } else if (lib == 'loader') {
+        script.writeln("ln -sf ../applib/libproot-loader.so \$DATA_DIR/lib/loader");
+      } else {
+        script.writeln("ln -sf ../applib/$lib \$DATA_DIR/lib/$lib");
+      }
+    }
+
+    script.writeln("""
 \$DATA_DIR/bin/busybox unzip -o assets.zip
 chmod -R +x bin/*
 chmod -R +x libexec/proot/*
@@ -909,28 +990,27 @@ chmod 1777 tmp
 \$DATA_DIR/bin/tar zxf patch.tar.gz
 \$DATA_DIR/bin/busybox rm -rf assets.zip patch.tar.gz
 """);
+
+    await Util.execute(script.toString());
   }
 
-  //初次启动要做的事情
+  // Actions to perform on first launch
   static Future<void> initForFirstTime() async {
     // Clear log lines before starting so the log view shows only current session.
     G.logLines.value = [];
-    //首先设置bootstrap
+    // Initialize bootstrap binaries and scripts
     G.updateText.value = AppLocalizations.of(
       G.homePageStateContext,
     )!.installingBootPackage;
     await setupBootstrap();
 
-          // ignore: use_build_context_synchronously
-    // ignore: use_build_context_synchronously
     G.updateText.value = AppLocalizations.of(
       G.homePageStateContext,
     )!.copyingContainerSystem;
-    //存放容器的文件夹0和存放硬链接的文件夹.l2s
+    // Create container directory and hardlink storage
     Util.createDirFromString("${G.dataPath}/containers/0/.l2s");
-    //这个是容器rootfs，被split命令分成了xa*，放在assets里
-    //首次启动，就用这个，别让用户另选了
-    //使用 AssetManifest API 获取 assets/xa* 文件列表
+    
+    // Load rootfs chunks (split xa* files) from assets
     final AssetManifest manifest = await AssetManifest.loadFromAssetBundle(
       rootBundle,
     );
@@ -939,54 +1019,64 @@ chmod 1777 tmp
         .where((String key) => key.startsWith('assets/xa'))
         .map((String key) => key.split('/').last)
         .toList();
+    
     await Future.wait(
       xaFiles.map(
         (String name) => Util.copyAsset("assets/$name", "${G.dataPath}/$name"),
       ),
     );
-    //-J
-    // ignore: use_build_context_synchronously
+
     G.updateText.value = AppLocalizations.of(
       G.homePageStateContext,
     )!.installingContainerSystem;
+
+    // Extract rootfs to a staging directory first to ensure atomicity
     await Util.execute("""
 export DATA_DIR=${G.dataPath}
 export PATH=\$DATA_DIR/bin:\$PATH
 export LD_LIBRARY_PATH=\$DATA_DIR/lib
 export CONTAINER_DIR=\$DATA_DIR/containers/0
+export STAGING_DIR=\$DATA_DIR/containers/0_staging
 export EXTRA_OPT=""
 cd \$DATA_DIR
-export PATH=\$DATA_DIR/bin:\$PATH
 export PROOT_TMP_DIR=\$DATA_DIR/proot_tmp
 export PROOT_LOADER=\$DATA_DIR/applib/libproot-loader.so
 export PROOT_LOADER_32=\$DATA_DIR/applib/libproot-loader32.so
-#export PROOT_L2S_DIR=\$CONTAINER_DIR/.l2s
-\$DATA_DIR/bin/proot --link2symlink sh -c "cat xa* | \$DATA_DIR/bin/tar x -z --delay-directory-restore --preserve-permissions -v -C containers/0"
-#Script from proot-distro
-chmod u+rw "\$CONTAINER_DIR/etc/passwd" "\$CONTAINER_DIR/etc/shadow" "\$CONTAINER_DIR/etc/group" "\$CONTAINER_DIR/etc/gshadow"
-echo "aid_\$(id -un):x:\$(id -u):\$(id -g):Termux:/:/sbin/nologin" >> "\$CONTAINER_DIR/etc/passwd"
-echo "aid_\$(id -un):*:18446:0:99999:7:::" >> "\$CONTAINER_DIR/etc/shadow"
+
+# Clean up any failed previous attempts
+rm -rf "\$STAGING_DIR"
+mkdir -p "\$STAGING_DIR"
+
+\$DATA_DIR/bin/proot --link2symlink sh -c "cat xa* | \$DATA_DIR/bin/tar x -z --delay-directory-restore --preserve-permissions -v -C containers/0_staging"
+
+# Configure passwd/group files in the staging directory
+chmod u+rw "\$STAGING_DIR/etc/passwd" "\$STAGING_DIR/etc/shadow" "\$STAGING_DIR/etc/group" "\$STAGING_DIR/etc/gshadow"
+echo "aid_\$(id -un):x:\$(id -u):\$(id -g):Termux:/:/sbin/nologin" >> "\$STAGING_DIR/etc/passwd"
+echo "aid_\$(id -un):*:18446:0:99999:7:::" >> "\$STAGING_DIR/etc/shadow"
 id -Gn | tr ' ' '\\n' > tmp1
 id -G | tr ' ' '\\n' > tmp2
 \$DATA_DIR/bin/busybox paste tmp1 tmp2 > tmp3
 local group_name group_id
 cat tmp3 | while read -r group_name group_id; do
-	echo "aid_\${group_name}:x:\${group_id}:root,aid_\$(id -un)" >> "\$CONTAINER_DIR/etc/group"
-	if [ -f "\$CONTAINER_DIR/etc/gshadow" ]; then
-		echo "aid_\${group_name}:*::root,aid_\$(id -un)" >> "\$CONTAINER_DIR/etc/gshadow"
+	echo "aid_\${group_name}:x:\${group_id}:root,aid_\$(id -un)" >> "\$STAGING_DIR/etc/group"
+	if [ -f "\$STAGING_DIR/etc/gshadow" ]; then
+		echo "aid_\${group_name}:*::root,aid_\$(id -un)" >> "\$STAGING_DIR/etc/gshadow"
 	fi
 done
+
+# Atomically move staging to final location
+rm -rf "\$CONTAINER_DIR"
+mv "\$STAGING_DIR" "\$CONTAINER_DIR"
+
 \$DATA_DIR/bin/busybox rm -rf xa* tmp1 tmp2 tmp3
 """);
-    //一些数据初始化
-    //$DATA_DIR是数据文件夹, $CONTAINER_DIR是容器根目录
-    //Termux:X11的启动命令并不在这里面，而是写死了。这下成💩山代码了:P
+
+    // Initialize container metadata
     String initialVncPassword = Util.generateRandomPassword();
-    // ignore: use_build_context_synchronously
     await G.prefs.setStringList("containersInfo", [
       """{
 "name":"Arch Linux",
-"boot":"${D.boot}",
+"boot":"\${Workflow.getBootCommand()}",
 "vnc":"start-desktop &",
 "vncPassword":"$initialVncPassword",
 "vncUrl":"http://localhost:36082/vnc.html?host=localhost&port=36082&autoconnect=true&resize=remote&password=$initialVncPassword",
@@ -994,8 +1084,7 @@ done
 "commands":${jsonEncode(Localizations.localeOf(G.homePageStateContext).languageCode == 'zh' ? D.commands : D.commands4En)}
 }""",
     ]);
-    // ignore: use_build_context_synchronously
-    // ignore: use_build_context_synchronously
+    
     G.updateText.value = AppLocalizations.of(
       G.homePageStateContext,
     )!.installationComplete;
@@ -1003,16 +1092,11 @@ done
 
   static Future<void> initData() async {
     G.dataPath = (await getApplicationSupportDirectory()).path;
-
     G.termPtys = {};
-
     G.keyboard = VirtualKeyboard(defaultInputHandler);
-
     G.prefs = await SharedPreferences.getInstance();
 
     // Set currentContainer early so getCurrentProp is safe during first-time init.
-    // Use a direct prefs read (not Util.getGlobal) to avoid creating the key here,
-    // since the first-launch check below depends on the key being absent.
     G.currentContainer = G.prefs.getInt("defaultContainer") ?? 0;
 
     G.settings = GlobalSettings();
@@ -1021,57 +1105,20 @@ done
     // Sync the showAdvancedLogs notifier so the LoadingPage reacts immediately.
     G.showAdvancedLogs.value = G.settings.advancedLogs;
 
+    // Link native libraries to app-private data directory
     await Util.execute(
       "ln -sf ${Util.escapeShellArgument(await D.androidChannel.invokeMethod("getNativeLibraryPath", {}) as String)} ${Util.escapeShellArgument(G.dataPath)}/applib",
     );
 
-    //如果没有这个key，说明是初次启动
+    // Perform first-time setup if needed
     if (!G.prefs.containsKey("defaultContainer")) {
-      await initForFirstTime();
-      //根据用户的屏幕调整分辨率
-      final s =
-          WidgetsBinding.instance.platformDispatcher.views.first.physicalSize;
-      final String w = (max(s.width, s.height) * 0.75).round().toString();
-      final String h = (min(s.width, s.height) * 0.75).round().toString();
-      G.postCommand =
-          """sed -i -E "s@-geometry [0-9]+x[0-9]+@-geometry ${w}x$h@g" \$(command -v start-vnc) 2>/dev/null || true
-sed -i -E 's/echo "[^"]+" \\| vncpasswd -f/echo "${_sanitizeVncPassword(Util.getCurrentProp("vncPassword"))}" | vncpasswd -f/g' \$(command -v start-vnc) 2>/dev/null || true""";
-          // ignore: use_build_context_synchronously
-      if (Localizations.localeOf(G.homePageStateContext).languageCode != 'zh') {
-        G.postCommand +=
-            "\nsed -i 's/#en_US.UTF-8/en_US.UTF-8/' /etc/locale.gen && locale-gen";
-        // For English users, assume they need to enable terminal write
-        G.settings.isTerminalWriteEnabled = true;
-        G.settings.isTerminalCommandsEnabled = true;
-        G.settings.isStickyKey = false;
-        G.settings.wakelock = true;
-      }
-      G.settings.getifaddrsBridge =
-          (await DeviceInfoPlugin().androidInfo).version.sdkInt >= 31;
-
-      // Show DE selection dialog and configure xinitrc + purge unchosen DE
-      final String deChoice = await _showDeSelectionDialog();
-      G.settings.selectedDE = deChoice;
-      final String deExec = deChoice == 'lxqt' ? 'startlxqt' : 'startxfce4';
-      final String deDesktop = deChoice == 'lxqt' ? 'LXQt' : 'XFCE';
-      final String removePackages = deChoice == 'lxqt'
-          ? 'xfce4 xfce4-goodies xfce4-terminal'
-          : 'lxqt openbox';
-      G.postCommand += """
-cat > /home/tiny/.xinitrc << 'XINITRC'
-#!/bin/bash
-export XDG_SESSION_TYPE=x11
-export XDG_CURRENT_DESKTOP=$deDesktop
-exec $deExec
-XINITRC
-chmod +x /home/tiny/.xinitrc
-pacman -Rns --noconfirm $removePackages 2>/dev/null || true""";
+      await _runFirstTimeSetup();
     }
+    
     G.currentContainer = G.settings.defaultContainer;
 
-    //是否需要重新安装引导包?
+    // Check if bootstrap needs re-installation
     if (Util.getGlobal("reinstallBootstrap")) {
-      // ignore: use_build_context_synchronously
       G.updateText.value = AppLocalizations.of(
         G.homePageStateContext,
       )!.reinstallingBootPackage;
@@ -1079,7 +1126,7 @@ pacman -Rns --noconfirm $removePackages 2>/dev/null || true""";
       G.prefs.setBool("reinstallBootstrap", false);
     }
 
-    //开启了什么图形界面？
+    // Initialize display backends
     if (Util.getGlobal("useX11")) {
       G.wasX11Enabled = true;
       Workflow.launchXServer();
@@ -1088,12 +1135,50 @@ pacman -Rns --noconfirm $removePackages 2>/dev/null || true""";
     }
 
     G.termFontScale.value = Util.getGlobal("termFontScale") as double;
+    G.controller = WebViewController()..setJavaScriptMode(JavaScriptMode.unrestricted);
 
-    G.controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted);
-
-    //设置屏幕常亮
+    // Enable screen wakelock
     WakelockPlus.toggle(enable: Util.getGlobal("wakelock"));
+  }
+
+  // Internal helper for first-time configuration
+  static Future<void> _runFirstTimeSetup() async {
+    await initForFirstTime();
+    
+    // Auto-adjust resolution based on physical screen size
+    final s = WidgetsBinding.instance.platformDispatcher.views.first.physicalSize;
+    final String w = (max(s.width, s.height) * 0.75).round().toString();
+    final String h = (min(s.width, s.height) * 0.75).round().toString();
+    
+    G.postCommand = """sed -i -E "s@-geometry [0-9]+x[0-9]+@-geometry ${w}x$h@g" \$(command -v start-vnc) 2>/dev/null || true
+sed -i -E 's/echo "[^"]+" \\| vncpasswd -f/echo "${_sanitizeVncPassword(Util.getCurrentProp("vncPassword"))}" | vncpasswd -f/g' \$(command -v start-vnc) 2>/dev/null || true""";
+    
+    if (Localizations.localeOf(G.homePageStateContext).languageCode != 'zh') {
+      G.postCommand += "\nsed -i 's/#en_US.UTF-8/en_US.UTF-8/' /etc/locale.gen && locale-gen";
+      G.settings.isTerminalWriteEnabled = true;
+      G.settings.isTerminalCommandsEnabled = true;
+      G.settings.isStickyKey = false;
+      G.settings.wakelock = true;
+    }
+    
+    G.settings.getifaddrsBridge = (await DeviceInfoPlugin().androidInfo).version.sdkInt >= 31;
+
+    // Handle desktop environment selection and package purging
+    final String deChoice = await _showDeSelectionDialog();
+    G.settings.selectedDE = deChoice;
+    final String deExec = deChoice == 'lxqt' ? 'startlxqt' : 'startxfce4';
+    final String deDesktop = deChoice == 'lxqt' ? 'LXQt' : 'XFCE';
+    final String removePackages = deChoice == 'lxqt' ? 'xfce4 xfce4-goodies xfce4-terminal' : 'lxqt openbox';
+    
+    G.postCommand += """
+cat > /home/tiny/.xinitrc << 'XINITRC'
+#!/bin/bash
+export XDG_SESSION_TYPE=x11
+export XDG_CURRENT_DESKTOP=$deDesktop
+exec $deExec
+XINITRC
+chmod +x /home/tiny/.xinitrc
+pacman -Rns --noconfirm $removePackages 2>/dev/null || true""";
   }
 
   static Future<void> initTerminalForCurrent() async {
@@ -1120,18 +1205,23 @@ exit
   }
 
   static Future<void> launchCurrentContainer() async {
-    String extraMount = ""; //mount options and other proot options
+    String extraMount = ""; 
     String extraOpt = "";
+    
+    // Configure Network Bridge
     if (Util.getGlobal("getifaddrsBridge")) {
       Util.executeBackground(
         "${Util.escapeShellArgument('${G.dataPath}/bin/getifaddrs_bridge_server')} ${Util.escapeShellArgument('${G.dataPath}/containers/${G.currentContainer}/tmp/.getifaddrs-bridge')}",
       );
-      extraOpt +=
-          "LD_PRELOAD=/home/tiny/.local/share/tiny/extra/getifaddrs_bridge_client_lib.so ";
+      extraOpt += "LD_PRELOAD=/home/tiny/.local/share/tiny/extra/getifaddrs_bridge_client_lib.so ";
     }
+    
+    // Configure Display Scaling
     if (Util.getGlobal("isHidpiEnabled")) {
       extraOpt += "${Util.getGlobal("defaultHidpiOpt")} ";
     }
+    
+    // Configure Hardware Acceleration (VirGL)
     if (Util.getGlobal("virgl")) {
       Util.executeBackground(
         """
@@ -1143,24 +1233,26 @@ export CONTAINER_DIR=\$DATA_DIR/containers/${G.currentContainer}
       );
       extraOpt += "${Util.getGlobal("defaultVirglOpt")} ";
     }
+    
+    // Configure Adreno Turnip Drivers
     if (Util.getGlobal("turnip")) {
       extraOpt += "${Util.getGlobal("defaultTurnipOpt")} ";
       if (!(Util.getGlobal("dri3"))) {
         extraOpt += "MESA_VK_WSI_DEBUG=sw ";
       }
     }
+    
     if (Util.getGlobal("isJpEnabled")) {
       extraOpt += "LANG=ja_JP.UTF-8 ";
     }
+    
+    // Standard system mounts and scripts
     extraMount += "--mount=\$DATA_DIR/tiny/font:/usr/share/fonts/tiny ";
-    extraMount +=
-        "--mount=\$DATA_DIR/tiny/extra/start-arch.sh:/usr/local/bin/start-arch.sh ";
-    extraMount +=
-        "--mount=\$DATA_DIR/tiny/extra/start-desktop:/usr/local/bin/start-desktop ";
-    extraMount +=
-        "--mount=\$DATA_DIR/tiny/extra/cmatrix:/home/tiny/.local/bin/cmatrix ";
-    extraMount +=
-        "--mount=\$DATA_DIR/tiny/extra/tiny_virtual_mic:/home/tiny/.local/bin/tiny_virtual_mic ";
+    extraMount += "--mount=\$DATA_DIR/tiny/extra/start-arch.sh:/usr/local/bin/start-arch.sh ";
+    extraMount += "--mount=\$DATA_DIR/tiny/extra/start-desktop:/usr/local/bin/start-desktop ";
+    extraMount += "--mount=\$DATA_DIR/tiny/extra/cmatrix:/home/tiny/.local/bin/cmatrix ";
+    extraMount += "--mount=\$DATA_DIR/tiny/extra/tiny_virtual_mic:/home/tiny/.local/bin/tiny_virtual_mic ";
+    
     Util.termWrite("""
 export DATA_DIR=${G.dataPath}
 export PATH=\$DATA_DIR/bin:\$PATH
@@ -1168,12 +1260,11 @@ export LD_LIBRARY_PATH=\$DATA_DIR/lib
 export CONTAINER_DIR=\$DATA_DIR/containers/${G.currentContainer}
 export EXTRA_MOUNT=${Util.escapeShellArgument(extraMount)}
 export EXTRA_OPT=${Util.escapeShellArgument(extraOpt)}
-#export PROOT_L2S_DIR=\$DATA_DIR/containers/0/.l2s
 cd \$DATA_DIR
 export PROOT_TMP_DIR=\$DATA_DIR/proot_tmp
 export PROOT_LOADER=\$DATA_DIR/applib/libproot-loader.so
 export PROOT_LOADER_32=\$DATA_DIR/applib/libproot-loader32.so
-${Util.getCurrentProp("boot")}
+${Workflow.getBootCommand(extraMount: extraMount, extraOpt: extraOpt)}
 ${G.postCommand}
 clear""");
   }

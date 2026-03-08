@@ -154,3 +154,82 @@ class ContainerInfo {
     }
   }
 }
+
+class ProotCommandBuilder {
+  final List<String> _mounts = [];
+  final Map<String, String> _env = {};
+  final List<String> _flags = [];
+  String? _rootfs;
+  String? _pwd;
+  String? _executable;
+  final List<String> _args = [];
+
+  ProotCommandBuilder();
+
+  void addMount(String source, {String? target}) {
+    _mounts.add(target == null ? source : "$source:$target");
+  }
+
+  void addEnv(String key, String value) {
+    _env[key] = value;
+  }
+
+  void addFlag(String flag) {
+    _flags.add(flag);
+  }
+
+  void setRootfs(String path) {
+    _rootfs = path;
+  }
+
+  void setPwd(String path) {
+    _pwd = path;
+  }
+
+  void setExecutable(String path) {
+    _executable = path;
+  }
+
+  void addArg(String arg) {
+    _args.add(arg);
+  }
+
+  String build() {
+    StringBuffer sb = StringBuffer();
+
+    // Start with environment variables if any
+    if (_env.isNotEmpty) {
+      _env.forEach((key, value) {
+        sb.write("$key=$value ");
+      });
+    }
+
+    sb.write("\$DATA_DIR/bin/proot ");
+
+    for (var flag in _flags) {
+      sb.write("$flag ");
+    }
+
+    if (_rootfs != null) {
+      sb.write("--rootfs=$_rootfs ");
+    }
+
+    if (_pwd != null) {
+      sb.write("--pwd=$_pwd ");
+    }
+
+    for (var mount in _mounts) {
+      sb.write("--mount=$mount ");
+    }
+
+    if (_executable != null) {
+      sb.write("$_executable ");
+    }
+
+    for (var arg in _args) {
+      sb.write("$arg ");
+    }
+
+    return sb.toString().trim();
+  }
+}
