@@ -92,7 +92,7 @@ class MyApp extends StatelessWidget {
             colorScheme: darkDynamic,
             useMaterial3: true,
           ),
-          home: MyHomePage(title: "Tiny Computer"),
+          home: MyHomePage(title: "IntelNode"),
         );
       },
     );
