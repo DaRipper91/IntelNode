@@ -7,7 +7,7 @@
   "confirmResetCommand": "是否重設啟動指令？",
   "cancel": "取消",
   "yes": "是",
-  "signal9 Error Page": "Signal9 錯誤頁面",
+  "signal9ErrorPage": "Signal9 錯誤頁面",
   "containerName": "容器名稱",
   "startupCommand": "啟動指令",
   "vncStartupCommand": "vnc 啟動指令",
