@@ -69,15 +69,21 @@ class Util {
   }
 
   static Future<int> execute(String str) async {
-    Pty pty = Pty.start("/system/bin/sh");
+    Pty pty;
+    try {
+      pty = Pty.start("/system/bin/sh");
+    } catch (e) {
+      debugPrint("Failed to start shell: $e");
+      return -1;
+    }
+
     pty.write(const Utf8Encoder().convert("$str\nexit \$?\n"));
     StreamSubscription<Uint8List>? sub;
     if (G.showAdvancedLogs.value) {
       sub = pty.output.listen((data) {
         final text = const Utf8Decoder(allowMalformed: true).convert(data);
         if (text.isEmpty) return;
-        final newLines =
-            text.split('\n').where((l) => l.isNotEmpty).toList();
+        final newLines = text.split('\n').where((l) => l.isNotEmpty).toList();
         if (newLines.isEmpty) return;
         final updated = [...G.logLines.value, ...newLines];
         // Limit to 500 lines to avoid unbounded memory growth
@@ -88,6 +94,9 @@ class Util {
     }
     try {
       return await pty.exitCode;
+    } catch (e) {
+      debugPrint("Error waiting for shell exit: $e");
+      return -1;
     } finally {
       await sub?.cancel();
     }
@@ -98,10 +107,23 @@ class Util {
   static String escapeShellArgument(String arg) =>
       "'${arg.replaceAll("'", "'\\''")}'";
 
+  static final List<Process> _backgroundProcesses = [];
+
   // Fire-and-forget background process (for long-running daemons like
   // virgl_test_server and getifaddrs_bridge_server).
   static void executeBackground(String str) {
-    Process.start("/system/bin/sh", ["-c", str]);
+    Process.start("/system/bin/sh", ["-c", str]).then((process) {
+      _backgroundProcesses.add(process);
+      process.exitCode.then((_) => _backgroundProcesses.remove(process));
+    });
+  }
+
+  static void killAllProcesses() {
+    for (var p in _backgroundProcesses) {
+      p.kill();
+    }
+    _backgroundProcesses.clear();
+    G.audioPty?.kill();
   }
 
   static void termWrite(String str) {
@@ -991,7 +1013,10 @@ chmod 1777 tmp
 \$DATA_DIR/bin/busybox rm -rf assets.zip patch.tar.gz
 """);
 
-    await Util.execute(script.toString());
+    final int exitCode = await Util.execute(script.toString());
+    if (exitCode != 0) {
+      throw Exception("Bootstrap setup failed with exit code $exitCode");
+    }
   }
 
   // Actions to perform on first launch
@@ -1031,7 +1056,7 @@ chmod 1777 tmp
     )!.installingContainerSystem;
 
     // Extract rootfs to a staging directory first to ensure atomicity
-    await Util.execute("""
+    final int exitCode = await Util.execute("""
 export DATA_DIR=${G.dataPath}
 export PATH=\$DATA_DIR/bin:\$PATH
 export LD_LIBRARY_PATH=\$DATA_DIR/lib
@@ -1070,6 +1095,10 @@ mv "\$STAGING_DIR" "\$CONTAINER_DIR"
 
 \$DATA_DIR/bin/busybox rm -rf xa* tmp1 tmp2 tmp3
 """);
+
+    if (exitCode != 0) {
+      throw Exception("Container installation failed with exit code $exitCode");
+    }
 
     // Initialize container metadata
     String initialVncPassword = Util.generateRandomPassword();
@@ -1357,8 +1386,8 @@ clear""");
     }
     await initData();
     await initTerminalForCurrent();
-    setupAudio();
-    launchCurrentContainer();
+    await setupAudio();
+    await launchCurrentContainer();
     if (Util.getGlobal("autoLaunchVnc") as bool) {
       if (G.wasX11Enabled) {
         await Util.waitForXServer();

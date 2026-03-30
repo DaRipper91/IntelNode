@@ -273,12 +273,18 @@ class _SettingPageState extends State<SettingPage> {
                 TextFormField(
                   maxLines: null,
                   initialValue: Util.getCurrentProp("name"),
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  validator: (value) => (value == null || value.isEmpty)
+                      ? AppLocalizations.of(context)!.fieldRequired
+                      : null,
                   decoration: InputDecoration(
-                    border: OutlineInputBorder(),
+                    border: const OutlineInputBorder(),
                     labelText: AppLocalizations.of(context)!.containerName,
                   ),
                   onChanged: (value) async {
-                    await Util.setCurrentProp("name", value);
+                    if (value.isNotEmpty) {
+                      await Util.setCurrentProp("name", value);
+                    }
                   },
                 ),
                 const SizedBox.square(dimension: 8),
@@ -288,14 +294,21 @@ class _SettingPageState extends State<SettingPage> {
                     return TextFormField(
                       maxLines: null,
                       initialValue: Util.getCurrentProp("boot"),
+                      autovalidateMode: AutovalidateMode.onUserInteraction,
+                      validator: (value) => (value == null || value.isEmpty)
+                          ? AppLocalizations.of(context)!.fieldRequired
+                          : null,
                       decoration: InputDecoration(
-                        border: OutlineInputBorder(),
+                        border: const OutlineInputBorder(),
                         labelText: AppLocalizations.of(context)!.startupCommand,
-                        helperText: AppLocalizations.of(context)!.shellCommandWarning,
+                        helperText:
+                            AppLocalizations.of(context)!.shellCommandWarning,
                         helperMaxLines: 3,
                       ),
                       onChanged: (value) async {
-                        await Util.setCurrentProp("boot", value);
+                        if (value.isNotEmpty) {
+                          await Util.setCurrentProp("boot", value);
+                        }
                       },
                     );
                   },
@@ -304,15 +317,21 @@ class _SettingPageState extends State<SettingPage> {
                 TextFormField(
                   maxLines: null,
                   initialValue: Util.getCurrentProp("vnc"),
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  validator: (value) => (value == null || value.isEmpty)
+                      ? AppLocalizations.of(context)!.fieldRequired
+                      : null,
                   decoration: InputDecoration(
-                    border: OutlineInputBorder(),
+                    border: const OutlineInputBorder(),
                     labelText: AppLocalizations.of(context)!.vncStartupCommand,
                     helperText:
                         AppLocalizations.of(context)!.shellCommandWarning,
                     helperMaxLines: 3,
                   ),
                   onChanged: (value) async {
-                    await Util.setCurrentProp("vnc", value);
+                    if (value.isNotEmpty) {
+                      await Util.setCurrentProp("vnc", value);
+                    }
                   },
                 ),
                 const SizedBox.square(dimension: 8),
@@ -1983,74 +2002,105 @@ class _FastCommandsState extends State<FastCommands> {
                 showDialog(
                   context: context,
                   builder: (context) {
-                    return AlertDialog(
-                      title: Text(AppLocalizations.of(context)!.commandEdit),
-                      content: SingleChildScrollView(
-                        child: Column(
-                          children: [
-                            TextFormField(
-                              initialValue: name,
-                              decoration: InputDecoration(
-                                border: OutlineInputBorder(),
-                                labelText: AppLocalizations.of(
-                                  context,
-                                )!.commandName,
-                              ),
-                              onChanged: (value) {
-                                name = value;
-                              },
+                    return StatefulBuilder(
+                      builder: (context, setDialogState) {
+                        return AlertDialog(
+                          title:
+                              Text(AppLocalizations.of(context)!.commandEdit),
+                          content: SingleChildScrollView(
+                            child: Column(
+                              children: [
+                                TextFormField(
+                                  initialValue: name,
+                                  autovalidateMode:
+                                      AutovalidateMode.onUserInteraction,
+                                  validator: (value) =>
+                                      (value == null || value.isEmpty)
+                                          ? AppLocalizations.of(
+                                            context,
+                                          )!.fieldRequired
+                                          : null,
+                                  decoration: InputDecoration(
+                                    border: const OutlineInputBorder(),
+                                    labelText: AppLocalizations.of(
+                                      context,
+                                    )!.commandName,
+                                  ),
+                                  onChanged: (value) {
+                                    setDialogState(() {
+                                      name = value;
+                                    });
+                                  },
+                                ),
+                                const SizedBox.square(dimension: 8),
+                                TextFormField(
+                                  maxLines: null,
+                                  initialValue: command,
+                                  autovalidateMode:
+                                      AutovalidateMode.onUserInteraction,
+                                  validator: (value) =>
+                                      (value == null || value.isEmpty)
+                                          ? AppLocalizations.of(
+                                            context,
+                                          )!.fieldRequired
+                                          : null,
+                                  decoration: InputDecoration(
+                                    border: const OutlineInputBorder(),
+                                    labelText: AppLocalizations.of(
+                                      context,
+                                    )!.commandContent,
+                                  ),
+                                  onChanged: (value) {
+                                    setDialogState(() {
+                                      command = value;
+                                    });
+                                  },
+                                ),
+                              ],
                             ),
-                            const SizedBox.square(dimension: 8),
-                            TextFormField(
-                              maxLines: null,
-                              initialValue: command,
-                              decoration: InputDecoration(
-                                border: OutlineInputBorder(),
-                                labelText: AppLocalizations.of(
-                                  context,
-                                )!.commandContent,
-                              ),
-                              onChanged: (value) {
-                                command = value;
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () async {
+                                await Util.setCurrentProp(
+                                  "commands",
+                                  Util.getCurrentProp("commands")
+                                    ..removeAt(e.key),
+                                );
+                                setState(() {});
+                                if (!context.mounted) return;
+                                Navigator.of(context).pop();
                               },
+                              child: Text(
+                                AppLocalizations.of(context)!.deleteItem,
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                              },
+                              child: Text(AppLocalizations.of(context)!.cancel),
+                            ),
+                            TextButton(
+                              onPressed: (name.isEmpty || command.isEmpty)
+                                  ? null
+                                  : () async {
+                                    await Util.setCurrentProp(
+                                      "commands",
+                                      Util.getCurrentProp("commands")
+                                        ..setAll(e.key, [
+                                          {"name": name, "command": command},
+                                        ]),
+                                    );
+                                    setState(() {});
+                                    if (!context.mounted) return;
+                                    Navigator.of(context).pop();
+                                  },
+                              child: Text(AppLocalizations.of(context)!.save),
                             ),
                           ],
-                        ),
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () async {
-                            await Util.setCurrentProp(
-                              "commands",
-                              Util.getCurrentProp("commands")..removeAt(e.key),
-                            );
-                            setState(() {});
-                            if (!context.mounted) return;
-                            Navigator.of(context).pop();
-                          },
-                          child: Text(AppLocalizations.of(context)!.deleteItem),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                          },
-                          child: Text(AppLocalizations.of(context)!.cancel),
-                        ),
-                        TextButton(
-                          onPressed: () async {
-                            await Util.setCurrentProp(
-                              "commands",
-                              Util.getCurrentProp("commands")..setAll(e.key, [
-                                {"name": name, "command": command},
-                              ]),
-                            );
-                            setState(() {});
-                            if (!context.mounted) return;
-                            Navigator.of(context).pop();
-                          },
-                          child: Text(AppLocalizations.of(context)!.save),
-                        ),
-                      ],
+                        );
+                      },
                     );
                   },
                 );
@@ -2065,72 +2115,99 @@ class _FastCommandsState extends State<FastCommands> {
                 showDialog(
                   context: context,
                   builder: (context) {
-                    return AlertDialog(
-                      title: Text(AppLocalizations.of(context)!.commandEdit),
-                      content: SingleChildScrollView(
-                        child: Column(
-                          children: [
-                            TextFormField(
-                              initialValue: name,
-                              decoration: InputDecoration(
-                                border: OutlineInputBorder(),
-                                labelText: AppLocalizations.of(
-                                  context,
-                                )!.commandName,
-                              ),
-                              onChanged: (value) {
-                                name = value;
-                              },
+                    return StatefulBuilder(
+                      builder: (context, setDialogState) {
+                        return AlertDialog(
+                          title:
+                              Text(AppLocalizations.of(context)!.commandEdit),
+                          content: SingleChildScrollView(
+                            child: Column(
+                              children: [
+                                TextFormField(
+                                  initialValue: name,
+                                  autovalidateMode:
+                                      AutovalidateMode.onUserInteraction,
+                                  validator: (value) =>
+                                      (value == null || value.isEmpty)
+                                          ? AppLocalizations.of(
+                                            context,
+                                          )!.fieldRequired
+                                          : null,
+                                  decoration: InputDecoration(
+                                    border: const OutlineInputBorder(),
+                                    labelText: AppLocalizations.of(
+                                      context,
+                                    )!.commandName,
+                                  ),
+                                  onChanged: (value) {
+                                    setDialogState(() {
+                                      name = value;
+                                    });
+                                  },
+                                ),
+                                const SizedBox.square(dimension: 8),
+                                TextFormField(
+                                  maxLines: null,
+                                  initialValue: command,
+                                  autovalidateMode:
+                                      AutovalidateMode.onUserInteraction,
+                                  validator: (value) =>
+                                      (value == null || value.isEmpty)
+                                          ? AppLocalizations.of(
+                                            context,
+                                          )!.fieldRequired
+                                          : null,
+                                  decoration: InputDecoration(
+                                    border: const OutlineInputBorder(),
+                                    labelText: AppLocalizations.of(
+                                      context,
+                                    )!.commandContent,
+                                  ),
+                                  onChanged: (value) {
+                                    setDialogState(() {
+                                      command = value;
+                                    });
+                                  },
+                                ),
+                              ],
                             ),
-                            const SizedBox.square(dimension: 8),
-                            TextFormField(
-                              maxLines: null,
-                              initialValue: command,
-                              decoration: InputDecoration(
-                                border: OutlineInputBorder(),
-                                labelText: AppLocalizations.of(
-                                  context,
-                                )!.commandContent,
-                              ),
-                              onChanged: (value) {
-                                command = value;
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () {
+                                launchUrl(
+                                  Uri.parse(
+                                    "https://gitee.com/caten/tc-hints/blob/master/pool/extracommand.md",
+                                  ),
+                                  mode: LaunchMode.externalApplication,
+                                );
                               },
+                              child: Text(AppLocalizations.of(context)!.more),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                              },
+                              child: Text(AppLocalizations.of(context)!.cancel),
+                            ),
+                            TextButton(
+                              onPressed: (name.isEmpty || command.isEmpty)
+                                  ? null
+                                  : () async {
+                                    await Util.setCurrentProp(
+                                      "commands",
+                                      Util.getCurrentProp("commands")
+                                        ..add({"name": name, "command": command}),
+                                    );
+                                    setState(() {});
+                                    if (!context.mounted) return;
+                                    Navigator.of(context).pop();
+                                  },
+                              child: Text(AppLocalizations.of(context)!.add),
                             ),
                           ],
-                        ),
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () {
-                            launchUrl(
-                              Uri.parse(
-                                "https://gitee.com/caten/tc-hints/blob/master/pool/extracommand.md",
-                              ),
-                              mode: LaunchMode.externalApplication,
-                            );
-                          },
-                          child: Text(AppLocalizations.of(context)!.more),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                          },
-                          child: Text(AppLocalizations.of(context)!.cancel),
-                        ),
-                        TextButton(
-                          onPressed: () async {
-                            await Util.setCurrentProp(
-                              "commands",
-                              Util.getCurrentProp("commands")
-                                ..add({"name": name, "command": command}),
-                            );
-                            setState(() {});
-                            if (!context.mounted) return;
-                            Navigator.of(context).pop();
-                          },
-                          child: Text(AppLocalizations.of(context)!.add),
-                        ),
-                      ],
+                        );
+                      },
                     );
                   },
                 );
@@ -2187,13 +2264,14 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   bool bannerAdsFailedToLoad = false;
   bool isLoadingComplete = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeWorkflow();
     });
@@ -2201,6 +2279,20 @@ class _MyHomePageState extends State<MyHomePage> {
       SystemUiMode.immersiveSticky,
       overlays: [],
     );
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    Util.killAllProcesses();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.detached) {
+      Util.killAllProcesses();
+    }
   }
 
   Future<void> _initializeWorkflow() async {

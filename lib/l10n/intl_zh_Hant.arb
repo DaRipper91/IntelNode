@@ -1,4 +1,5 @@
 {
+  "fieldRequired": "此項必填",
   "appTitle": "DaRipped的小小電腦",
   "advancedSettings": "進階設定",
   "restartAfterChange": "修改後需重新啟動才會生效",

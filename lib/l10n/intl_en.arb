@@ -1,4 +1,5 @@
 {
+  "fieldRequired": "This field is required",
   "@@locale": "en",
   "appTitle": "IntelNode",
   "installingBootPackage": "Installing Bootstrap Package...",
