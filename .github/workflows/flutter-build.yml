@@ -32,7 +32,7 @@ jobs:
         run: flutter pub get
 
       - name: Build APK
-        run: flutter build apk --release
+        run: flutter build apk --debug
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -40,8 +40,8 @@ jobs:
           tag_name: latest-build
           name: Latest DaRipped APK Build
           body: |
-            Automated build of the DaRipped Tiny Computer app.
-          files: build/app/outputs/flutter-apk/app-release.apk
+            Automated build of the DaRipped Tiny Computer app (Debug build).
+          files: build/app/outputs/flutter-apk/app-debug.apk
           prerelease: true
           make_latest: true
         env:
