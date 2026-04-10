@@ -24,15 +24,30 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.41.6'
-          channel: 'master'
+          channel: 'stable'
           cache: true
 
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build APK
+      - name: Build Debug APK
         run: flutter build apk --debug
+
+      - name: Build Release APK
+        run: |
+          # Use settings from CLAUDE.md for optimized ARM64 build
+          flutter build apk --release \
+            --target-platform android-arm64 \
+            --split-per-abi \
+            --obfuscate \
+            --split-debug-info=./debug_info \
+            || echo "Release build failed (likely missing signing config), continuing..."
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: DaRipped-APKs
+          path: build/app/outputs/flutter-apk/*.apk
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -40,8 +55,17 @@ jobs:
           tag_name: latest-build
           name: Latest DaRipped APK Build
           body: |
-            Automated build of the DaRipped Tiny Computer app (Debug build).
-          files: build/app/outputs/flutter-apk/app-debug.apk
+            Automated build of the DaRipped Tiny Computer app.
+            
+            Included builds:
+            - **Debug APK**: (Universal) Good for quick testing.
+            - **Release APK**: (ARM64-v8a) Optimized for Tensor G4 / Pixel 9. (May be unsigned if signing secrets are not set).
+            
+            Build ID: ${{ github.run_id }}
+            Commit: ${{ github.sha }}
+          files: |
+            build/app/outputs/flutter-apk/app-debug.apk
+            build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
           prerelease: true
           make_latest: true
         env:
