@@ -27,6 +27,7 @@ A specialized workstation for intelligence and knowledge generation. This is a f
 ## Features
 
 - **Full Arch Linux ARM** — `pacman` package manager, AUR support, optimized for Cortex-X4 (Tensor G4).
+- **God Mode Protocol (Shizuku + rish)** — Bypasses standard Android sandboxing to grant ADB-level permissions for faster extraction, process priority boosting (`renice`), and kernel-level tweaks.
 - **Android 14+ Optimized** — Uses `PROOT_NO_SECCOMP=1` to bypass ptrace restrictions on modern kernels.
 - **Hardware Acceleration** — VirGL/Mali-G715 passthrough for fluid graphical performance.
 - **PipeWire Audio** — High-fidelity audio pipeline with advanced DSP support.
