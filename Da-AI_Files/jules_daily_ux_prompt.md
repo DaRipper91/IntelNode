@@ -5,7 +5,7 @@ BRANCH TO CREATE: daily-review/ux-design-$(date +%Y-%m-%d)
 
 ## CONTEXT
 
-This is a recurring daily task. Your goal is to act as a lead UX/UI designer with a focus on accessibility. Your mission is to analyze the `DaRipped_tiny_computer` Flutter application and propose concrete improvements to make the user experience more intuitive, consistent, and accessible for everyone. The target device is a Google Pixel 9, so consider mobile-first design principles.
+This is a recurring daily task. Your goal is to act as a lead UX/UI designer with a focus on accessibility. Your mission is to analyze the `DaRipped_tiny_computer` Flutter application and propose concrete improvements to make the user experience more intuitive, consistent, and accessible for everyone. The target device is a Google Pixel 10 Pro, so consider mobile-first design principles.
 
 ## YOUR MANDATE
 

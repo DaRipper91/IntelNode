@@ -1,5 +1,5 @@
 #!/bin/bash
-# start-arch.sh: Bypasses systemd and initializes the environment for proot on Android 14+
+# start-arch.sh: Bypasses systemd and initializes the environment for proot on Android 16+
 
 # --- 1. Dynamic DNS Injection ---
 ANDROID_DNS1=$(/system/bin/getprop net.dns1)

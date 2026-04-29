@@ -125,7 +125,7 @@ rish -c "LD_LIBRARY_PATH=/data/user/0/com.daripper91.daripped/files/lib \
 | `LateInitializationError: G.currentContainer` | Container index accessed before initialization | **Fixed in v2.0.1** — update the app |
 | `startnovnc: command not found (exit 127)` | Script called wrong command name in the Arch rootfs | **Fixed in v2.0.6** — update the app |
 | VNC resolution not applying after settings change | Resolution passed before VNC process restarted | **Fixed in v2.0.6** — update the app |
-| Blank screen on Pixel 9 / Android 14 | `Future.delayed(Duration.zero)` blocked first Flutter frame; missing `colorSchemeSeed` fallback | **Fixed in v2.0.3** — update the app |
+| Blank screen on Pixel 10 Pro / Android 16 | `Future.delayed(Duration.zero)` blocked first Flutter frame; missing `colorSchemeSeed` fallback | **Fixed in v2.0.3** — update the app |
 | `proot: cannot connect to namespace socket` | proot SELinux policy denial on Android 13+ | Enable Shizuku (see §5); see also [MANUAL.md §3.6](MANUAL.md#36-enabling-shizuku-for-enhanced-performance) |
 
 ### Diagnosing asset failures
@@ -239,8 +239,8 @@ xterm &   # baseline X11 connectivity test
 
 ### What to include
 
-1. **Device model** (e.g., Pixel 9, Samsung Galaxy S24)
-2. **Android version** (e.g., Android 14, API 34)
+1. **Device model** (e.g., Pixel 10 Pro, Samsung Galaxy S26)
+2. **Android version** (e.g., Android 16, API 36)
 3. **App version** — visible in **Settings → About** (should be 2.0.7+)
 4. **Exact reproduction steps** — numbered, minimal
 5. **Logcat output** — filtered snippet (see §2) covering the failure window

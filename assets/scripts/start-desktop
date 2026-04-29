@@ -1,6 +1,6 @@
 #!/bin/bash
 # start-desktop: XFCE4 Graphical Session Lifecycle Manager
-# Optimizing for Mali-G715 (Tensor G4) via VirGL & Termux:X11
+# Optimizing for Mali-G925 (Tensor G5) via VirGL & Termux:X11
 
 export DISPLAY=:4
 export PULSE_SERVER=tcp:127.0.0.1:4718 # Standard Tiny Computer Pulseaudio Port
@@ -24,7 +24,7 @@ echo "[Log] Socket synchronization successful: /tmp/.X11-unix/X4 is ready."
 # Testing for VirGL pipe availability to determine fallback strategy.
 # If virgl_test_server is running on the host, the gallium pipe should be bridged.
 if [ -n "$VIRGL_ENABLE" ] || [ -S /tmp/virgl-0 ]; then
-    echo "[Log] Hardware Acceleration: VirGL Engine active (Mali-G715 Passthrough)."
+    echo "[Log] Hardware Acceleration: VirGL Engine active (Mali-G925 Passthrough)."
     export GALLIUM_DRIVER=virpipe
     export MESA_GL_VERSION_OVERRIDE=4.5
     export MESA_GLES_VERSION_OVERRIDE=3.2
@@ -35,7 +35,7 @@ else
 fi
 
 # --- 3. HiDPI & Mobile UX Scaling ---
-# Target: 2.0x Scaling for usable touch targets on high-density displays (e.g. Pixel 9)
+# Target: 2.0x Scaling for usable touch targets on high-density displays (e.g. Pixel 10 Pro)
 echo "[Log] Applying HiDPI Scaling: 2.0x Factor."
 export GDK_SCALE=2
 export GDK_DPI_SCALE=0.5

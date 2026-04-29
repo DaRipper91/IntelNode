@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-DaRipped Tiny Computer is a high-performance Arch Linux ARM workstation running on Android via PRoot. It is strictly optimized for **intelligence and knowledge generation**, specifically targeting the **Tensor G4 (Pixel 9)** architecture.
+DaRipped Tiny Computer is a high-performance Arch Linux ARM workstation running on Android via PRoot. It is strictly optimized for **intelligence and knowledge generation**, specifically targeting the **Tensor G5 (Pixel 10 Pro)** architecture.
 
-**Target:** Android ARM64 (API 34+ optimized)
+**Target:** Android ARM64 (API 36+ optimized)
 **License:** GPLv3
 **Package name:** `da_ripped_tiny_computer`
 
@@ -32,9 +32,9 @@ Output: `build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`
 
 ## Key Optimization Decisions
 
-- **Seccomp Bypass:** Uses `PROOT_NO_SECCOMP=1` to prevent Android 14 kernel ptrace denials.
+- **Seccomp Bypass:** Uses `PROOT_NO_SECCOMP=1` to prevent Android 16 (Cinnamon Bun) kernel ptrace denials.
 - **Extraction Performance:** Uses GZIP (`tar -zxf`) for rootfs reassembly, optimized for UFS 4.0 storage speed.
-- **Hardware Acceleration:** Routes OpenGL through the Mali-G715 via `GALLIUM_DRIVER=virpipe` and `MESA_EXTENSION_OVERRIDE="-GL_MESA_framebuffer_flip_y"`.
+- **Hardware Acceleration:** Routes OpenGL through the Mali-G925 via `GALLIUM_DRIVER=virpipe` and `MESA_EXTENSION_OVERRIDE="-GL_MESA_framebuffer_flip_y"`.
 - **High-Fidelity Audio:** Implements PipeWire with JamesDSP bridge support for acoustic calibration.
 - **Neural Workflow:** Includes a pre-configured `to_vault` intelligence sink for Obsidian-ready knowledge ingestion.
 

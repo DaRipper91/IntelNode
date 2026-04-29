@@ -959,6 +959,10 @@ class Workflow {
       "assets/scripts/start-desktop",
       "${G.dataPath}/tiny/extra/start-desktop",
     );
+    await Util.copyAsset(
+      "assets/scripts/to_vault",
+      "${G.dataPath}/tiny/extra/to_vault",
+    );
 
     final List<String> binSymlinks = [
       'busybox',
@@ -1281,6 +1285,7 @@ export CONTAINER_DIR=\$DATA_DIR/containers/${G.currentContainer}
     extraMount += "--mount=\$DATA_DIR/tiny/extra/start-desktop:/usr/local/bin/start-desktop ";
     extraMount += "--mount=\$DATA_DIR/tiny/extra/cmatrix:/home/tiny/.local/bin/cmatrix ";
     extraMount += "--mount=\$DATA_DIR/tiny/extra/tiny_virtual_mic:/home/tiny/.local/bin/tiny_virtual_mic ";
+    extraMount += "--mount=\$DATA_DIR/tiny/extra/to_vault:/usr/local/bin/to_vault ";
     
     Util.termWrite("""
 export DATA_DIR=${G.dataPath}

@@ -125,7 +125,7 @@
   "fileAccessHint": "Android files are accessible via /media/sd inside the container.",
   "fileAccessGuide": "File Access Guide",
   "fileAccess": "File Access",
-  "graphicsAccelerationHint": "Hardware acceleration routes tasks through the Tensor G4 GPU.",
+  "graphicsAccelerationHint": "Hardware acceleration routes tasks through the Tensor G5 GPU.",
   "virglServerParams": "VirGL Server Parameters",
   "virglEnvVar": "VirGL Environment Variables",
   "enableVirgl": "Enable VirGL Acceleration"

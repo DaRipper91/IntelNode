@@ -1,0 +1,24 @@
+#!/bin/bash
+# to_vault: Intelligence Sink for DaRipped Tiny Computer
+# Preprends ISO-8601 timestamps and frontmatter, saving to Obsidian vault.
+
+VAULT_DIR="$HOME/Vault/Raw_Intel"
+mkdir -p "$VAULT_DIR"
+
+TOPIC="${1:-General_Intel}"
+TIMESTAMP=$(date +"%Y-%m-%dT%H:%M:%S")
+FILENAME="$VAULT_DIR/${TOPIC}_${TIMESTAMP//:/-}.md"
+
+{
+  echo "---"
+  echo "topic: $TOPIC"
+  echo "timestamp: $TIMESTAMP"
+  echo "source: daripped_tiny_computer"
+  echo "device: Pixel_10_Pro"
+  echo "os: Android_Cinnamon_Bun"
+  echo "---"
+  echo ""
+  cat -
+} > "$FILENAME"
+
+echo "[Log] Intelligence successfully ingested to: $FILENAME"

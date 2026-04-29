@@ -59,7 +59,7 @@ jobs:
             
             Included builds:
             - **Debug APK**: (Universal) Good for quick testing.
-            - **Release APK**: (ARM64-v8a) Optimized for Tensor G4 / Pixel 9. (May be unsigned if signing secrets are not set).
+            - **Release APK**: (ARM64-v8a) Optimized for Tensor G5 / Pixel 10 Pro. (May be unsigned if signing secrets are not set).
             
             Build ID: ${{ github.run_id }}
             Commit: ${{ github.sha }}

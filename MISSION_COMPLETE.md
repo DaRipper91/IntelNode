@@ -3,7 +3,7 @@
 **Date**: 2026-03-08  
 **Status**: COMPLETE  
 **Architecture**: Arch Linux ARM (aarch64)  
-**Target Platform**: Android 14+ (Tensor G4 / Pixel 9 Optimized)
+**Target Platform**: Android 16+ (Tensor G5 / Pixel 10 Pro Optimized)
 
 ---
 
@@ -20,8 +20,8 @@ The mission to migrate the DaRipped Tiny Computer from a legacy Debian environme
 
 ---
 
-## 3. Kernel & Security Orchestration (Android 14)
-- **Seccomp Bypass**: Injected `PROOT_NO_SECCOMP=1` to prevent Android 14 kernel `ptrace` denials, ensuring stability for D-Bus and complex userspace binaries.
+## 3. Kernel & Security Orchestration (Android 16)
+- **Seccomp Bypass**: Injected `PROOT_NO_SECCOMP=1` to prevent Android 16 (Cinnamon Bun) kernel `ptrace` denials, ensuring stability for D-Bus and complex userspace binaries.
 - **Dual-Stage Bootstrap**:
     1. **`start-arch.sh`**: Handles system-level initialization, manual D-Bus system bus generation, and dynamic DNS injection.
     2. **`start-desktop`**: Manages graphical session lifecycle and socket synchronization.
@@ -30,7 +30,7 @@ The mission to migrate the DaRipped Tiny Computer from a legacy Debian environme
 ---
 
 ## 4. Performance & Graphics Engine
-- **Mali-G715 (Tensor G4) Optimization**: 
+- **Mali-G925 (Tensor G5) Optimization**: 
     - Forced `GALLIUM_DRIVER=virpipe` for native GPU passthrough.
     - Implemented `MESA_EXTENSION_OVERRIDE="-GL_MESA_framebuffer_flip_y"` to resolve Mali-specific rendering orientation bugs.
 - **HiDPI Scaling**: Configured automated GTK/Qt scaling factors (2.0x) for high-density mobile displays.

@@ -5,7 +5,7 @@ BRANCH TO CREATE: daily-review/performance-$(date +%Y-%m-%d)
 
 ## CONTEXT
 
-This is a recurring daily task. Your goal is to act as a senior performance engineer and proactively identify and fix performance bottlenecks in the `DaRipped_tiny_computer` Flutter application. The project's main objective is to convert from a Debian to an Arch Linux ARM container, and performance is critical for the target Pixel 9 device.
+This is a recurring daily task. Your goal is to act as a senior performance engineer and proactively identify and fix performance bottlenecks in the `DaRipped_tiny_computer` Flutter application. The project's main objective is to convert from a Debian to an Arch Linux ARM container, and performance is critical for the target Pixel 10 Pro device.
 
 ## YOUR MANDATE
 

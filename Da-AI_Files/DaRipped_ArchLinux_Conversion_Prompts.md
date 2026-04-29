@@ -2,7 +2,7 @@
 
 > **Target Repository:** `https://github.com/DaRipper91/DaRipped_tiny_computer`
 > **Upstream Fork:** `https://github.com/Cateners/tiny_computer`
-> **Goal:** Convert from Debian Trixie proot container to Arch Linux ARM proot container, optimized for Google Pixel 9 (non-root, Shizuku + rish)
+> **Goal:** Convert from Debian Trixie proot container to Arch Linux ARM proot container, optimized for Google Pixel 10 Pro (non-root, Shizuku + rish)
 > **Date Generated:** 2026-03-01
 
 ---
@@ -12,7 +12,7 @@
 1. [Project Context & Architecture Overview](#1-project-context--architecture-overview)
 2. [Prompt 1: Jules (Google Coding Bot)](#2-prompt-1-jules-google-coding-bot)
 3. [Prompt 2: gemini-cli (Desktop — CachyOS)](#3-prompt-2-gemini-cli-desktop--cachyos)
-4. [Prompt 3: gemini-cli-termux (Mobile — Pixel 9)](#4-prompt-3-gemini-cli-termux-mobile--pixel-9)
+4. [Prompt 3: gemini-cli-termux (Mobile — Pixel 10 Pro)](#4-prompt-3-gemini-cli-termux-mobile--pixel-9)
 5. [Prompt 4: claude-cli (Claude Code)](#5-prompt-4-claude-cli-claude-code)
 6. [Shared Reference: File-by-File Modification Map](#6-shared-reference-file-by-file-modification-map)
 7. [Shared Reference: Arch Linux ARM rootfs Build Script](#7-shared-reference-arch-linux-arm-rootfs-build-script)
@@ -74,7 +74,7 @@
 | **User setup** | tmoe creates `tiny` user | Manual `useradd` with sudoers config |
 | **Shell scripts in workflow.dart** | apt commands, Debian paths | pacman commands, Arch paths |
 | **patch.tar.gz** | Debian-specific patches | Arch-specific patches (different lib paths) |
-| **Pixel 9 optimization** | Generic arm64 | Tensor G4 awareness, Shizuku/rish integration |
+| **Pixel 10 Pro optimization** | Generic arm64 | Tensor G5 awareness, Shizuku/rish integration |
 
 ### Key Paths That Differ
 
@@ -113,7 +113,7 @@ BRANCH TO CREATE: feature/arch-linux-conversion
 This Flutter Android app runs a Debian Trixie proot container with XFCE/LXQt
 desktop on Android. I need you to convert ALL Debian-specific code, scripts,
 and configurations to target Arch Linux ARM instead. The app will run on a
-Google Pixel 9 (non-root, using Shizuku + rish for elevated operations).
+Google Pixel 10 Pro (non-root, using Shizuku + rish for elevated operations).
 
 The app architecture:
 - Flutter app (Dart) in lib/ handles UI and boot workflow
@@ -191,9 +191,9 @@ A) Update all user-facing strings:
 B) Update the settings/control panel:
    - Add a new toggle: "Use Shizuku (requires Shizuku app)"
    - Add a new info display: "Container: Arch Linux ARM"
-   - Add Pixel 9 display optimization settings:
-     * Default VNC resolution suggestion: 2424x1080 (Pixel 9 native)
-     * DPI suggestion: 420 (Pixel 9 native density)
+   - Add Pixel 10 Pro display optimization settings:
+     * Default VNC resolution suggestion: 2424x1080 (Pixel 10 Pro native)
+     * DPI suggestion: 420 (Pixel 10 Pro native density)
 
 C) Update locale handling:
    - Remove tmoe locale management references
@@ -221,9 +221,9 @@ B) Update version to indicate the Arch Linux conversion (e.g., 2.0.0)
 
 A) In android/app/build.gradle (or build.gradle.kts):
    - Update applicationId if desired
-   - Ensure minSdkVersion is 28 (Android 9, matching Pixel 9 support)
+   - Ensure minSdkVersion is 28 (Android 9, matching Pixel 10 Pro support)
    - Set targetSdkVersion to 34 or 35 (latest stable)
-   - Keep target platform as android-arm64 only (Pixel 9 is arm64)
+   - Keep target platform as android-arm64 only (Pixel 10 Pro is arm64)
 
 B) In AndroidManifest.xml:
    - Ensure INTERNET permission exists (for VNC)
@@ -321,11 +321,11 @@ exec startxfce4
 
 Rewrite the README entirely:
 - Title: "DaRipped Tiny Computer — Arch Linux Edition"
-- Description: One-click Arch Linux desktop on Android, optimized for Pixel 9
+- Description: One-click Arch Linux desktop on Android, optimized for Pixel 10 Pro
 - Remove all Chinese-language-first documentation
 - Make English the primary language
 - Document Shizuku/rish integration
-- Add Pixel 9 specific optimization notes
+- Add Pixel 10 Pro specific optimization notes
 - Keep credits to upstream Cateners/tiny_computer
 
 ### 4.2 extra/build-tiny-rootfs.md
@@ -388,7 +388,7 @@ Document these steps in extra/build-arch-rootfs.md:
 - PRESERVE the ability to use Termux:X11 and AVNC as display alternatives
 - PRESERVE the split-chunk extraction logic (just update naming)
 - ALL pacman commands in Dart must include --noconfirm to avoid TTY prompts
-- The Pixel 9 runs Android 14+ with Tensor G4 — ensure minSdkVersion >= 28
+- The Pixel 10 Pro runs Android 14+ with Tensor G5 — ensure minSdkVersion >= 28
 - Shizuku integration must be OPTIONAL — the app must work without it
 
 ## TESTING CHECKLIST
@@ -402,7 +402,7 @@ After making changes, verify:
 - [ ] build-arch-rootfs.md exists with complete instructions
 - [ ] patch.tar.gz structure documented for Arch paths
 
-Create a PR titled: "feat: Convert from Debian to Arch Linux ARM with Pixel 9 optimizations"
+Create a PR titled: "feat: Convert from Debian to Arch Linux ARM with Pixel 10 Pro optimizations"
 PR description should summarize all changes by phase.
 ```
 
@@ -430,7 +430,7 @@ git, and standard development tools available. The repo is a Flutter Android app
 that runs a Debian proot container on Android.
 
 YOUR MISSION: Convert this project from Debian-based to Arch Linux ARM-based,
-optimized for Google Pixel 9 with Shizuku/rish support.
+optimized for Google Pixel 10 Pro with Shizuku/rish support.
 
 # STEP-BY-STEP EXECUTION PLAN
 
@@ -537,7 +537,7 @@ Update all user-facing text:
 - Replace "Debian" with "Arch Linux" in all UI strings
 - Replace "debian" with "archlinux" in technical displays
 - Add Shizuku toggle in settings panel
-- Update default resolution suggestions for Pixel 9:
+- Update default resolution suggestions for Pixel 10 Pro:
   - Width: 2424, Height: 1080 (or allow 1080x2424 for portrait)
   - DPI: 420
 
@@ -570,7 +570,7 @@ C) AndroidManifest.xml:
 A) Rewrite README.md:
    - English-first documentation
    - Title: "DaRipped Tiny Computer — Arch Linux Edition"
-   - Document: installation, usage, Shizuku integration, Pixel 9 optimization
+   - Document: installation, usage, Shizuku integration, Pixel 10 Pro optimization
    - Credit upstream Cateners/tiny_computer
    - Remove Chinese-first formatting (keep Chinese as secondary)
 
@@ -605,11 +605,11 @@ git commit -m "feat: Convert from Debian to Arch Linux ARM
 
 - Replace all apt/dpkg commands with pacman equivalents
 - Update all file paths from Debian to Arch Linux conventions
-- Add Shizuku/rish integration for Pixel 9 optimization
+- Add Shizuku/rish integration for Pixel 10 Pro optimization
 - Create Arch Linux ARM rootfs build script and documentation
 - Update UI strings and localization for Arch Linux
 - Set default locale to en_US.UTF-8
-- Add Pixel 9 display optimization defaults
+- Add Pixel 10 Pro display optimization defaults
 - Rewrite README for English-first Arch Linux documentation"
 ```
 
@@ -626,13 +626,13 @@ git commit -m "feat: Convert from Debian to Arch Linux ARM
 
 ---
 
-## 4. Prompt 3: gemini-cli-termux (Mobile — Pixel 9)
+## 4. Prompt 3: gemini-cli-termux (Mobile — Pixel 10 Pro)
 
-This prompt is for running gemini-cli inside Termux on your Pixel 9. Since this environment has limited resources, the prompt focuses on tasks that make sense on-device: building the Arch rootfs, testing proot execution, validating configurations, and iterating on shell scripts. It assumes Shizuku is active and `rish` is available.
+This prompt is for running gemini-cli inside Termux on your Pixel 10 Pro. Since this environment has limited resources, the prompt focuses on tasks that make sense on-device: building the Arch rootfs, testing proot execution, validating configurations, and iterating on shell scripts. It assumes Shizuku is active and `rish` is available.
 
 ### How to Use
 
-1. Open Termux on your Pixel 9
+1. Open Termux on your Pixel 10 Pro
 2. Ensure gemini-cli-termux is installed and configured
 3. Navigate to or clone the repo within Termux
 4. Run the prompt interactively or pipe it
@@ -642,7 +642,7 @@ This prompt is for running gemini-cli inside Termux on your Pixel 9. Since this 
 ```
 # CONTEXT: TERMUX ON PIXEL 9 (NON-ROOT, SHIZUKU ACTIVE)
 
-You are running inside Termux on a Google Pixel 9. The device is non-rooted
+You are running inside Termux on a Google Pixel 10 Pro. The device is non-rooted
 but Shizuku is installed and active, providing `rish` for ADB-level shell access.
 gemini-cli-termux is the active tool. Termux has access to the filesystem
 at /data/data/com.termux/files/home/ and shared storage at ~/storage/.
@@ -823,12 +823,12 @@ start-desktop
 
 Verify you can connect via a VNC client or browser to localhost:36082.
 
-## Step 1.4: Optimize for Pixel 9
+## Step 1.4: Optimize for Pixel 10 Pro
 
 ```bash
 # Inside Arch container:
 
-# Pixel 9 has a Tensor G4 with 12GB RAM — configure accordingly
+# Pixel 10 Pro has a Tensor G5 with 12GB RAM — configure accordingly
 # Allow larger VNC framebuffer
 # Set XFCE to use compositing OFF (proot doesn't have GPU access)
 su - tiny -c 'xfconf-query -c xfwm4 -p /general/use_compositing -s false' 2>/dev/null || true
@@ -836,7 +836,7 @@ su - tiny -c 'xfconf-query -c xfwm4 -p /general/use_compositing -s false' 2>/dev
 # Reduce XFCE panel sizes for mobile screens
 # These will be applied on first desktop launch
 
-# Configure pacman for parallel downloads (Pixel 9 has good bandwidth)
+# Configure pacman for parallel downloads (Pixel 10 Pro has good bandwidth)
 sed -i 's/#ParallelDownloads = 5/ParallelDownloads = 5/' /etc/pacman.conf
 
 # Enable Color in pacman output
@@ -947,7 +947,7 @@ rish -c "ls -la /data/local/tmp/" 2>&1
 # Test 3: Write test file to /data/local/tmp/
 rish -c "echo 'shizuku_test' > /data/local/tmp/daripped_test && cat /data/local/tmp/daripped_test && rm /data/local/tmp/daripped_test" 2>&1
 
-# Test 4: Check if we can set CPU affinity (Pixel 9 big.LITTLE cores)
+# Test 4: Check if we can set CPU affinity (Pixel 10 Pro big.LITTLE cores)
 rish -c "taskset -p $$" 2>&1
 
 echo ""
@@ -990,7 +990,7 @@ I need you to convert the DaRipped_tiny_computer Flutter Android app from
 Debian-based to Arch Linux ARM-based. This is a fork of Cateners/tiny_computer
 that runs a proot Linux container on Android with a desktop environment.
 
-The target device is a Google Pixel 9 (non-root, with Shizuku/rish available
+The target device is a Google Pixel 10 Pro (non-root, with Shizuku/rish available
 for ADB-level shell access).
 
 ## YOUR APPROACH
@@ -1113,10 +1113,10 @@ class ShizukuHelper {
 
 ## PIXEL 9 OPTIMIZATIONS
 
-1. Default VNC resolution: 2424x1080 (native Pixel 9 width × reasonable height)
+1. Default VNC resolution: 2424x1080 (native Pixel 10 Pro width × reasonable height)
 2. Default DPI: 420
 3. Compositor disabled by default (no GPU in proot)
-4. ParallelDownloads = 5 in pacman.conf (Pixel 9 has good connectivity)
+4. ParallelDownloads = 5 in pacman.conf (Pixel 10 Pro has good connectivity)
 
 ## NEW FILES TO CREATE
 
@@ -1129,7 +1129,7 @@ class ShizukuHelper {
 1. `README.md` — Complete rewrite:
    - English-first (Chinese as secondary section)
    - Title: "DaRipped Tiny Computer — Arch Linux Edition"
-   - Sections: Features, Download, How It Works, Pixel 9 Setup,
+   - Sections: Features, Download, How It Works, Pixel 10 Pro Setup,
      Shizuku Integration, Building from Source, Known Issues, Credits
    - Credit Cateners/tiny_computer as upstream
 
@@ -1155,8 +1155,8 @@ flutter build apk --target-platform android-arm64 --split-per-abi 2>&1 | head -5
 Make changes in logical commits:
 1. `refactor: Replace all apt/dpkg commands with pacman equivalents`
 2. `refactor: Update all Debian paths to Arch Linux paths`
-3. `feat: Add Shizuku/rish integration for Pixel 9`
-4. `feat: Add Pixel 9 display optimizations`
+3. `feat: Add Shizuku/rish integration for Pixel 10 Pro`
+4. `feat: Add Pixel 10 Pro display optimizations`
 5. `docs: Rewrite README and add Arch rootfs build documentation`
 6. `chore: Update build configuration and localization`
 
@@ -1172,7 +1172,7 @@ This reference applies to all four prompts. It maps every file that needs change
 | File | Change Type | Description |
 |---|---|---|
 | `lib/workflow.dart` | **Heavy edit** | Replace ALL apt/dpkg commands, ALL Debian paths, ALL tmoe references, add Shizuku methods |
-| `lib/main.dart` | **Moderate edit** | Update UI strings, add Shizuku toggle, add Pixel 9 defaults |
+| `lib/main.dart` | **Moderate edit** | Update UI strings, add Shizuku toggle, add Pixel 10 Pro defaults |
 | `lib/l10n/*.arb` | **Moderate edit** | Update all Debian→Arch references in every locale file |
 | `pubspec.yaml` | **Light edit** | Update description, version |
 | `android/app/build.gradle` | **Light edit** | Verify SDK versions, ABI filter |
@@ -1419,7 +1419,7 @@ Future<bool> _checkShizuku() async {
 | Rootfs extraction | `tar -xf` in app sandbox | `rish -c "tar -xf ..."` to /data/local/tmp/ (faster) |
 | Process priority | Default niceness | `rish -c "renice -n -5 ..."` |
 | File permissions | App sandbox only | Can access /data/local/tmp/ |
-| CPU affinity | Not available | `rish -c "taskset ..."` for Tensor G4 big cores |
+| CPU affinity | Not available | `rish -c "taskset ..."` for Tensor G5 big cores |
 | Kill stuck processes | App process only | `rish -c "kill -9 ..."` for zombie cleanup |
 
 ### Settings Integration

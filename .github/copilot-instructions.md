@@ -2,7 +2,7 @@
 
 Flutter Android app that runs a full Arch Linux ARM (XFCE) desktop on Android without root, via proot + VNC. Fork of [Cateners/tiny_computer](https://github.com/Cateners/tiny_computer), converted from Debian to Arch Linux ARM.
 
-**Target:** Android ARM64 (optimized for Pixel 9) · **minSdk:** 28 (Android 9) · **targetSdk:** 34 · **License:** GPLv3
+**Target:** Android ARM64 (optimized for Pixel 10 Pro) · **minSdk:** 28 (Android 9) · **targetSdk:** 36 · **License:** GPLv3
 
 ---
 

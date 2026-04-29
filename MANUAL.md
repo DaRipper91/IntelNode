@@ -34,14 +34,14 @@
 
 ### 1.1 What Is DaRipped Tiny Computer?
 
-DaRipped Tiny Computer is a high-performance **Arch Linux ARM workstation** running inside an Android userspace container. Unlike standard Linux-on-Android ports, this environment is architected for **intelligence and knowledge generation**, featuring kernel-level optimizations for the Tensor G4 processor.
+DaRipped Tiny Computer is a high-performance **Arch Linux ARM workstation** running inside an Android userspace container. Unlike standard Linux-on-Android ports, this environment is architected for **intelligence and knowledge generation**, featuring kernel-level optimizations for the Tensor G5 processor.
 
 ### 1.2 System Requirements
 
 | Requirement | Minimum | Recommended |
 |---|---|---|
-| OS | Android 10+ | Android 14+ |
-| SOC | ARM64 | Tensor G4 (Pixel 9) |
+| OS | Android 10+ | Android 16+ |
+| SOC | ARM64 | Tensor G5 (Pixel 10 Pro) |
 | Storage | 4 GB | 16 GB+ (UFS 4.0) |
 | RAM | 4 GB | 12 GB+ |
 

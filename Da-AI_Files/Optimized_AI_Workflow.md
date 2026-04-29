@@ -4,14 +4,14 @@
 
 This document outlines an optimized strategy for leveraging various AI agents (Claude, Gemini, Jules) to complete the `DaRipped_tiny_computer` Arch Linux conversion project. This strategy takes into account agent capabilities, subscription tiers, rate limits, and the user's local development environment, including the ongoing setup of local LLMs.
 
-**Project Goal:** Convert the `DaRipped_tiny_computer` Flutter Android application from a Debian Trixie proot container to an Arch Linux ARM proot container, optimized for the Google Pixel 9 (non-root, Shizuku + rish).
+**Project Goal:** Convert the `DaRipped_tiny_computer` Flutter Android application from a Debian Trixie proot container to an Arch Linux ARM proot container, optimized for the Google Pixel 10 Pro (non-root, Shizuku + rish).
 
 **Agent Status & Environment:**
 - **Claude (Claude Code / claude-cli):** Pro features (messaging & coding) available. **Constraint:** Fast messaging limits require spaced-out interactions.
-- **Gemini (gemini-cli - Desktop CachyOS & Termux Pixel 9):** Two separate accounts linked to GitHub, both on Pro subscription. Excellent for direct filesystem access and shell command execution.
+- **Gemini (gemini-cli - Desktop CachyOS & Termux Pixel 10 Pro):** Two separate accounts linked to GitHub, both on Pro subscription. Excellent for direct filesystem access and shell command execution.
 - **Jules (Google Coding Bot):** Two accounts connected to GitHub, both on Pro subscription. Ideal for autonomous repo operations (cloning, branching, committing, PRs).
 - **GitHub Copilot:** Available for code generation, PR creation/review, and issue resolution.
-- **Local LLM Setup:** In progress on both CachyOS Desktop and Pixel 9 (non-rooted, with Shizuku and Rish). This will eventually offload smaller, iterative tasks.
+- **Local LLM Setup:** In progress on both CachyOS Desktop and Pixel 10 Pro (non-rooted, with Shizuku and Rish). This will eventually offload smaller, iterative tasks.
 
 ---
 
@@ -32,13 +32,13 @@ The conversion project involves distinct phases: extensive code modification, sc
     *   **Jules (Future/Support):** Once the core code changes are stable, Jules could be tasked with creating branches and handling commit/PR workflows for specific feature increments, but likely later in the process.
 
 3.  **Mobile-Specific Tasks & Validation (Primary: Gemini-Termux; Secondary: User):**
-    *   **Gemini (Termux on Pixel 9):** This agent is uniquely positioned to handle on-device tasks like:
-        *   Building the Arch Linux ARM rootfs directly on the Pixel 9 using `proot-distro` (as per "Prompt 3").
+    *   **Gemini (Termux on Pixel 10 Pro):** This agent is uniquely positioned to handle on-device tasks like:
+        *   Building the Arch Linux ARM rootfs directly on the Pixel 10 Pro using `proot-distro` (as per "Prompt 3").
         *   Validating proot operation with the generated rootfs.
         *   Testing Shizuku/rish integration for process priority, faster I/O, and CPU affinity.
         *   Iterating on shell scripts intended to run within the proot container.
         *   Transferring rootfs chunks for APK bundling.
-    *   **User:** Will oversee and perform manual verification steps on the Pixel 9.
+    *   **User:** Will oversee and perform manual verification steps on the Pixel 10 Pro.
 
 4.  **Build Configuration & Documentation (Gemini/Jules/Copilot/User):**
     *   **Gemini (Desktop):** Update `pubspec.yaml`, `android/app/build.gradle`, `AndroidManifest.xml` as per "Prompt 2" or refined instructions. Also responsible for rewriting `README.md` and other documentation files.
@@ -46,7 +46,7 @@ The conversion project involves distinct phases: extensive code modification, sc
     *   **Copilot:** Can assist in drafting configuration changes, generating boilerplate for documentation sections, or creating PRs for specific build-related updates.
 
 5.  **Local LLM Integration (Future):**
-    *   As the local LLMs on CachyOS and Pixel 9 become operational, they can gradually take over smaller, iterative tasks currently assigned to Gemini/Claude/Copilot, reducing reliance on cloud-based agents for rapid, back-and-forth debugging or minor text manipulation. This will be particularly useful for managing Claude's rate limits.
+    *   As the local LLMs on CachyOS and Pixel 10 Pro become operational, they can gradually take over smaller, iterative tasks currently assigned to Gemini/Claude/Copilot, reducing reliance on cloud-based agents for rapid, back-and-forth debugging or minor text manipulation. This will be particularly useful for managing Claude's rate limits.
 
 ---
 
@@ -64,10 +64,10 @@ The conversion project involves distinct phases: extensive code modification, sc
 *   **Optimal Use:** Initial file overviews, generating build scripts (`build-arch-rootfs.sh`), updating `pubspec.yaml` and Android build files, `README.md` and `extra/` documentation, Flutter `analyze` and `build` command execution for compilation checks, detailed `grep` searches for verification.
 *   **Considerations:** Can be used for iterative code changes if Claude is rate-limited or for smaller, focused changes.
 
-### Gemini (gemini-cli-termux - Mobile Pixel 9)
+### Gemini (gemini-cli-termux - Mobile Pixel 10 Pro)
 
 *   **Strengths:** On-device execution within Termux, `proot-distro` usage, Shizuku/rish integration testing, rootfs generation and testing.
-*   **Optimal Use:** Executing "Prompt 3" in its entirety to build, configure, and test the Arch Linux ARM rootfs directly on the Pixel 9. Validating proot behavior and Shizuku/rish functionality in the target environment. Packaging rootfs chunks for transfer to the build machine.
+*   **Optimal Use:** Executing "Prompt 3" in its entirety to build, configure, and test the Arch Linux ARM rootfs directly on the Pixel 10 Pro. Validating proot behavior and Shizuku/rish functionality in the target environment. Packaging rootfs chunks for transfer to the build machine.
 *   **Considerations:** Resource constraints of the mobile device mean focusing on terminal-based operations and script execution rather than large-scale code editing.
 
 ### Jules (Google Coding Bot)

@@ -5,9 +5,9 @@
 [![Platform](https://img.shields.io/badge/Platform-Android%20ARM64-green?style=for-the-badge)](https://github.com/DaRipper91/DaRipped_tiny_computer/releases/latest)
 [![Manual](https://img.shields.io/badge/📖_Manual-read_now-blue?style=for-the-badge)](MANUAL.md)
 
-**Full Arch Linux ARM desktop on Android — no root required. Highly optimized for Pixel 9 and Tensor G4.**
+**Full Arch Linux ARM desktop on Android — no root required. Highly optimized for Pixel 10 Pro and Tensor G5.**
 
-A specialized workstation for intelligence and knowledge generation. This is a fork of [Cateners/tiny_computer](https://github.com/Cateners/tiny_computer), fully migrated from Debian to Arch Linux ARM with modern Android 14 security bypasses.
+A specialized workstation for intelligence and knowledge generation. This is a fork of [Cateners/tiny_computer](https://github.com/Cateners/tiny_computer), fully migrated from Debian to Arch Linux ARM with modern Android 16 (Cinnamon Bun) security bypasses.
 
 ---
 
@@ -26,10 +26,10 @@ A specialized workstation for intelligence and knowledge generation. This is a f
 
 ## Features
 
-- **Full Arch Linux ARM** — `pacman` package manager, AUR support, optimized for Cortex-X4 (Tensor G4).
+- **Full Arch Linux ARM** — `pacman` package manager, AUR support, optimized for Cortex-X925 (Tensor G5).
 - **God Mode Protocol (Shizuku + rish)** — Bypasses standard Android sandboxing to grant ADB-level permissions for faster extraction, process priority boosting (`renice`), and kernel-level tweaks.
-- **Android 14+ Optimized** — Uses `PROOT_NO_SECCOMP=1` to bypass ptrace restrictions on modern kernels.
-- **Hardware Acceleration** — VirGL/Mali-G715 passthrough for fluid graphical performance.
+- **Android 16+ Optimized** — Uses `PROOT_NO_SECCOMP=1` to bypass ptrace restrictions on modern kernels.
+- **Hardware Acceleration** — VirGL/Mali-G925 passthrough for fluid graphical performance.
 - **PipeWire Audio** — High-fidelity audio pipeline with advanced DSP support.
 - **Neural Workflow Ready** — Built-in templates for knowledge ingestion and Obsidian-ready vaults.
 - **One-tap setup** — Rootfs is bundled in the APK as high-performance GZIP chunks.
@@ -53,9 +53,9 @@ Because `systemd` is incompatible with `proot`, DaRipped uses a custom two-stage
 
 ### v2.1.0 (Current)
 - **New Architecture:** Switched to a two-stage bootstrap system (`start-arch.sh` -> `start-desktop`) to bypass systemd crashes.
-- **Kernel Fix:** Injected `PROOT_NO_SECCOMP=1` to ensure stability on Android 14+ (Pixel 9).
+- **Kernel Fix:** Injected `PROOT_NO_SECCOMP=1` to ensure stability on Android 16+ (Cinnamon Bun).
 - **Performance:** Replaced XZ rootfs chunks with GZIP for faster extraction on high-speed UFS 4.0 storage.
-- **Graphics:** Optimized VirGL environment variables for the Mali-G715 (Tensor G4) GPU.
+- **Graphics:** Optimized VirGL environment variables for the Mali-G925 (Tensor G5) GPU.
 - **Audio:** Migrated from PulseAudio to PipeWire for advanced userspace audio orchestration.
 - **Workflow:** Added `to_vault` intelligence sink and high-speed Rust-based parsing toolkit (`ripgrep`, `fd`, `fzf`).
 
