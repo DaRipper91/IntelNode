@@ -160,98 +160,86 @@ class Util {
   //{name, boot:"\$DATA_DIR/bin/proot ...", vnc:"startnovnc", vncUrl:"...", commands:[{name:"更新和升级", command:"apt update -y && apt upgrade -y"},
   // bind:[{name:"U盘", src:"/storage/xxxx", dst:"/media/meow"}]...]}
   static dynamic getGlobal(String key) {
-    return G.settings.getGlobal(key);
+    try {
+      return G.settings.getGlobal(key);
+    } catch (e) {
+      return null;
+    }
   }
 
   static dynamic getCurrentProp(String key) {
-    String containerJsonStr = getGlobal("containersInfo")[G.currentContainer];
-    Map<String, dynamic> jsonMap = jsonDecode(containerJsonStr);
-    ContainerInfo info = ContainerInfo.fromJson(jsonMap);
+    try {
+      dynamic infoJson = getGlobal("containersInfo");
+      if (infoJson == null || infoJson is! List || infoJson.isEmpty) {
+        return _getDefaultProp(key);
+      }
+      String containerJsonStr = infoJson[G.currentContainer];
+      Map<String, dynamic> jsonMap = jsonDecode(containerJsonStr);
+      ContainerInfo info = ContainerInfo.fromJson(jsonMap);
 
-    // Migrate legacy hardcoded VNC password for existing users
-    if ((key == "vncUrl" || key == "vncUri" || key == "vncPassword") &&
-            !info.hasProp("vncPassword") ||
-        (info.hasProp("vncPassword") &&
-            info.getProp("vncPassword").toString().isEmpty)) {
-      // No stored password yet — generate one and persist it
-      String newPass = generateRandomPassword();
-      addCurrentProp("vncPassword", newPass);
-      info.vncPassword = newPass;
-      // Also migrate any existing URLs that have the old password
-      if (info.hasProp("vncUrl") &&
-          info.getProp("vncUrl").toString().isNotEmpty) {
-        String updatedUrl = info.vncUrl.replaceAll(
-          "password=12345678",
-          "password=$newPass",
-        );
-        addCurrentProp("vncUrl", updatedUrl);
-        info.vncUrl = updatedUrl;
+      // Migrate legacy hardcoded VNC password for existing users
+      if ((key == "vncUrl" || key == "vncUri" || key == "vncPassword") &&
+              !info.hasProp("vncPassword") ||
+          (info.hasProp("vncPassword") &&
+              info.getProp("vncPassword").toString().isEmpty)) {
+        // No stored password yet — generate one and persist it
+        String newPass = generateRandomPassword();
+        addCurrentProp("vncPassword", newPass);
+        info.vncPassword = newPass;
+        // Also migrate any existing URLs that have the old password
+        if (info.hasProp("vncUrl") &&
+            info.getProp("vncUrl").toString().isNotEmpty) {
+          String updatedUrl = info.vncUrl.replaceAll(
+            "password=12345678",
+            "password=$newPass",
+          );
+          addCurrentProp("vncUrl", updatedUrl);
+          info.vncUrl = updatedUrl;
+        }
+        if (info.hasProp("vncUri") &&
+            info.getProp("vncUri").toString().isNotEmpty) {
+          String updatedUri = info.vncUri.replaceAll(
+            "VncPassword=12345678",
+            "VncPassword=$newPass",
+          );
+          addCurrentProp("vncUri", updatedUri);
+          info.vncUri = updatedUri;
+        }
       }
-      if (info.hasProp("vncUri") &&
-          info.getProp("vncUri").toString().isNotEmpty) {
-        String updatedUri = info.vncUri.replaceAll(
-          "VncPassword=12345678",
-          "VncPassword=$newPass",
-        );
-        addCurrentProp("vncUri", updatedUri);
-        info.vncUri = updatedUri;
+
+      if (info.hasProp(key)) {
+        dynamic val = info.getProp(key);
+        if (val != null &&
+            (val is! String || val.isNotEmpty) &&
+            (val is! List || val.isNotEmpty)) {
+          return val;
+        }
       }
+
+      return _getDefaultProp(key);
+    } catch (_) {
+      return _getDefaultProp(key);
     }
+  }
 
-    if (info.hasProp(key)) {
-      dynamic val = info.getProp(key);
-      if (val != null &&
-          (val is! String || val.isNotEmpty) &&
-          (val is! List || val.isNotEmpty)) {
-        return val;
-      }
-    }
-
+  static dynamic _getDefaultProp(String key) {
     switch (key) {
       case "name":
-        return (value) {
-          addCurrentProp(key, value);
-          return value;
-        }("Arch Linux");
+        return "Arch Linux";
       case "boot":
-        return (value) {
-          addCurrentProp(key, value);
-          return value;
-        }(Workflow.getBootCommand());
+        return Workflow.getBootCommand();
       case "vnc":
-        return (value) {
-          addCurrentProp(key, value);
-          return value;
-        }("start-desktop &");
-      case "vncPassword":
-        return (value) {
-          addCurrentProp(key, value);
-          return value;
-        }(generateRandomPassword());
+        return "start-desktop &";
       case "vncUrl":
-        return (value) {
-          addCurrentProp(key, value);
-          return value;
-        }(
-          "http://localhost:36082/vnc.html?host=localhost&port=36082&autoconnect=true&resize=remote&password=${getCurrentProp("vncPassword")}",
-        );
+        return "http://localhost:36082/vnc.html";
       case "vncUri":
-        return (value) {
-          addCurrentProp(key, value);
-          return value;
-        }(
-          "vnc://127.0.0.1:5904?VncPassword=${getCurrentProp("vncPassword")}&SecurityType=2",
-        );
+        return "vnc://127.0.0.1:5904";
       case "commands":
-        return (value) {
-          addCurrentProp(key, value);
-          return value;
-        }(jsonDecode(jsonEncode(D.commands)));
+        return [];
       default:
         return null;
     }
   }
-
   //用来设置name, boot, vnc, vncUrl等
   static Future<void> setCurrentProp(String key, dynamic value) async {
     List<String> containersInfo = List<String>.from(
@@ -1384,12 +1372,11 @@ clear""");
   }
 
   static Future<void> workflow() async {
+    await initData();
     final hasPermission = await grantPermissions();
     if (!hasPermission) {
-      debugPrint("Storage permission denied. Initialization aborted.");
-      return;
+      throw Exception("Storage permission is required to initialize the container system.");
     }
-    await initData();
     await initTerminalForCurrent();
     await setupAudio();
     await launchCurrentContainer();
