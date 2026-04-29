@@ -5,86 +5,78 @@
 [![Platform](https://img.shields.io/badge/Platform-Android%20ARM64-green?style=for-the-badge)](https://github.com/DaRipper91/DaRipped_tiny_computer/releases/latest)
 [![Manual](https://img.shields.io/badge/📖_Manual-read_now-blue?style=for-the-badge)](MANUAL.md)
 
-**Full Arch Linux ARM desktop on Android — no root required. Highly optimized for Pixel 10 Pro and Tensor G5.**
+**A complete, high-performance Arch Linux ARM workstation on Android — no root required.**
 
-A specialized workstation for intelligence and knowledge generation. This is a fork of [Cateners/tiny_computer](https://github.com/Cateners/tiny_computer), fully migrated from Debian to Arch Linux ARM with modern Android 16 (Cinnamon Bun) security bypasses.
-
----
-
-## Installation
-
-1. Go to the [**Latest Release**](https://github.com/DaRipper91/DaRipped_tiny_computer/releases/latest)
-2. Download `app-arm64-v8a-release.apk`
-3. Enable **"Install from unknown sources"** in Android Settings → Security
-4. Install and open the app
-5. Wait for the first-launch setup to complete (~5–15 minutes depending on storage speed)
-6. The XFCE desktop will appear via the selected display backend
-
-> **Requirements:** Android 10+, ARM64 device, ~4 GB free storage
+Highly optimized for modern ARM64 hardware (Pixel 10 Pro / Tensor G5) and designed for intelligence professionals and power users. This is a specialized fork of [Cateners/tiny_computer](https://github.com/Cateners/tiny_computer), migrated to a rolling-release Arch Linux base with advanced security bypasses for Android 16 (Cinnamon Bun).
 
 ---
 
-## Features
-
-- **Full Arch Linux ARM** — `pacman` package manager, AUR support, optimized for Cortex-X925 (Tensor G5).
-- **God Mode Protocol (Shizuku + rish)** — Bypasses standard Android sandboxing to grant ADB-level permissions for faster extraction, process priority boosting (`renice`), and kernel-level tweaks.
-- **Android 16+ Optimized** — Uses `PROOT_NO_SECCOMP=1` to bypass ptrace restrictions on modern kernels.
-- **Hardware Acceleration** — VirGL/Mali-G925 passthrough for fluid graphical performance.
-- **PipeWire Audio** — High-fidelity audio pipeline with advanced DSP support.
-- **Neural Workflow Ready** — Built-in templates for knowledge ingestion and Obsidian-ready vaults.
-- **One-tap setup** — Rootfs is bundled in the APK as high-performance GZIP chunks.
-- **Display Backends**:
-  - [**Termux:X11**](https://github.com/termux/termux-x11) — Native X11 passthrough (Recommended).
-  - Built-in **noVNC** (WebView) — Works out of the box.
-  - [**AVNC**](https://github.com/gujjwal00/avnc) — Native Android VNC client support.
+## ⚡ Stability & Reliability (v2.1.1)
+- **Startup Crash Fix:** Resolved the critical `LateInitializationError` that caused some devices to crash on first open.
+- **Robust Permissions:** Improved storage permission handling for Android 13+ to ensure smooth initialization.
+- **Defensive Design:** Added safety guards to prevent UI crashes during the background bootstrap process.
 
 ---
 
-## Architecture: The Bootstrap System
+## 🚀 Features
 
-Because `systemd` is incompatible with `proot`, DaRipped uses a custom two-stage bootstrap:
-
-1. **`start-arch.sh`**: Handles kernel-level initialization, manual D-Bus system bus generation, and dynamic DNS injection from the Android host.
-2. **`start-desktop`**: Manages the XFCE session lifecycle, display socket synchronization, and HiDPI scaling logic.
-
----
-
-## Changelog
-
-### v2.1.0 (Current)
-- **New Architecture:** Switched to a two-stage bootstrap system (`start-arch.sh` -> `start-desktop`) to bypass systemd crashes.
-- **Kernel Fix:** Injected `PROOT_NO_SECCOMP=1` to ensure stability on Android 16+ (Cinnamon Bun).
-- **Performance:** Replaced XZ rootfs chunks with GZIP for faster extraction on high-speed UFS 4.0 storage.
-- **Graphics:** Optimized VirGL environment variables for the Mali-G925 (Tensor G5) GPU.
-- **Audio:** Migrated from PulseAudio to PipeWire for advanced userspace audio orchestration.
-- **Workflow:** Added `to_vault` intelligence sink and high-speed Rust-based parsing toolkit (`ripgrep`, `fd`, `fzf`).
-
-### v2.0.7
-- **New:** Desktop environment selection dialog on first launch — choose XFCE4 or LXQt.
-- **New:** Termux:X11 is now the default display backend for new installs.
-
-### v2.0.0
-- Initial release: Arch Linux ARM migration replacing upstream Debian rootfs.
+- **Full Arch Linux ARM** — Access to `pacman`, AUR support, and a rolling-release ecosystem optimized for the latest Cortex-X925 cores.
+- **God Mode Protocol (Shizuku + rish)** — Leverages ADB-level permissions to bypass standard Android sandboxing. This enables faster rootfs extraction, process priority boosting (`renice`), and kernel-level performance tweaks.
+- **Modern Android Compatibility** — Specifically tuned for **Android 16+** with `PROOT_NO_SECCOMP=1` to bypass new ptrace restrictions.
+- **Hardware Acceleration** — Smooth graphical performance via VirGL/Mali-G925 passthrough.
+- **Advanced Audio** — High-fidelity PipeWire/PulseAudio pipeline for low-latency sound.
+- **Intelligence Workflow** — Built-in templates for knowledge ingestion, Obsidian-ready vaults, and high-speed Rust-based CLI tools (`ripgrep`, `fd`, `fzf`).
+- **Flexible Display Backends**:
+  - [**Termux:X11**](https://github.com/termux/termux-x11) — Native X11 passthrough for maximum performance (Recommended).
+  - **Built-in noVNC** — Integrated WebView client that works out of the box.
+  - [**AVNC**](https://github.com/gujjwal00/avnc) — Support for native Android VNC clients.
 
 ---
 
-## Building from Source
+## 📦 Installation
 
-### 1. Clone
+1. Visit the [**Latest Release**](https://github.com/DaRipper91/DaRipped_tiny_computer/releases/latest).
+2. Download `app-arm64-v8a-release.apk`.
+3. Enable **"Install from unknown sources"** in your Android Settings.
+4. Install and launch the app.
+5. **Grant Storage Permissions** when prompted (required for the Linux container).
+6. Wait for the bootstrap process (5–15 minutes).
+7. Your Arch Linux desktop will appear!
+
+> **Requirements:** Android 10+ (Android 15/16 recommended), ARM64 device, ~4 GB free storage.
+
+---
+
+## 🛠️ Architecture
+
+DaRipped uses a custom two-stage bootstrap system to bypass the lack of `systemd` in proot environments:
+
+1.  **`start-arch.sh`**: Handles low-level initialization, D-Bus bus generation, and network synchronization.
+2.  **`start-desktop`**: Orchestrates the graphical session (XFCE4/LXQt), display socket synchronization, and HiDPI scaling.
+
+---
+
+## 📝 Changelog
+
+### v2.1.1 (Latest)
+- **Fix:** Resolved `LateInitializationError` crash on startup.
+- **Fix:** Improved storage permission request flow for Android 13-16.
+- **Maintenance:** Consolidated repository branches and updated documentation.
+
+### v2.1.0
+- **New:** Two-stage bootstrap system for better stability.
+- **Fix:** Android 16 (Cinnamon Bun) stability patches.
+- **Performance:** GZIP-based rootfs chunks for faster extraction.
+
+---
+
+## 🏗️ Building from Source
+
 ```bash
 git clone https://github.com/DaRipper91/DaRipped_tiny_computer.git
 cd DaRipped_tiny_computer
-```
-
-### 2. Build the APK
-Ensure the Flutter SDK is in your path and target the `arm64-v8a` ABI:
-```bash
 flutter pub get
-flutter build apk --release \
-    --target-platform android-arm64 \
-    --split-per-abi \
-    --obfuscate \
-    --split-debug-info=./debug_info
+flutter build apk --release --target-platform android-arm64 --split-per-abi
 ```
 
 ---
