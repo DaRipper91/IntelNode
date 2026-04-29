@@ -939,6 +939,9 @@ class Workflow {
     await Util.copyAsset("assets/assets.zip", "${G.dataPath}/assets.zip");
     // patch.tar.gz contains the 'tiny' folder with customization scripts
     await Util.copyAsset("assets/patch.tar.gz", "${G.dataPath}/patch.tar.gz");
+
+    // Ensure the scripts directory exists
+    Util.createDirFromString("${G.dataPath}/tiny/extra");
     await Util.copyAsset(
       "assets/scripts/start-arch.sh",
       "${G.dataPath}/tiny/extra/start-arch.sh",
