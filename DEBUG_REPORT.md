@@ -1,6 +1,6 @@
 # DaRipped Tiny Computer — Developer Debugging Reference
 
-**App version:** 2.0.7 · **Package ID:** `com.daripper91.daripped` · **Target:** Android ARM64
+**App version:** 2.1.1 · **Package ID:** `com.daripper91.daripped` · **Target:** Android ARM64 (API 36+)
 
 > This is a developer/power-user reference. For end-user troubleshooting, see **[MANUAL.md §5](MANUAL.md#5-troubleshooting-guide)**.
 
@@ -122,7 +122,8 @@ rish -c "LD_LIBRARY_PATH=/data/user/0/com.daripper91.daripped/files/lib \
 | Symptom | Likely Cause | Fix / Status |
 |---|---|---|
 | `Unable to load asset: "assets/patch.tar.gz"` | Asset missing from APK at build time | Rebuild APK; confirm `patch.tar.gz` is listed in `pubspec.yaml` under `assets:` |
-| `LateInitializationError: G.currentContainer` | Container index accessed before initialization | **Fixed in v2.0.1** — update the app |
+| `LateInitializationError: G.settings` | Field accessed before initialization | **Fixed in v2.1.1** — update the app |
+| `PathNotFoundException` (scripts) | Target directory missing during setup | **Fixed in v2.1.1** — update the app |
 | `startnovnc: command not found (exit 127)` | Script called wrong command name in the Arch rootfs | **Fixed in v2.0.6** — update the app |
 | VNC resolution not applying after settings change | Resolution passed before VNC process restarted | **Fixed in v2.0.6** — update the app |
 | Blank screen on Pixel 10 Pro / Android 16 | `Future.delayed(Duration.zero)` blocked first Flutter frame; missing `colorSchemeSeed` fallback | **Fixed in v2.0.3** — update the app |
@@ -241,7 +242,7 @@ xterm &   # baseline X11 connectivity test
 
 1. **Device model** (e.g., Pixel 10 Pro, Samsung Galaxy S26)
 2. **Android version** (e.g., Android 16, API 36)
-3. **App version** — visible in **Settings → About** (should be 2.0.7+)
+3. **App version** — visible in **Settings → About** (should be 2.1.1)
 4. **Exact reproduction steps** — numbered, minimal
 5. **Logcat output** — filtered snippet (see §2) covering the failure window
 6. **ADB bug report** — `adb bugreport bugreport.zip` attached to the issue
@@ -257,4 +258,4 @@ Use the **Bug Report** issue template if available. Attach `bugreport.zip` and a
 
 ---
 
-*Debug reference version: 2.0.7 · Last updated: 2025-07-14*
+*Debug reference version: 2.1.1 · Last updated: 2026-04-29*

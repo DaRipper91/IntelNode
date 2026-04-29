@@ -1,6 +1,6 @@
 # DaRipped Tiny Computer — Master Manual
 
-**Version 2.1.0 · Android ARM64 · Arch Linux ARM Edition**
+**Version 2.1.1 · Android ARM64 · Arch Linux ARM Edition**
 
 ---
 
@@ -14,7 +14,7 @@
    - [Intelligence & Knowledge Generation](#15-intelligence--knowledge-generation)
 2. [Installation Guide](#2-installation-guide)
    - [Install from APK (End Users)](#21-install-from-apk-end-users)
-   - [Permissions & Android 14 Hacks](#22-permissions--android-14-hacks)
+   - [Permissions & Android 16+ Hacks](#22-permissions--android-16-hacks)
 3. [Customization Guide](#3-customization-guide)
    - [Hardware Acceleration (VirGL)](#31-hardware-acceleration-virgl)
    - [High-Fidelity Audio (PipeWire)](#32-high-fidelity-audio-pipewire)
@@ -24,7 +24,7 @@
    - [Rust-based Parsing Stack](#42-rust-based-parsing-stack)
    - [Multiplexer Layout (Zellij)](#43-multiplexer-layout-zellij)
 5. [Troubleshooting Guide](#5-troubleshooting-guide)
-   - [Android 14 ptrace Denials](#51-android-14-ptrace-denials)
+   - [Android 16 ptrace Denials](#51-android-16-ptrace-denials)
    - [Display Sync Timeouts](#52-display-sync-timeouts)
    - [Resetting the Environment](#53-resetting-the-environment)
 
@@ -60,11 +60,25 @@ The environment is pre-configured as a **Neural Processing Station**:
 
 ---
 
+## 2. Installation Guide
+
+### 2.1 Install from APK (End Users)
+
+Download the latest release from GitHub and install it on your device. Ensure you have Shizuku activated for optimal performance.
+
+### 2.2 Permissions & Android 16+ Hacks
+
+On Android 13-16+, standard storage permissions may not be enough for PRoot to operate.
+- **Shizuku:** Using Shizuku via the `rish` shell bypasses common SELinux "Permission Denied" errors when extracting the rootfs.
+- **All Files Access:** If prompted, granting "All Files Access" ensures the container can manage its internal state files without system interference.
+
+---
+
 ## 3. Customization Guide
 
 ### 3.1 Hardware Acceleration (VirGL)
 
-The environment automatically attempts to route OpenGL through the **Mali-G715 (Tensor G4)** GPU.
+The environment automatically attempts to route OpenGL through the **Mali-G925 (Tensor G5)** GPU.
 - **Driver:** `GALLIUM_DRIVER=virpipe`
 - **Manual Toggle:** If performance is degraded, ensure `virgl_test_server` is active in the app settings.
 
@@ -99,9 +113,9 @@ Optimized utilities for manipulating large-scale intelligence data:
 
 ## 5. Troubleshooting Guide
 
-### 5.1 Android 14 ptrace Denials
+### 5.1 Android 16 ptrace Denials
 
-Android 14 blocks certain `ptrace` system calls used by PRoot. 
+Android 16 blocks certain `ptrace` system calls used by PRoot. 
 - **Fix:** DaRipped automatically exports `PROOT_NO_SECCOMP=1`. If the app crashes on launch, verify this variable in the "Startup Command" settings.
 
 ### 5.2 Display Sync Timeouts
@@ -111,4 +125,10 @@ If the app hangs at "Waiting for Termux:X11", the display socket (`X4`) was not 
 
 ---
 
-*Manual version: 2.1.0 · Updated: 2026-03-08*
+## 5.3 Resetting the Environment
+
+If the environment is completely broken, you can reset it by deleting the container in settings.
+
+---
+
+*Manual version: 2.1.1 · Updated: 2026-04-29*

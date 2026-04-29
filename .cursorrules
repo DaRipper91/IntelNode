@@ -233,20 +233,26 @@ Flutter Android app that runs Arch Linux ARM (XFCE) on Android via proot + VNC
 
 ### Commands
 
-```sh
-# TODO: fill in build / run / test / lint commands for this project
-# Example:
-# npm run dev        # start dev server
-# npm run build      # production build
-# npm run lint       # lint
-# npm test           # run tests
+```bash
+flutter pub get      # Install dependencies
+flutter build apk    # Build APK (ARM64)
+flutter analyze      # Lint / Static analysis
+flutter test         # Run all tests
+flutter run          # Run on connected device
 ```
 
 ### Architecture
 
-TODO: describe the high-level architecture, key directories, and data flow.
+The app is built with Flutter and orchestrates an Arch Linux environment via PRoot:
+- **`lib/main.dart`**: Entry point, UI, terminal emulator, and display backends.
+- **`lib/workflow.dart`**: Core logic for container lifecycle, bootstrap, and state management (`G` class).
+- **`lib/settings.dart`**: Persistent configuration via `GlobalSettings` singleton.
+- **`lib/models.dart`**: Data models for containers and commands.
+- **Dual-Stage Bootstrap**: `start-arch.sh` (system setup) and `start-desktop` (UI/Display setup).
 
 ### Key Conventions
 
-TODO: list any project-specific conventions agents must follow (naming patterns,
-state management rules, restricted APIs, etc.).
+- **Settings**: Always use `Util.getGlobal(key)` or `G.settings.<property>`; never access `G.prefs` directly for known settings.
+- **Imports**: Always use absolute package imports: `package:da_ripped_tiny_computer/...`.
+- **Language**: New code and comments must be in English.
+- **Containers**: Specific config is stored in JSON via `Util.getCurrentProp(key)`.
