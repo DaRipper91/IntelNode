@@ -58,7 +58,7 @@ class ContainerInfo {
     }
 
     return ContainerInfo(
-      name: json['name'] as String? ?? 'Debian Trixie',
+      name: json['name'] as String? ?? 'Arch Linux ARM',
       boot: json['boot'] as String? ?? '',
       vnc: json['vnc'] as String? ?? 'startnovnc &',
       vncPassword: json['vncPassword'] as String? ?? '',

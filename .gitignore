@@ -54,7 +54,8 @@ extra/flutter_project/
 assets/xa*
 assets/patch.tar.gz
 
-android/app/src/main/jniLibs/*
+!android/app/src/main/jniLibs/
+!android/app/src/main/jniLibs/**
 
 devtools_options.yaml
 
