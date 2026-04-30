@@ -1772,8 +1772,16 @@ class _LogViewState extends State<LogView> {
   }
 }
 
-class LoadingPage extends StatelessWidget {
+class LoadingPage extends StatefulWidget {
   const LoadingPage({super.key});
+
+  @override
+  State<LoadingPage> createState() => _LoadingPageState();
+}
+
+class _LoadingPageState extends State<LoadingPage> {
+  int _tapCount = 0;
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -1781,11 +1789,23 @@ class LoadingPage extends StatelessWidget {
       child: AspectRatioMax1To1(
         child: Column(
           children: [
-            const Padding(
-              padding: EdgeInsets.fromLTRB(16, 16, 16, 16),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
               child: FractionallySizedBox(
                 widthFactor: 0.4,
-                child: Image(image: AssetImage("images/icon.png")),
+                child: GestureDetector(
+                  onTap: () {
+                    // Secret toggle: tap 3 times to toggle logs if not already enabled via settings
+                    setState(() {
+                      _tapCount++;
+                      if (_tapCount >= 3) {
+                        G.showAdvancedLogs.value = !G.showAdvancedLogs.value;
+                        _tapCount = 0;
+                      }
+                    });
+                  },
+                  child: const Image(image: AssetImage("images/icon.png")),
+                ),
               ),
             ),
             Padding(
