@@ -79,10 +79,14 @@ class Util {
 
     pty.write(const Utf8Encoder().convert("$str\nexit \$?\n"));
     StreamSubscription<Uint8List>? sub;
-    if (G.showAdvancedLogs.value) {
-      sub = pty.output.listen((data) {
-        final text = const Utf8Decoder(allowMalformed: true).convert(data);
-        if (text.isEmpty) return;
+    sub = pty.output.listen((data) {
+      final text = const Utf8Decoder(allowMalformed: true).convert(data);
+      if (text.isEmpty) return;
+
+      // Always log to debug console for developers
+      debugPrint("PTY Output: $text");
+
+      if (G.showAdvancedLogs.value) {
         final newLines = text.split('\n').where((l) => l.isNotEmpty).toList();
         if (newLines.isEmpty) return;
         final updated = [...G.logLines.value, ...newLines];
@@ -90,8 +94,8 @@ class Util {
         G.logLines.value = updated.length > 500
             ? updated.sublist(updated.length - 500)
             : updated;
-      });
-    }
+      }
+    });
     try {
       return await pty.exitCode;
     } catch (e) {
@@ -982,29 +986,59 @@ class Workflow {
     ];
 
     StringBuffer script = StringBuffer();
+    script.writeln("set -e");
     script.writeln("export DATA_DIR=${G.dataPath}");
     script.writeln("export LD_LIBRARY_PATH=\$DATA_DIR/lib");
     script.writeln("cd \$DATA_DIR");
 
     for (var bin in binSymlinks) {
-      script.writeln("ln -sf ../applib/libexec_$bin.so \$DATA_DIR/bin/$bin");
+      script.writeln("""
+if [ -f ../applib/libexec_$bin.so ]; then
+    /system/bin/ln -sf ../applib/libexec_$bin.so \$DATA_DIR/bin/$bin
+elif [ -f ../applib/lib$bin.so ]; then
+    /system/bin/ln -sf ../applib/lib$bin.so \$DATA_DIR/bin/$bin
+else
+    echo "Error: Binary $bin not found in applib (tried libexec_$bin.so and lib$bin.so)" >&2
+    exit 127
+fi""");
     }
     for (var lib in libSymlinks) {
       if (lib == 'loader32') {
-        script.writeln("ln -sf ../applib/libproot-loader32.so \$DATA_DIR/lib/loader32");
+        script.writeln(
+          "if [ -f ../applib/libproot-loader32.so ]; then /system/bin/ln -sf ../applib/libproot-loader32.so \$DATA_DIR/lib/loader32; fi",
+        );
       } else if (lib == 'loader') {
-        script.writeln("ln -sf ../applib/libproot-loader.so \$DATA_DIR/lib/loader");
+        script.writeln(
+          "if [ -f ../applib/libproot-loader.so ]; then /system/bin/ln -sf ../applib/libproot-loader.so \$DATA_DIR/lib/loader; fi",
+        );
       } else {
-        script.writeln("ln -sf ../applib/$lib \$DATA_DIR/lib/$lib");
+        script.writeln(
+          "if [ -f ../applib/$lib ]; then /system/bin/ln -sf ../applib/$lib \$DATA_DIR/lib/$lib; fi",
+        );
       }
     }
 
     script.writeln("""
+# Verify busybox exists before using it
+if [ ! -x \$DATA_DIR/bin/busybox ]; then
+    echo "Error: busybox binary is missing or not executable" >&2
+    exit 127
+fi
+
 \$DATA_DIR/bin/busybox unzip -o assets.zip
-chmod -R +x bin/*
-chmod -R +x libexec/proot/*
-chmod 1777 tmp
+
+# Verify tar exists before using it
+if [ ! -x \$DATA_DIR/bin/tar ]; then
+    echo "Error: tar binary is missing or not executable" >&2
+    exit 127
+fi
+
 \$DATA_DIR/bin/tar zxf patch.tar.gz
+
+/system/bin/chmod -R +x bin/* || true
+/system/bin/chmod -R +x libexec/proot/* 2>/dev/null || true
+/system/bin/chmod 1777 tmp
+
 \$DATA_DIR/bin/busybox rm -rf assets.zip patch.tar.gz
 """);
 
@@ -1130,9 +1164,13 @@ mv "\$STAGING_DIR" "\$CONTAINER_DIR"
     G.showAdvancedLogs.value = G.settings.advancedLogs;
 
     // Link native libraries to app-private data directory
-    await Util.execute(
-      "ln -sf ${Util.escapeShellArgument(await D.androidChannel.invokeMethod("getNativeLibraryPath", {}) as String)} ${Util.escapeShellArgument(G.dataPath)}/applib",
+    final String libPath = await D.androidChannel.invokeMethod("getNativeLibraryPath", {}) as String;
+    final int linkExitCode = await Util.execute(
+      "/system/bin/ln -sf ${Util.escapeShellArgument(libPath)} ${Util.escapeShellArgument(G.dataPath)}/applib",
     );
+    if (linkExitCode != 0) {
+      debugPrint("Warning: Failed to link applib (exit code $linkExitCode). Native binaries might not be found.");
+    }
 
     // Perform first-time setup if needed
     if (!G.prefs.containsKey("defaultContainer")) {
