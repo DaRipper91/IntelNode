@@ -993,9 +993,9 @@ class Workflow {
 
     for (var bin in binSymlinks) {
       script.writeln("""
-if [ -f ../applib/libexec_$bin.so ]; then
+if [ -f applib/libexec_$bin.so ]; then
     /system/bin/ln -sf ../applib/libexec_$bin.so \$DATA_DIR/bin/$bin
-elif [ -f ../applib/lib$bin.so ]; then
+elif [ -f applib/lib$bin.so ]; then
     /system/bin/ln -sf ../applib/lib$bin.so \$DATA_DIR/bin/$bin
 else
     echo "Error: Binary $bin not found in applib (tried libexec_$bin.so and lib$bin.so)" >&2
@@ -1005,15 +1005,15 @@ fi""");
     for (var lib in libSymlinks) {
       if (lib == 'loader32') {
         script.writeln(
-          "if [ -f ../applib/libproot-loader32.so ]; then /system/bin/ln -sf ../applib/libproot-loader32.so \$DATA_DIR/lib/loader32; fi",
+          "if [ -f applib/libproot-loader32.so ]; then /system/bin/ln -sf ../applib/libproot-loader32.so \$DATA_DIR/lib/loader32; fi",
         );
       } else if (lib == 'loader') {
         script.writeln(
-          "if [ -f ../applib/libproot-loader.so ]; then /system/bin/ln -sf ../applib/libproot-loader.so \$DATA_DIR/lib/loader; fi",
+          "if [ -f applib/libproot-loader.so ]; then /system/bin/ln -sf ../applib/libproot-loader.so \$DATA_DIR/lib/loader; fi",
         );
       } else {
         script.writeln(
-          "if [ -f ../applib/$lib ]; then /system/bin/ln -sf ../applib/$lib \$DATA_DIR/lib/$lib; fi",
+          "if [ -f applib/$lib ]; then /system/bin/ln -sf ../applib/$lib \$DATA_DIR/lib/$lib; fi",
         );
       }
     }
