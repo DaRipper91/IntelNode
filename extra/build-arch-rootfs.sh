@@ -35,9 +35,13 @@ fi
 
 # Step 2: Extract base rootfs
 echo "[2/8] Extracting base rootfs..."
-sudo rm -rf "$ROOTFS"
-mkdir -p "$ROOTFS"
-sudo tar xzf ArchLinuxARM-aarch64-latest.tar.gz -C "$ROOTFS"
+if [ ! -d "$ROOTFS" ]; then
+    mkdir -p "$ROOTFS"
+    sudo tar xzf ArchLinuxARM-aarch64-latest.tar.gz -C "$ROOTFS"
+else
+    echo "Rootfs directory already exists. Skipping extraction to preserve progress/cache."
+    echo "If you want a fresh build, delete $ROOTFS first."
+fi
 
 # Step 3: Configure inside container
 echo "[3/8] Configuring system inside container..."
@@ -48,6 +52,7 @@ sudo systemd-nspawn -D "$ROOTFS" --bind-ro=/etc/resolv.conf /bin/bash -c '
 
     # Enable parallel downloads and color
     sed -i "s/#ParallelDownloads = 5/ParallelDownloads = 5/" /etc/pacman.conf
+    sed -i "/^\[options\]/a DisableDownloadTimeout" /etc/pacman.conf
     sed -i "s/#Color/Color/" /etc/pacman.conf
 
     # Disable sandbox (Landlock/Seccomp not available inside nspawn container)
@@ -64,33 +69,38 @@ sudo systemd-nspawn -D "$ROOTFS" --bind-ro=/etc/resolv.conf /bin/bash -c '
 '
 
 
-# Step 4: Install desktop environments (both installed; user picks one at first launch)
-echo "[4/8] Installing desktop environments..."
+# Step 4: Install desktop environments and mobile-friendly tools
+echo "[4/8] Installing desktop environments and mobile optimizations..."
 sudo systemd-nspawn -D "$ROOTFS" --bind-ro=/etc/resolv.conf /bin/bash -c "
     pacman -S --noconfirm --overwrite '*' \
         xfce4 xfce4-goodies xfce4-terminal \
         lxqt openbox \
         tigervnc \
-        python python-websockify python-numpy \
+        python python-pip python-numpy \
         firefox \
         noto-fonts noto-fonts-cjk ttf-dejavu \
         sudo base-devel git wget curl \
         bash-completion htop nano vim \
         xdg-utils xdg-user-dirs dbus \
-        xorg-server xorg-xinit xorg-xauth
+        xorg-server xorg-xinit xorg-xauth \
+        onboard plank \
+        breeze-gtk papirus-icon-theme
 "
 
 # Step 5: Install noVNC
 echo "[5/8] Installing noVNC..."
 sudo systemd-nspawn -D "$ROOTFS" --bind-ro=/etc/resolv.conf /bin/bash -c '
+    # Install websockify via pip (missing in Arch ARM repos)
+    pip install --break-system-packages websockify
+
     cd /tmp
     git clone --depth 1 https://github.com/novnc/noVNC.git /usr/share/novnc
     ln -sf /usr/share/novnc/vnc.html /usr/share/novnc/index.html
     rm -rf /usr/share/novnc/.git
 '
 
-# Step 6: Configure users, locale, scripts
-echo "[6/8] Configuring users, locale, and startup scripts..."
+# Step 6: Configure users, locale, scripts, and mobile UI
+echo "[6/8] Configuring users, locale, and mobile-friendly UI..."
 sudo systemd-nspawn -D "$ROOTFS" /bin/bash -c '
     # Create user
     useradd -m -G wheel -s /bin/bash tiny
@@ -100,23 +110,60 @@ sudo systemd-nspawn -D "$ROOTFS" /bin/bash -c '
     echo "%wheel ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/wheel
     chmod 440 /etc/sudoers.d/wheel
     
+    # Configure XFCE for Touch/Mobile
+    su - tiny -c "mkdir -p ~/.config/xfce4/xfconf/xfce-perchannel-xml"
+    
+    # Increase Icon Size and Panel Height for touch
+    su - tiny -c "cat > ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml << EOF
+<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<channel name=\"xfce4-panel\" version=\"1.0\">
+  <property name=\"panels\" type=\"array\">
+    <value type=\"int\" value=\"1\"/>
+  </property>
+  <property name=\"panel-1\" type=\"empty\">
+    <property name=\"position\" type=\"string\" value=\"p=6;x=0;y=0\"/>
+    <property name=\"size\" type=\"uint\" value=\"48\"/>
+    <property name=\"icon-size\" type=\"uint\" value=\"32\"/>
+    <property name=\"plugin-ids\" type=\"array\">
+      <value type=\"int\" value=\"1\"/>
+      <value type=\"int\" value=\"2\"/>
+      <value type=\"int\" value=\"3\"/>
+    </property>
+  </property>
+</channel>
+EOF"
+
+    # Set modern theme and icons
+    su - tiny -c "cat > ~/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml << EOF
+<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<channel name=\"xsettings\" version=\"1.0\">
+  <property name=\"Net\" type=\"empty\">
+    <property name=\"ThemeName\" type=\"string\" value=\"Breeze-Dark\"/>
+    <property name=\"IconThemeName\" type=\"string\" value=\"Papirus-Dark\"/>
+  </property>
+</channel>
+EOF"
+
     # Locale
     sed -i "s/#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/" /etc/locale.gen
     locale-gen
     echo "LANG=en_US.UTF-8" > /etc/locale.conf
     
-    # X session init — sources ~/.xinitrc which the app writes on first launch
+    # X session init
     cat > /etc/X11/xinit/xinitrc << "XINITRC"
 #!/bin/bash
 exec bash ~/.xinitrc
 XINITRC
     chmod +x /etc/X11/xinit/xinitrc
     
-    # User xinitrc — XFCE4 as default; app overwrites this on first launch
+    # User xinitrc
     su - tiny -c "cat > ~/.xinitrc << EOF
 #!/bin/bash
 export XDG_SESSION_TYPE=x11
 export XDG_CURRENT_DESKTOP=XFCE
+# Start Plank and Onboard in background for mobile feel
+plank &
+onboard &
 exec startxfce4
 EOF
 chmod +x ~/.xinitrc"
@@ -127,7 +174,7 @@ chmod +x ~/.xinitrc"
 export USER=tiny HOME=/home/tiny DISPLAY=:4
 vncserver -kill :4 2>/dev/null || true
 mkdir -p /home/tiny/.vnc
-echo "12345678" | vncpasswd -f > /home/tiny/.vnc/passwd # Placeholder password, will be replaced by the app at runtime
+echo "12345678" | vncpasswd -f > /home/tiny/.vnc/passwd
 chmod 600 /home/tiny/.vnc/passwd
 chown -R tiny:tiny /home/tiny/.vnc
 cat > /home/tiny/.vnc/xstartup << "XS"
@@ -157,7 +204,6 @@ start-novnc
 echo "Desktop ready — VNC :5904 / noVNC :36082"
 SCRIPT
     chmod +x /usr/local/bin/start-desktop
-    # Backward-compat alias for any saved container configs using the old name
     ln -sf /usr/local/bin/start-desktop /usr/local/bin/startnovnc
 '
 
