@@ -997,6 +997,8 @@ if [ -f applib/libexec_$bin.so ]; then
     /system/bin/ln -sf ../applib/libexec_$bin.so \$DATA_DIR/bin/$bin
 elif [ -f applib/lib$bin.so ]; then
     /system/bin/ln -sf ../applib/lib$bin.so \$DATA_DIR/bin/$bin
+elif [ "$bin" = "sh" ] || [ "$bin" = "cat" ] || [ "$bin" = "xz" ] || [ "$bin" = "gzip" ] || [ "$bin" = "tar" ]; then
+    /system/bin/ln -sf busybox \$DATA_DIR/bin/$bin
 else
     echo "Error: Binary $bin not found in applib (tried libexec_$bin.so and lib$bin.so)" >&2
     exit 127
@@ -1401,6 +1403,7 @@ clear""");
   }
 
   static Future<void> launchXServer() async {
+    Util.createDirFromString("${G.dataPath}/containers/${G.currentContainer}/usr/share/X11/xkb");
     await X11Flutter.launchXServer(
       "${G.dataPath}/containers/${G.currentContainer}/tmp",
       "${G.dataPath}/containers/${G.currentContainer}/usr/share/X11/xkb",
