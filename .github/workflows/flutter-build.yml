@@ -30,6 +30,12 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Run tests
+        run: flutter test
+
+      - name: Accept Android SDK licenses
+        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+
       - name: Build Debug APK
         run: flutter build apk --debug
 
@@ -40,8 +46,7 @@ jobs:
             --target-platform android-arm64 \
             --split-per-abi \
             --obfuscate \
-            --split-debug-info=./debug_info \
-            || echo "Release build failed (likely missing signing config), continuing..."
+            --split-debug-info=./debug_info
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
