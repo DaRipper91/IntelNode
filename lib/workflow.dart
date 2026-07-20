@@ -1165,13 +1165,18 @@ mv "\$STAGING_DIR" "\$CONTAINER_DIR"
     // Sync the showAdvancedLogs notifier so the LoadingPage reacts immediately.
     G.showAdvancedLogs.value = G.settings.advancedLogs;
 
-    // Link native libraries to app-private data directory
+    // Link native libraries to app-private data directory. This must exist
+    // before setupBootstrap() runs, or every binary lookup there fails with a
+    // generic, misleading "exit code 127" that hides this actual cause.
+    Util.createDirFromString(G.dataPath);
     final String libPath = await D.androidChannel.invokeMethod("getNativeLibraryPath", {}) as String;
     final int linkExitCode = await Util.execute(
       "/system/bin/ln -sf ${Util.escapeShellArgument(libPath)} ${Util.escapeShellArgument(G.dataPath)}/applib",
     );
     if (linkExitCode != 0) {
-      debugPrint("Warning: Failed to link applib (exit code $linkExitCode). Native binaries might not be found.");
+      throw Exception(
+        "Failed to link native library directory ($libPath) into ${G.dataPath}/applib (exit code $linkExitCode). Bootstrap cannot proceed without it.",
+      );
     }
 
     // Perform first-time setup if needed

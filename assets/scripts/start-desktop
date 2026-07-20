@@ -43,12 +43,24 @@ export QT_AUTO_SCREEN_SCALE_FACTOR=1
 export QT_SCALE_FACTOR=2
 export ELM_SCALE=1.5 # Elementary/Enlightenment scale fallback
 
-# --- 4. Session D-Bus & XFCE Bootstrap ---
+# --- 4. Session D-Bus & Desktop Bootstrap ---
+# Detect which DE is actually installed rather than assuming XFCE: first-run setup
+# uninstalls the non-chosen DE's packages, so whichever launcher is still on PATH
+# reflects the user's real choice (fixes LXQt selections crashing on this launch path).
+if command -v startlxqt >/dev/null 2>&1; then
+    DE_EXEC=startlxqt
+elif command -v startxfce4 >/dev/null 2>&1; then
+    DE_EXEC=startxfce4
+else
+    echo "[Err] No supported desktop environment found (checked startlxqt, startxfce4)."
+    exit 1
+fi
+
 # Initializing user-level D-Bus session to fix xfconfd and Thunar metadata issues.
 if command -v dbus-launch >/dev/null; then
-    echo "[Log] Launching XFCE4 Session via DBUS Wrapper..."
-    exec dbus-launch --exit-with-session startxfce4
+    echo "[Log] Launching $DE_EXEC Session via DBUS Wrapper..."
+    exec dbus-launch --exit-with-session "$DE_EXEC"
 else
-    echo "[Err] dbus-launch missing. XFCE session may be degraded."
-    exec startxfce4
+    echo "[Err] dbus-launch missing. Desktop session may be degraded."
+    exec "$DE_EXEC"
 fi
