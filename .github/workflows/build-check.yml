@@ -1,0 +1,61 @@
+name: Build check
+
+# Compile-only sanity check for the distro/DE selector work (PR #25, #26,
+# and anything based on REFORK). This repo's own README requires jniLibs.zip
+# to be downloaded separately from Cateners/tiny_container's releases before
+# a build is even possible — nothing in this fork can be built without it,
+# so that download is the first real step here, not an afterthought.
+#
+# This does NOT validate that the app actually works — no emulator/device,
+# no signing, no instrumented tests. It only proves the code compiles
+# (catches Kotlin syntax errors, missing imports, View Binding mismatches,
+# and resource reference typos — real risks in code that was hand-written
+# against existing patterns without any compiler feedback).
+
+on:
+  pull_request:
+    branches: [REFORK, "refork/**"]
+  push:
+    branches: [REFORK, "refork/**"]
+  workflow_dispatch:
+
+jobs:
+  build-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Fetch jniLibs.zip from upstream's latest release
+        run: |
+          curl -sL -o jniLibs.zip \
+            "https://github.com/Cateners/tiny_container/releases/latest/download/jniLibs.zip"
+          mkdir -p app/src/main/jniLibs/arm64-v8a
+          unzip -o jniLibs.zip -d app/src/main/jniLibs/arm64-v8a
+
+      - name: Accept Android SDK licenses
+        # Not pinning specific platform/build-tools/NDK package versions here
+        # — this is bleeding-edge tooling (AGP 9.2.1, compileSdk 37) and a
+        # wrong guessed version string would fail the workflow for
+        # environment reasons unrelated to the actual code, muddying the
+        # signal this check exists to give. Accepting licenses is enough for
+        # AGP to auto-download whatever specific platform/build-tools/NDK it
+        # actually needs; if that auto-download itself fails, the resulting
+        # error will name the real missing package precisely.
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+
+      - name: Grant execute permission to gradlew
+        run: chmod +x gradlew
+
+      - name: Compile (assembleDebug)
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Run unit tests (if any exist yet)
+        run: ./gradlew testDebugUnitTest --stacktrace
+        continue-on-error: true
