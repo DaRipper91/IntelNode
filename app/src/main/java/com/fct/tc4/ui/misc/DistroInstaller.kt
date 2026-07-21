@@ -122,18 +122,53 @@ class DistroInstaller(
         if (dir.exists()) dir.deleteRecursively()
         dir.mkdirs()
 
+        // Session 1: extraction only. Must fully finish (real distro images
+        // already ship empty proc/sys mountpoint dirs) before the
+        // placeholder files below can be safely written into them.
         execShell {
             Global.setupEnvironment()
             Global.sendCommand(extractionCommand(code, cacheFile.absolutePath))
-            distro.firstBootSteps.forEachIndexed { index, step ->
-                onProgress(Progress.RunningFirstBootStep(distro, index, distro.firstBootSteps.size, step))
-                Global.sendCommand(ProotExec.runInContainerCommand(dir.absolutePath, step))
-            }
             Global.sendCommand("rm -f ${cacheFile.absolutePath}")
             Global.sendCommand("exit")
         }
 
+        createProcPlaceholders(dir)
+
+        // Session 2: first-boot steps, now that the placeholder files
+        // ProotExec.runAsRootCommand's bind mounts target actually exist.
+        execShell {
+            Global.setupEnvironment()
+            distro.firstBootSteps.forEachIndexed { index, step ->
+                onProgress(Progress.RunningFirstBootStep(distro, index, distro.firstBootSteps.size, step))
+                Global.sendCommand(ProotExec.runAsRootCommand(dir.absolutePath, step))
+            }
+            Global.sendCommand("exit")
+        }
+
         onProgress(Progress.Completed(distro, code))
+    }
+
+    /**
+     * Writes the seven proc/sys placeholder files ProotExec's bind mounts
+     * target (/proc/loadavg, /proc/stat, etc.) — for every OTHER container
+     * in this app these are real snapshots captured from a live proot
+     * session by upstream's export.sh; a freshly-pulled distro image has
+     * none of them, so this writes plausible static content instead. Must
+     * run after extraction and before any first-boot step (they all go
+     * through ProotExec.runAsRootCommand, which assumes these exist).
+     */
+    private fun createProcPlaceholders(containerDir: File) {
+        File(containerDir, "sys").mkdirs()
+        File(containerDir, "proc").mkdirs()
+        ProotExec.procPlaceholders.forEach { (relativePath, content) ->
+            val file = File(containerDir, relativePath)
+            if (relativePath.endsWith(".empty")) {
+                file.mkdirs()
+            } else {
+                file.parentFile?.mkdirs()
+                file.writeText(content)
+            }
+        }
     }
 
     /** Same tar+proot extraction flags ContainerManageViewModel already uses for rootfs.tar.zst. */
