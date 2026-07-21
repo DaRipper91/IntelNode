@@ -42,6 +42,8 @@ import com.fct.tc4.ui.misc.WipeLayout
 import com.fct.tc4.ui.page.ContainerInstallFragment
 import com.fct.tc4.ui.page.ContainerMainFragment
 import com.fct.tc4.ui.page.ContainerManageFragment
+import com.fct.tc4.ui.page.DeSelectFragment
+import com.fct.tc4.ui.page.DistroSelectFragment
 import com.fct.tc4.ui.misc.Global
 import com.fct.tc4.ui.page.TerminalFragment
 import com.fct.tc4.ui.page.ContainerManageViewModel
