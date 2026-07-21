@@ -30,6 +30,14 @@ Highly optimized for modern ARM64 hardware (Pixel 10 Pro / Tensor G5) and design
   - [**Termux:X11**](https://github.com/termux/termux-x11) — Native X11 passthrough for maximum performance (Recommended).
   - **Built-in noVNC** — Integrated WebView client that works out of the box.
   - [**AVNC**](https://github.com/gujjwal00/avnc) — Support for native Android VNC clients.
+- **Additional Containers (Experimental)** — Build extra distro + desktop combinations
+  on-device from Settings → New Container, downloading a base rootfs and installing the
+  chosen desktop directly rather than shipping one per combination. The distro and desktop
+  lists are config-driven manifests (`lib/distros.dart`, `lib/desktop_environments.dart`);
+  see those files for exactly which combinations are currently available and which ones are
+  flagged experimental. Desktops installed this way follow the same X11-over-Termux:X11
+  model as the bundled Arch container; Wayland compositors are preview-only until a nested
+  compositor bridge is prototyped.
 
 ---
 

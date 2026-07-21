@@ -47,12 +47,17 @@ export ELM_SCALE=1.5 # Elementary/Enlightenment scale fallback
 # Detect which DE is actually installed rather than assuming XFCE: first-run setup
 # uninstalls the non-chosen DE's packages, so whichever launcher is still on PATH
 # reflects the user's real choice (fixes LXQt selections crashing on this launch path).
+# Order matches DesktopEnvironments.all's stable tier in lib/desktop_environments.dart.
 if command -v startlxqt >/dev/null 2>&1; then
     DE_EXEC=startlxqt
 elif command -v startxfce4 >/dev/null 2>&1; then
     DE_EXEC=startxfce4
+elif command -v mate-session >/dev/null 2>&1; then
+    DE_EXEC=mate-session
+elif command -v i3 >/dev/null 2>&1; then
+    DE_EXEC=i3
 else
-    echo "[Err] No supported desktop environment found (checked startlxqt, startxfce4)."
+    echo "[Err] No supported desktop environment found (checked startlxqt, startxfce4, mate-session, i3)."
     exit 1
 fi
 

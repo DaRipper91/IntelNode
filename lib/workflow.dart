@@ -391,6 +391,44 @@ class Util {
       Iterable.generate(8, (_) => chars.codeUnitAt(rnd.nextInt(chars.length))),
     );
   }
+
+  // Streams [url] to [destPath], reporting whole-percent progress through
+  // onProgress when the response declares a content length. Used by
+  // ContainerInstaller to fetch on-device distro rootfs tarballs.
+  static Future<void> downloadFile(
+    String url,
+    String destPath, {
+    required void Function(String) onProgress,
+  }) async {
+    final client = http.Client();
+    try {
+      final response = await client.send(http.Request('GET', Uri.parse(url)));
+      if (response.statusCode != 200) {
+        throw Exception("Download failed: HTTP ${response.statusCode} for $url");
+      }
+      final sink = File(destPath).openWrite();
+      int received = 0;
+      int lastPct = -1;
+      final total = response.contentLength ?? 0;
+      try {
+        await for (final chunk in response.stream) {
+          sink.add(chunk);
+          received += chunk.length;
+          if (total > 0) {
+            final pct = (received / total * 100).floor();
+            if (pct != lastPct) {
+              lastPct = pct;
+              onProgress("Downloading... $pct%");
+            }
+          }
+        }
+      } finally {
+        await sink.close();
+      }
+    } finally {
+      client.close();
+    }
+  }
 }
 
 //来自xterms关于操作ctrl, shift, alt键的示例
