@@ -1,4 +1,4 @@
-# Copilot Instructions — DaRipped Tiny Computer
+# Copilot Instructions — IntelNode
 
 Flutter Android app that runs a full Arch Linux ARM (XFCE) desktop on Android without root, via proot + VNC. Fork of [Cateners/tiny_computer](https://github.com/Cateners/tiny_computer), converted from Debian to Arch Linux ARM.
 

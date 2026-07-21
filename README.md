@@ -1,8 +1,8 @@
-# DaRipped Tiny Computer — Arch Linux Edition
+# IntelNode — Arch Linux Edition
 
-[![Latest Release](https://img.shields.io/github/v/release/DaRipper91/DaRipped_tiny_computer?label=Download&style=for-the-badge)](https://github.com/DaRipper91/DaRipped_tiny_computer/releases/latest)
+[![Latest Release](https://img.shields.io/github/v/release/DaRipper91/IntelNode?label=Download&style=for-the-badge)](https://github.com/DaRipper91/IntelNode/releases/latest)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg?style=for-the-badge)](COPYING)
-[![Platform](https://img.shields.io/badge/Platform-Android%20ARM64-green?style=for-the-badge)](https://github.com/DaRipper91/DaRipped_tiny_computer/releases/latest)
+[![Platform](https://img.shields.io/badge/Platform-Android%20ARM64-green?style=for-the-badge)](https://github.com/DaRipper91/IntelNode/releases/latest)
 [![Manual](https://img.shields.io/badge/📖_Manual-read_now-blue?style=for-the-badge)](MANUAL.md)
 
 **A complete, high-performance Arch Linux ARM workstation on Android — no root required.**
@@ -35,7 +35,7 @@ Highly optimized for modern ARM64 hardware (Pixel 10 Pro / Tensor G5) and design
 
 ## 📦 Installation
 
-1. Visit the [**Latest Release**](https://github.com/DaRipper91/DaRipped_tiny_computer/releases/latest).
+1. Visit the [**Latest Release**](https://github.com/DaRipper91/IntelNode/releases/latest).
 2. Download `app-arm64-v8a-release.apk`.
 3. Enable **"Install from unknown sources"** in your Android Settings.
 4. Install and launch the app.
@@ -49,7 +49,7 @@ Highly optimized for modern ARM64 hardware (Pixel 10 Pro / Tensor G5) and design
 
 ## 🛠️ Architecture
 
-DaRipped uses a custom two-stage bootstrap system to bypass the lack of `systemd` in proot environments:
+IntelNode uses a custom two-stage bootstrap system to bypass the lack of `systemd` in proot environments:
 
 1.  **`start-arch.sh`**: Handles low-level initialization, D-Bus bus generation, and network synchronization.
 2.  **`start-desktop`**: Orchestrates the graphical session (XFCE4/LXQt), display socket synchronization, and HiDPI scaling.
@@ -73,8 +73,8 @@ DaRipped uses a custom two-stage bootstrap system to bypass the lack of `systemd
 ## 🏗️ Building from Source
 
 ```bash
-git clone https://github.com/DaRipper91/DaRipped_tiny_computer.git
-cd DaRipped_tiny_computer
+git clone https://github.com/DaRipper91/IntelNode.git
+cd IntelNode
 flutter pub get
 flutter build apk --release --target-platform android-arm64 --split-per-abi
 ```

@@ -227,7 +227,7 @@ A task is complete when ALL of the following are true:
 ---
 
 
-## Project: DaRipped Tiny Computer
+## Project: IntelNode
 
 Flutter Android app that runs Arch Linux ARM (XFCE) on Android via proot + VNC
 

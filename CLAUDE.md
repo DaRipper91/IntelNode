@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-DaRipped Tiny Computer is a high-performance Arch Linux ARM workstation running on Android via PRoot. It is strictly optimized for **intelligence and knowledge generation**, specifically targeting the **Tensor G5 (Pixel 10 Pro)** architecture.
+IntelNode is a high-performance Arch Linux ARM workstation running on Android via PRoot. It is strictly optimized for **intelligence and knowledge generation**, specifically targeting the **Tensor G5 (Pixel 10 Pro)** architecture.
+
+Historically named "DaRipped Tiny Computer" — that name persists below in the Dart package identifier and Android application ID, which are left unchanged for build compatibility.
 
 **Target:** Android ARM64 (API 36+ optimized)
 **License:** GPLv3

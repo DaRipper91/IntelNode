@@ -1,4 +1,4 @@
-# DaRipped Tiny Computer — Master Manual
+# IntelNode — Master Manual
 
 **Version 2.1.1 · Android ARM64 · Arch Linux ARM Edition**
 
@@ -7,7 +7,7 @@
 ## Table of Contents
 
 1. [User Guide](#1-user-guide)
-   - [What Is DaRipped Tiny Computer?](#11-what-is-daripped-tiny-computer)
+   - [What Is IntelNode?](#11-what-is-intelnode)
    - [System Requirements](#12-system-requirements)
    - [The Bootstrap System](#13-the-bootstrap-system)
    - [Using the Desktop](#14-using-the-desktop)
@@ -32,9 +32,9 @@
 
 ## 1. User Guide
 
-### 1.1 What Is DaRipped Tiny Computer?
+### 1.1 What Is IntelNode?
 
-DaRipped Tiny Computer is a high-performance **Arch Linux ARM workstation** running inside an Android userspace container. Unlike standard Linux-on-Android ports, this environment is architected for **intelligence and knowledge generation**, featuring kernel-level optimizations for the Tensor G5 processor.
+IntelNode is a high-performance **Arch Linux ARM workstation** running inside an Android userspace container. Unlike standard Linux-on-Android ports, this environment is architected for **intelligence and knowledge generation**, featuring kernel-level optimizations for the Tensor G5 processor.
 
 ### 1.2 System Requirements
 
@@ -47,7 +47,7 @@ DaRipped Tiny Computer is a high-performance **Arch Linux ARM workstation** runn
 
 ### 1.3 The Bootstrap System
 
-Due to `systemd` being incompatible with PRoot, DaRipped utilizes a specialized two-stage initialization:
+Due to `systemd` being incompatible with PRoot, IntelNode utilizes a specialized two-stage initialization:
 1. **`start-arch.sh`**: Initializes the D-Bus system bus, fixes permissions, and injects dynamic DNS from the Android host.
 2. **`start-desktop`**: Synchronizes with the Termux:X11 display server and handles HiDPI scaling before launching XFCE4.
 
