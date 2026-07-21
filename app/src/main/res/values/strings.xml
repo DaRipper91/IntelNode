@@ -295,6 +295,17 @@
     <string name="tc4_menu_file_permission">Request File Access</string>
     <string name="tc4_menu_battery_optimization">Disable Battery Optimization</string>
     <string name="tc4_menu_shortcuts">Shortcuts</string>
+    <string name="tc4_menu_build_new">Build New Container</string>
+
+    <!-- ==================== Distro / DE Select ==================== -->
+    <string name="tc4_distro_select_title">Choose a Base Distro</string>
+    <string name="tc4_de_select_title">Choose a Desktop Environment</string>
+    <string name="tc4_de_tier1_header">Stable</string>
+    <string name="tc4_de_tier2_header">Experimental (Wayland)</string>
+    <string name="tc4_de_tier2_badge">Experimental</string>
+    <string name="tc4_de_skip">Skip (command-line only)</string>
+    <string name="tc4_de_status_unavailable">Not available for this distro yet</string>
+    <string name="tc4_build_failed">Build failed: %1$s</string>
 
     <!-- ==================== Non-translatable ==================== -->
     <string-array name="tc4_container_code_denylist" translatable="false">

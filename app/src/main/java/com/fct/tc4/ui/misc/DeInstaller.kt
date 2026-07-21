@@ -73,7 +73,7 @@ class DeInstaller(private val execShell: suspend (block: () -> Unit) -> Int) {
         execShell {
             Global.setupEnvironment()
             Global.sendCommand(
-                ProotExec.runInContainerCommand(containerDir, installCommand(family, packages)),
+                ProotExec.runAsRootCommand(containerDir, installCommand(family, packages)),
             )
             Global.sendCommand("exit")
         }

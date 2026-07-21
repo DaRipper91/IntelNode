@@ -40,6 +40,10 @@ des:
   - alias: xfce4
     display_name: "XFCE4"
     tier: 1
+    # Run inside the container's already-logged-in boot_command session
+    # (see ProotExec.bootCommandTemplate()) once the X11 socket is ready —
+    # NOT a separate proot invocation.
+    session_command: "dbus-launch --exit-with-session startxfce4"
     package_managers:
       pacman: ["xfce4", "xfce4-goodies", "tigervnc", "dbus"]
       dnf: ["@xfce-desktop-environment", "tigervnc-server"]
@@ -48,6 +52,7 @@ des:
   - alias: lxqt
     display_name: "LXQt"
     tier: 1
+    session_command: "dbus-launch --exit-with-session startlxqt"
     package_managers:
       pacman: ["lxqt", "tigervnc", "dbus"]
       dnf: ["@lxqt-desktop-environment", "tigervnc-server"]
@@ -56,6 +61,7 @@ des:
   - alias: mate
     display_name: "MATE"
     tier: 1
+    session_command: "dbus-launch --exit-with-session mate-session"
     package_managers:
       pacman: ["mate", "tigervnc", "dbus"]
       dnf: ["@mate-desktop-environment", "tigervnc-server"]
@@ -64,6 +70,7 @@ des:
   - alias: i3wm
     display_name: "i3wm"
     tier: 1
+    session_command: "dbus-launch --exit-with-session i3"
     package_managers:
       pacman: ["i3-wm", "i3status", "dmenu", "tigervnc", "dbus"]
       dnf: ["@i3-desktop-environment", "tigervnc-server"]

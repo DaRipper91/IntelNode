@@ -165,6 +165,10 @@ class MainActivity : AppCompatActivity() {
                 fragment?.onImportAction()
                 true
             }
+            R.id.containerBuildNew -> {
+                viewModel.navigateTo(MainViewModel.Screen.DistroSelect)
+                true
+            }
             R.id.enterGui -> {
                 val fragment = supportFragmentManager.findFragmentByTag("ContainerMain") as? ContainerMainFragment
                 fragment?.onEnterGui()
@@ -214,6 +218,14 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
                 tag = "ContainerMain"
+            }
+            is MainViewModel.Screen.DistroSelect -> {
+                fragment = DistroSelectFragment()
+                tag = "DistroSelect"
+            }
+            is MainViewModel.Screen.DeSelect -> {
+                fragment = DeSelectFragment.newInstance(screen.distroAlias)
+                tag = "DeSelect"
             }
         }
         if (supportFragmentManager.findFragmentByTag(tag) != null) return
