@@ -1,0 +1,133 @@
+# distros.yaml -- This file is part of tiny_container.
+#
+# Config-driven registry of base-distro entries offered by the on-device
+# distro selector. Add a new distro by adding an entry here — no Kotlin
+# changes required in the selector UI or installer to pick it up.
+#
+# Fields:
+#   alias:            Short name. Used as the on-disk container "code"
+#                      prefix and as the key into the per-distro/per-DE
+#                      install-command manifest (de_packages.yaml).
+#   display_name:      Shown in the selector UI.
+#   package_manager:   One of: pacman, dnf, apt. Selects which install-command
+#                      templates apply for this distro in de_packages.yaml.
+#   source:            Where the base rootfs comes from. Two supported
+#                      shapes (see OciRegistryClient.kt / DistroInstaller.kt):
+#                        type: static_tarball  -- a direct HTTPS/HTTP URL to
+#                          a single gzip/xz tarball.
+#                        type: oci             -- pulled via the Docker
+#                          Registry v2 HTTP API (registry + repository + tag).
+#                          NOTE: this is a small, purpose-built client, not
+#                          upstream proot-distro itself — proot-distro was
+#                          rewritten in Python for its 2026 OCI-pull update
+#                          and this app does not bundle a Python runtime.
+#                          Verified live against registry-1.docker.io as of
+#                          2026-07-20: all three OCI-sourced distros below
+#                          resolve to exactly one arm64 layer
+#                          (application/vnd.oci.image.layer.v1.tar+gzip),
+#                          so no layer-squashing/union-merge logic is needed
+#                          — the single layer blob IS the rootfs tarball.
+#   first_boot_steps:  Shell commands run once, inside the new container,
+#                      immediately after extraction and before the first
+#                      real login (keyring init, locale generation, user
+#                      creation, etc.). Run in order, via the same terminal
+#                      session used for the tar extraction step.
+
+distros:
+  - alias: archlinux
+    display_name: "Arch Linux"
+    package_manager: pacman
+    source:
+      type: static_tarball
+      # Redirects to a mirror; verified live 2026-07-20 (HTTP 302 -> 200).
+      url: "http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz"
+    first_boot_steps:
+      - "pacman-key --init"
+      - "pacman-key --populate archlinuxarm"
+      - "echo 'Server = http://mirror.archlinuxarm.org/$arch/$repo' > /etc/pacman.d/mirrorlist"
+      - "pacman -Sy --noconfirm sudo polkit"
+      - "sed -i 's/#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen"
+      - "locale-gen"
+      - "echo 'LANG=en_US.UTF-8' > /etc/locale.conf"
+      - "ln -sf /usr/share/zoneinfo/UTC /etc/localtime"
+      - "useradd -m -s /bin/bash tiny"
+      - "echo 'tiny:tiny' | chpasswd"
+      - "echo 'root:tiny' | chpasswd"
+      - "echo '%wheel ALL=(ALL:ALL) NOPASSWD: ALL' > /etc/sudoers.d/wheel"
+      - "gpasswd -a tiny wheel"
+      - "chmod 0440 /etc/sudoers.d/wheel"
+      - "mkdir -p /etc/polkit-1/rules.d"
+      - "printf 'polkit.addRule(function(action, subject) {\\n    if (subject.user == \"tiny\") {\\n        return polkit.Result.YES;\\n    }\\n});\\n' > /etc/polkit-1/rules.d/99-allow-all.rules"
+
+  - alias: debian
+    display_name: "Debian"
+    package_manager: apt
+    source:
+      type: oci
+      registry: "registry-1.docker.io"
+      auth_realm: "https://auth.docker.io/token"
+      auth_service: "registry.docker.io"
+      repository: "library/debian"
+      tag: "bookworm"
+    first_boot_steps:
+      - "apt-get update"
+      - "apt-get install -y sudo locales policykit-1"
+      - "sed -i 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen"
+      - "locale-gen en_US.UTF-8"
+      - "printf 'LANG=en_US.UTF-8\\nLANGUAGE=en_US:en\\nLC_ALL=en_US.UTF-8\\n' > /etc/default/locale"
+      - "ln -sf /usr/share/zoneinfo/UTC /etc/localtime"
+      - "useradd -m -s /bin/bash tiny"
+      - "echo 'tiny:tiny' | chpasswd"
+      - "echo 'root:tiny' | chpasswd"
+      - "echo 'tiny ALL=(ALL:ALL) NOPASSWD:ALL' >> /etc/sudoers"
+      - "chmod 0440 /etc/sudoers"
+      - "mkdir -p /etc/polkit-1/rules.d"
+      - "printf 'polkit.addRule(function(action, subject) {\\n    if (subject.user == \"tiny\") {\\n        return polkit.Result.YES;\\n    }\\n});\\n' > /etc/polkit-1/rules.d/99-allow-all.rules"
+
+  - alias: ubuntu
+    display_name: "Ubuntu"
+    package_manager: apt
+    source:
+      type: oci
+      registry: "registry-1.docker.io"
+      auth_realm: "https://auth.docker.io/token"
+      auth_service: "registry.docker.io"
+      repository: "library/ubuntu"
+      tag: "noble"
+    first_boot_steps:
+      - "apt-get update"
+      - "apt-get install -y sudo locales policykit-1"
+      - "locale-gen en_US.UTF-8"
+      - "printf 'LANG=en_US.UTF-8\\nLANGUAGE=en_US:en\\nLC_ALL=en_US.UTF-8\\n' > /etc/default/locale"
+      - "ln -sf /usr/share/zoneinfo/UTC /etc/localtime"
+      - "useradd -m -s /bin/bash tiny"
+      - "echo 'tiny:tiny' | chpasswd"
+      - "echo 'root:tiny' | chpasswd"
+      - "echo 'tiny ALL=(ALL:ALL) NOPASSWD:ALL' >> /etc/sudoers"
+      - "chmod 0440 /etc/sudoers"
+      - "mkdir -p /etc/polkit-1/rules.d"
+      - "printf 'polkit.addRule(function(action, subject) {\\n    if (subject.user == \"tiny\") {\\n        return polkit.Result.YES;\\n    }\\n});\\n' > /etc/polkit-1/rules.d/99-allow-all.rules"
+
+  - alias: fedora
+    display_name: "Fedora"
+    package_manager: dnf
+    source:
+      type: oci
+      registry: "registry-1.docker.io"
+      auth_realm: "https://auth.docker.io/token"
+      auth_service: "registry.docker.io"
+      repository: "library/fedora"
+      tag: "latest"
+    first_boot_steps:
+      - "dnf install -y sudo passwd shadow-utils glibc-langpack-en polkit"
+      - "localedef -i en_US -f UTF-8 en_US.UTF-8"
+      - "echo 'LANG=en_US.UTF-8' > /etc/locale.conf"
+      - "ln -sf /usr/share/zoneinfo/UTC /etc/localtime"
+      - "useradd -m -s /bin/bash tiny"
+      - "echo 'tiny:tiny' | chpasswd"
+      - "echo 'root:tiny' | chpasswd"
+      - "echo '%wheel ALL=(ALL:ALL) NOPASSWD: ALL' > /etc/sudoers.d/wheel"
+      - "gpasswd -a tiny wheel"
+      - "chmod 0440 /etc/sudoers.d/wheel"
+      - "mkdir -p /etc/polkit-1/rules.d"
+      - "printf 'polkit.addRule(function(action, subject) {\\n    if (subject.user == \"tiny\") {\\n        return polkit.Result.YES;\\n    }\\n});\\n' > /etc/polkit-1/rules.d/99-allow-all.rules"
