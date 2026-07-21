@@ -993,14 +993,14 @@ class Workflow {
 
     for (var bin in binSymlinks) {
       script.writeln("""
-if [ -f applib/libexec_$bin.so ]; then
-    /system/bin/ln -sf ../applib/libexec_$bin.so \$DATA_DIR/bin/$bin
-elif [ -f applib/lib$bin.so ]; then
+if [ -f applib/lib$bin.so ]; then
     /system/bin/ln -sf ../applib/lib$bin.so \$DATA_DIR/bin/$bin
+elif [ -f applib/libexec_$bin.so ]; then
+    /system/bin/ln -sf ../applib/libexec_$bin.so \$DATA_DIR/bin/$bin
 elif [ "$bin" = "sh" ] || [ "$bin" = "cat" ] || [ "$bin" = "xz" ] || [ "$bin" = "gzip" ] || [ "$bin" = "tar" ]; then
     /system/bin/ln -sf busybox \$DATA_DIR/bin/$bin
 else
-    echo "Error: Binary $bin not found in applib (tried libexec_$bin.so and lib$bin.so)" >&2
+    echo "Error: Binary $bin not found in applib (tried lib$bin.so and libexec_$bin.so)" >&2
     exit 127
 fi""");
     }
