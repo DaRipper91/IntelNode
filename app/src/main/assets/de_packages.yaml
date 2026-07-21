@@ -1,0 +1,119 @@
+# de_packages.yaml -- This file is part of tiny_container.
+#
+# Config-driven registry of desktop-environment entries offered by the
+# on-device DE selector, tiered per the task brief (tier 1 = stable/X11,
+# tier 2 = experimental/Wayland). Add a new DE by adding an entry here — no
+# Kotlin changes required in the selector UI or installer to pick it up.
+#
+# Every tier-1 package_managers.<family> value below was verified against a
+# real package database as of 2026-07-20 (not guessed):
+#   - pacman: archlinux.org's package/group search JSON API and group pages
+#     (xfce4, xfce4-goodies, lxqt, mate, i3 are pacman GROUPS, not single
+#     packages — `pacman -S <group>` installs everything in the group).
+#   - dnf:    Fedora's real comps group IDs, from
+#             https://pagure.io/fedora-comps/raw/main/f/comps-f42.xml.in
+#             (dnf group install "@<id>").
+#   - apt:    sources.debian.org/api (package existence check) PLUS the
+#             xfce4 line is the literal command from the real, verified
+#             upstream tiny-computer/images README ("sudo apt install
+#             dbus-x11 xfce4 tigervnc-standalone-server ... -y").
+#
+# Fields:
+#   alias:            Short name, used as the feature-type discriminator
+#                      the app writes into the container's boot_command/
+#                      feature config once a DE is chosen.
+#   display_name:      Shown in the selector UI.
+#   tier:              1 (stable, X11-based) or 2 (experimental, Wayland).
+#   requires_bridge:   Only meaningful for tier 2 — see DeInstaller.kt.
+#                      True means this DE needs a Wayland-compositor bridge
+#                      that hasn't been prototyped/validated yet (see
+#                      docs/tier2-wayland-bridge-findings.md once written).
+#   package_managers:  Map of pacman/dnf/apt -> list of package/group names
+#                      to install for this DE on that package manager
+#                      family. A distro's package_manager (distros.yaml)
+#                      selects which of these lists applies.
+
+des:
+  # ---------------------------------------------------------------------
+  # Tier 1 — stable, X11, proven under proot + Termux:X11
+  # ---------------------------------------------------------------------
+  - alias: xfce4
+    display_name: "XFCE4"
+    tier: 1
+    # Run inside the container's already-logged-in boot_command session
+    # (see ProotExec.bootCommandTemplate()) once the X11 socket is ready —
+    # NOT a separate proot invocation.
+    session_command: "dbus-launch --exit-with-session startxfce4"
+    package_managers:
+      pacman: ["xfce4", "xfce4-goodies", "tigervnc", "dbus"]
+      dnf: ["@xfce-desktop-environment", "tigervnc-server"]
+      apt: ["dbus-x11", "xfce4", "tigervnc-standalone-server"]
+
+  - alias: lxqt
+    display_name: "LXQt"
+    tier: 1
+    session_command: "dbus-launch --exit-with-session startlxqt"
+    package_managers:
+      pacman: ["lxqt", "tigervnc", "dbus"]
+      dnf: ["@lxqt-desktop-environment", "tigervnc-server"]
+      apt: ["dbus-x11", "task-lxqt-desktop", "tigervnc-standalone-server"]
+
+  - alias: mate
+    display_name: "MATE"
+    tier: 1
+    session_command: "dbus-launch --exit-with-session mate-session"
+    package_managers:
+      pacman: ["mate", "tigervnc", "dbus"]
+      dnf: ["@mate-desktop-environment", "tigervnc-server"]
+      apt: ["dbus-x11", "task-mate-desktop", "tigervnc-standalone-server"]
+
+  - alias: i3wm
+    display_name: "i3wm"
+    tier: 1
+    session_command: "dbus-launch --exit-with-session i3"
+    package_managers:
+      pacman: ["i3-wm", "i3status", "dmenu", "tigervnc", "dbus"]
+      dnf: ["@i3-desktop-environment", "tigervnc-server"]
+      apt: ["dbus-x11", "i3-wm", "tigervnc-standalone-server"]
+
+  # ---------------------------------------------------------------------
+  # Tier 2 — experimental, Wayland. NOT validated to actually work end to
+  # end yet (see DeInstaller.kt / the task brief's own instruction to
+  # prototype against one distro before assuming this works). Package
+  # lists below are DELIBERATELY pacman-only (Arch), per the brief's own
+  # instruction to prototype tier 2 against one distro before expanding —
+  # checked here, not assumed: Fedora has NEITHER niri NOR cosmic-desktop
+  # in its official repos (packages.fedoraproject.org 404s for both, as of
+  # 2026-07-20), and there is no single "cosmic" package anywhere — COSMIC
+  # ships as ~25 separate packages on Arch (cosmic-session, cosmic-comp,
+  # cosmic-panel, etc., all in the `extra` repo). Debian/Ubuntu's apt
+  # situation for niri/cosmic-desktop was not verified deeply enough to
+  # trust yet (a source package existing on sources.debian.org is not the
+  # same as a real, current, arm64-buildable binary package — that's a
+  # meaningfully lower bar than what tier 1 above was actually checked
+  # against). Do not add dnf/apt entries here until that's done for real;
+  # see DeInstaller.kt's tier-2 install path, which refuses non-pacman
+  # tier-2 installs outright rather than guessing.
+  # ---------------------------------------------------------------------
+  - alias: niri
+    display_name: "niri (experimental)"
+    tier: 2
+    requires_bridge: true
+    package_managers:
+      pacman: ["niri", "xwayland-satellite"]
+
+  - alias: cosmic
+    display_name: "COSMIC (experimental)"
+    tier: 2
+    requires_bridge: true
+    package_managers:
+      pacman:
+        - "cosmic-session"
+        - "cosmic-comp"
+        - "cosmic-panel"
+        - "cosmic-settings"
+        - "cosmic-settings-daemon"
+        - "cosmic-bg"
+        - "cosmic-launcher"
+        - "cosmic-files"
+        - "xdg-desktop-portal-cosmic"
