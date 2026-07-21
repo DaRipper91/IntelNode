@@ -30,6 +30,15 @@ data class DeEntry(
     val requiresBridge: Boolean,
     /** package_manager family name -> list of packages/groups to install. */
     val packageManagers: Map<PackageManagerFamily, List<String>>,
+    /**
+     * Command run inside the container's already-logged-in boot_command
+     * session once the X11 socket is ready (see TinyYamlBuilder.kt) — null
+     * for every current tier-2 entry, since how a Wayland-only compositor
+     * actually gets a picture onto Termux:X11's X-server-shaped bridge is
+     * exactly the unprototyped question the task brief asked to flag rather
+     * than guess at.
+     */
+    val sessionCommand: String?,
 ) {
     /** Null if this DE has no known install command for [family] yet (see de_packages.yaml). */
     fun packagesFor(family: PackageManagerFamily): List<String>? = packageManagers[family]
@@ -83,7 +92,8 @@ object DeRegistry {
         val packageManagers = packageManagersRaw.entries.associate { (key, value) ->
             PackageManagerFamily.fromString(key) to value
         }
+        val sessionCommand = raw["session_command"] as? String
 
-        return DeEntry(alias, displayName, tier, requiresBridge, packageManagers)
+        return DeEntry(alias, displayName, tier, requiresBridge, packageManagers, sessionCommand)
     }
 }

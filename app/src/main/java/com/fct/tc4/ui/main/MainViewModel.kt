@@ -40,6 +40,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         data object ContainerManage : Screen()
         data class ContainerInstall(val code: String, val webpage: String?) : Screen()
         data class ContainerMain(val code: String) : Screen()
+        /** First step of the on-device distro/DE build flow — pick a base distro. */
+        data object DistroSelect : Screen()
+        /** Second step — pick a desktop environment for the [distroAlias] chosen in DistroSelect. */
+        data class DeSelect(val distroAlias: String) : Screen()
     }
 
 

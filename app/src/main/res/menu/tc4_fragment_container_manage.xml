@@ -14,4 +14,11 @@
         android:icon="@drawable/download_24dp_1f1f1f_fill0_wght400_grad0_opsz24"
         app:iconTint="?attr/colorControlNormal"
         app:showAsAction="ifRoom|withText" />
+
+    <item
+        android:id="@+id/containerBuildNew"
+        android:title="@string/tc4_menu_build_new"
+        android:icon="@drawable/add_24dp_1f1f1f_fill0_wght400_grad0_opsz24"
+        app:iconTint="?attr/colorControlNormal"
+        app:showAsAction="ifRoom|withText" />
 </menu>
