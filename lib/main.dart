@@ -33,6 +33,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:da_ripped_tiny_computer/l10n/app_localizations.dart';
 
 import 'package:da_ripped_tiny_computer/workflow.dart';
+import 'package:da_ripped_tiny_computer/container_setup_page.dart';
 
 import 'package:avnc_flutter/avnc_flutter.dart';
 import 'package:x11_flutter/x11_flutter.dart';
@@ -168,6 +169,7 @@ class SettingPage extends StatefulWidget {
 
 class _SettingPageState extends State<SettingPage> {
   final List<bool> _expandState = [
+    false,
     false,
     false,
     false,
@@ -1178,6 +1180,35 @@ pkill -f tiny_virtual_mic""");
                   },
                 ),
                 const SizedBox.square(dimension: 16),
+              ],
+            ),
+          ),
+        ),
+        ExpansionPanel(
+          isExpanded: _expandState[7],
+          headerBuilder: ((context, isExpanded) {
+            return ListTile(
+              title: Text(AppLocalizations.of(context)!.newContainer),
+              subtitle: Text(AppLocalizations.of(context)!.newContainerHint),
+            );
+          }),
+          body: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              children: [
+                OutlinedButton(
+                  style: D.commandButtonStyle,
+                  child: Text(AppLocalizations.of(context)!.newContainer),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ContainerSetupPage(),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox.square(dimension: 12),
               ],
             ),
           ),
