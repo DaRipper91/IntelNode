@@ -106,6 +106,35 @@ class Util {
     }
   }
 
+  // Like execute(), but also returns the command's own stdout/stderr text so
+  // callers can surface the real OS-level error instead of just an exit code.
+  static Future<(int, String)> executeCapture(String str) async {
+    Pty pty;
+    try {
+      pty = Pty.start("/system/bin/sh");
+    } catch (e) {
+      return (-1, "Failed to start shell: $e");
+    }
+
+    final output = StringBuffer();
+    pty.write(const Utf8Encoder().convert("$str\nexit \$?\n"));
+    StreamSubscription<Uint8List>? sub;
+    sub = pty.output.listen((data) {
+      final text = const Utf8Decoder(allowMalformed: true).convert(data);
+      if (text.isEmpty) return;
+      debugPrint("PTY Output: $text");
+      output.write(text);
+    });
+    try {
+      final exitCode = await pty.exitCode;
+      return (exitCode, output.toString().trim());
+    } catch (e) {
+      return (-1, "Error waiting for shell exit: $e");
+    } finally {
+      await sub?.cancel();
+    }
+  }
+
   // POSIX single-quote escape — safe to embed in any sh -c string.
   // Mirrors ShizukuHelper._escapeArg.
   static String escapeShellArgument(String arg) =>
@@ -870,9 +899,16 @@ class Workflow {
   }
 
   static Future<bool> grantPermissions() async {
-    final status = await Permission.storage.request();
-    return status.isGranted || status.isLimited;
-    //Permission.manageExternalStorage.request();
+    // Permission.storage (READ/WRITE_EXTERNAL_STORAGE) is a no-op on Android
+    // 13+ for apps targeting API 33+ (this app targets 36) — scoped storage
+    // replaced it with MANAGE_EXTERNAL_STORAGE ("All files access"), which is
+    // the permission that actually gates real filesystem access here. Check
+    // both and accept whichever one is actually meaningful on this OS version,
+    // since Permission.storage is still the real mechanism on older devices.
+    final storageStatus = await Permission.storage.request();
+    if (storageStatus.isGranted || storageStatus.isLimited) return true;
+    final manageStatus = await Permission.manageExternalStorage.request();
+    return manageStatus.isGranted;
   }
 
   // Shows a full-screen DE selection dialog on first launch.
@@ -1178,12 +1214,14 @@ mv "\$STAGING_DIR" "\$CONTAINER_DIR"
     // generic, misleading "exit code 127" that hides this actual cause.
     Util.createDirFromString(G.dataPath);
     final String libPath = await D.androidChannel.invokeMethod("getNativeLibraryPath", {}) as String;
-    final int linkExitCode = await Util.execute(
+    final (linkExitCode, linkOutput) = await Util.executeCapture(
       "/system/bin/ln -sf ${Util.escapeShellArgument(libPath)} ${Util.escapeShellArgument(G.dataPath)}/applib",
     );
     if (linkExitCode != 0) {
       throw Exception(
-        "Failed to link native library directory ($libPath) into ${G.dataPath}/applib (exit code $linkExitCode). Bootstrap cannot proceed without it.",
+        "Failed to link native library directory ($libPath) into ${G.dataPath}/applib "
+        "(exit code $linkExitCode): ${linkOutput.isEmpty ? '(no output)' : linkOutput}. "
+        "Bootstrap cannot proceed without it.",
       );
     }
 
