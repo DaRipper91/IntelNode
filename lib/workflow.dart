@@ -1185,7 +1185,9 @@ export PROOT_LOADER_32=\$DATA_DIR/applib/libproot-loader32.so
 rm -rf "\$STAGING_DIR"
 mkdir -p "\$STAGING_DIR"
 
-\$DATA_DIR/bin/proot --link2symlink sh -c "cat xa* | \$DATA_DIR/bin/tar x -z --delay-directory-restore --preserve-permissions -v -C containers/0_staging"
+# The bundled xa* rootfs is split from archlinux.tar.xz, so tar must use XZ
+# decompression. Using -z here attempts gzip decompression and aborts setup.
+\$DATA_DIR/bin/proot --link2symlink sh -c "cat xa* | \$DATA_DIR/bin/tar x -J --delay-directory-restore --preserve-permissions -v -C containers/0_staging"
 
 # Configure passwd/group files in the staging directory
 chmod u+rw "\$STAGING_DIR/etc/passwd" "\$STAGING_DIR/etc/shadow" "\$STAGING_DIR/etc/group" "\$STAGING_DIR/etc/gshadow"
