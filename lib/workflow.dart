@@ -648,7 +648,7 @@ class D {
     {
       "name": "卸载微信",
       "command":
-          "sudo rm -rf /opt/wechat /usr/share/applications/wechat.desktop /usr/share/applications/com.tencent.wechatappex.desktop",
+          "sudo rm -rf /opt/wechat /usr/share/applications/wechat.desktop /usr/share/applications/com.tencent.wechatappex.desktop /usr/share/doc/wechat /usr/share/icons/hicolor/*/apps/wechat*.png",
     },
     {
       "name": "安装钉钉",
@@ -834,7 +834,7 @@ class D {
     {
       "name": "卸载微信",
       "command":
-          "sudo rm -rf /opt/wechat /usr/share/applications/wechat.desktop /usr/share/applications/com.tencent.wechatappex.desktop",
+          "sudo rm -rf /opt/wechat /usr/share/applications/wechat.desktop /usr/share/applications/com.tencent.wechatappex.desktop /usr/share/doc/wechat /usr/share/icons/hicolor/*/apps/wechat*.png",
     },
     {
       "name": "安装钉钉",
@@ -981,7 +981,7 @@ rm /tmp/wps.deb""",
     {
       "name": "卸载微信",
       "command":
-          "sudo rm -rf /opt/wechat /usr/share/applications/wechat.desktop /usr/share/applications/com.tencent.wechatappex.desktop",
+          "sudo rm -rf /opt/wechat /usr/share/applications/wechat.desktop /usr/share/applications/com.tencent.wechatappex.desktop /usr/share/doc/wechat /usr/share/icons/hicolor/*/apps/wechat*.png",
     },
     {
       "name": "安装钉钉",
@@ -1082,7 +1082,7 @@ rm /tmp/wps.deb""",
     {
       "name": "卸载微信",
       "command":
-          "sudo rm -rf /opt/wechat /usr/share/applications/wechat.desktop /usr/share/applications/com.tencent.wechatappex.desktop",
+          "sudo rm -rf /opt/wechat /usr/share/applications/wechat.desktop /usr/share/applications/com.tencent.wechatappex.desktop /usr/share/doc/wechat /usr/share/icons/hicolor/*/apps/wechat*.png",
     },
     {
       "name": "安装钉钉",
