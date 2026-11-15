@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="200" viewBox="0 0 1200 200" role="img" aria-labelledby="t d">
+  <title id="t">IntelNode boot pipeline</title>
+  <desc id="d">Five stages: install, extract, boot proot, start desktop, in-app X display.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1b1b1b"/><stop offset="1" stop-color="#0b1d1b"/></linearGradient>
+    <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#03d5c1"/></marker>
+  </defs>
+  <rect width="1200" height="200" rx="16" fill="url(#bg)" stroke="#03d5c1" stroke-opacity="0.4" stroke-width="2"/>
+  <g font-family="Inter,Segoe UI,Roboto,sans-serif" text-anchor="middle">
+    <g fill="#0f2a27" stroke="#03d5c1" stroke-width="2">
+      <rect x="30" y="50" width="190" height="100" rx="12"/><rect x="262" y="50" width="190" height="100" rx="12"/>
+      <rect x="494" y="50" width="190" height="100" rx="12"/><rect x="726" y="50" width="190" height="100" rx="12"/>
+      <rect x="958" y="50" width="190" height="100" rx="12"/>
+    </g>
+    <g fill="#f2fffd" font-size="20" font-weight="700">
+      <text x="125" y="95">1 · Install</text><text x="357" y="95">2 · Extract</text><text x="589" y="95">3 · Boot</text>
+      <text x="821" y="95">4 · Desktop</text><text x="1053" y="95">5 · Display</text>
+    </g>
+    <g fill="#7ff3e8" font-size="14">
+      <text x="125" y="122">copy 14 rootfs chunks</text><text x="357" y="122">busybox unxz | tar x</text><text x="589" y="122">proot + fake /proc</text>
+      <text x="821" y="122">start-arch.sh → XFCE4</text><text x="1053" y="122">in-app X server :4</text>
+    </g>
+  </g>
+  <g stroke="#03d5c1" stroke-width="3" marker-end="url(#ar)">
+    <path d="M222 100H258"/><path d="M454 100H490"/><path d="M686 100H722"/><path d="M918 100H954"/>
+  </g>
+</svg>

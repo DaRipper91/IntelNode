@@ -4,167 +4,133 @@
 
 <br>
 
-[![Latest Release](https://img.shields.io/github/v/release/DaRipper91/IntelNode?label=Download&style=for-the-badge&color=03d5c1&labelColor=1b1b1b&logo=github&logoColor=03d5c1)](https://github.com/DaRipper91/IntelNode/releases/latest)
-[![Build](https://img.shields.io/github/actions/workflow/status/DaRipper91/IntelNode/flutter-build.yml?branch=master&style=for-the-badge&label=Build&labelColor=1b1b1b&logo=githubactions&logoColor=03d5c1)](https://github.com/DaRipper91/IntelNode/actions/workflows/flutter-build.yml)
-[![Platform](https://img.shields.io/badge/Android-ARM64-03d5c1?style=for-the-badge&labelColor=1b1b1b&logo=android&logoColor=03d5c1)](https://github.com/DaRipper91/IntelNode/releases/latest)
+[![Release](https://img.shields.io/github/v/release/DaRipper91/IntelNode?include_prereleases&label=Download&style=for-the-badge&color=03d5c1&labelColor=1b1b1b&logo=github&logoColor=03d5c1)](https://github.com/DaRipper91/IntelNode/releases)
+[![Debug build](https://img.shields.io/github/actions/workflow/status/DaRipper91/IntelNode/debug-build.yml?style=for-the-badge&label=Debug%20build&labelColor=1b1b1b&logo=githubactions&logoColor=03d5c1)](https://github.com/DaRipper91/IntelNode/actions/workflows/debug-build.yml)
+[![Android ARM64](https://img.shields.io/badge/Android-ARM64-03d5c1?style=for-the-badge&labelColor=1b1b1b&logo=android&logoColor=03d5c1)](https://github.com/DaRipper91/IntelNode/releases)
 [![Arch Linux ARM](https://img.shields.io/badge/Arch_Linux-ARM-03d5c1?style=for-the-badge&labelColor=1b1b1b&logo=archlinux&logoColor=03d5c1)](https://archlinuxarm.org/)
-[![Flutter](https://img.shields.io/badge/Flutter-Dart-03d5c1?style=for-the-badge&labelColor=1b1b1b&logo=flutter&logoColor=03d5c1)](https://flutter.dev/)
+[![Flutter](https://img.shields.io/badge/Flutter-3.41-03d5c1?style=for-the-badge&labelColor=1b1b1b&logo=flutter&logoColor=03d5c1)](https://flutter.dev/)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-03d5c1?style=for-the-badge&labelColor=1b1b1b)](COPYING)
-[![Manual](https://img.shields.io/badge/📖_Manual-read_now-03d5c1?style=for-the-badge&labelColor=1b1b1b)](MANUAL.md)
 
-**A complete, high-performance Arch Linux ARM workstation on Android — no root required.**
+**An Arch Linux ARM desktop on Android. No root, no Termux, one APK.**
 
-[**⬇ Download**](https://github.com/DaRipper91/IntelNode/releases/latest) &nbsp;·&nbsp;
-[**📦 Install**](#-installation) &nbsp;·&nbsp;
-[**🛠 Architecture**](#%EF%B8%8F-architecture) &nbsp;·&nbsp;
-[**📝 Changelog**](#-changelog) &nbsp;·&nbsp;
-[**📖 Manual**](MANUAL.md)
+[**⬇ Download**](https://github.com/DaRipper91/IntelNode/releases) &nbsp;·&nbsp;
+[**📦 Install**](#-install) &nbsp;·&nbsp;
+[**🧭 How it boots**](#-how-it-boots) &nbsp;·&nbsp;
+[**🧪 Status**](#-status) &nbsp;·&nbsp;
+[**🐞 Debugging**](debug/README.md)
 
 </div>
 
 ---
 
-Highly optimized for modern ARM64 hardware (Pixel 10 Pro / Tensor G5) and designed for intelligence professionals and power users. This is a specialized fork of [Cateners/tiny_computer](https://github.com/Cateners/tiny_computer), migrated to a rolling-release Arch Linux base with advanced security bypasses for Android 16 (Cinnamon Bun).
+IntelNode is a fork of [Cateners/tiny_computer](https://github.com/Cateners/tiny_computer) that swaps the
+Debian rootfs for **Arch Linux ARM**. The app unpacks the system, boots it under `proot`, and shows the XFCE
+desktop in an X server built into the app itself, so there is nothing to set up from a terminal.
 
-> [!NOTE]
-> **v2.2.5** adds an on-device **multi-distro / multi-desktop container builder**.
-> Open **Settings → New Container** to build extra distro + desktop combinations without
-> shipping a rootfs for each one. See [Additional Containers](#-features) below.
+> [!WARNING]
+> **Work in progress.** Install and rootfs extraction work on a real phone. The final steps (X server and
+> desktop on screen) are still being verified. See [Status](#-status) before you install.
 
-## 🧭 Contents
+<img src="images/pipeline.svg" alt="Install, extract, boot, desktop, display" width="100%">
 
-- [Features](#-features)
-- [Installation](#-installation)
-- [Architecture](#%EF%B8%8F-architecture)
-- [Changelog](#-changelog)
-- [Building from Source](#%EF%B8%8F-building-from-source)
-- [Credits](#credits) · [License](#license)
+## 📦 Install
 
----
-
-## 🚀 Features
-
-| | |
-|---|---|
-| 🐧 **Full Arch Linux ARM** | Access to `pacman`, AUR support, and a rolling-release ecosystem optimized for the latest Cortex-X925 cores. |
-| 🔓 **God Mode Protocol** | Shizuku + `rish` leverage ADB-level permissions to bypass standard Android sandboxing — faster rootfs extraction, process priority boosting (`renice`), and kernel-level performance tweaks. |
-| 🤖 **Modern Android Compatibility** | Tuned for **Android 16+** with `PROOT_NO_SECCOMP=1` to bypass new ptrace restrictions. |
-| 🎮 **Hardware Acceleration** | Smooth graphical performance via VirGL/Mali-G925 passthrough. |
-| 🔊 **Advanced Audio** | High-fidelity PipeWire/PulseAudio pipeline for low-latency sound. |
-| 🕵️ **Intelligence Workflow** | Built-in templates for knowledge ingestion, Obsidian-ready vaults, and high-speed Rust-based CLI tools (`ripgrep`, `fd`, `fzf`). |
-
-### 🖥️ Flexible Display Backends
-
-- [**Termux:X11**](https://github.com/termux/termux-x11) — Native X11 passthrough for maximum performance (**Recommended**).
-- **Built-in noVNC** — Integrated WebView client that works out of the box.
-- [**AVNC**](https://github.com/gujjwal00/avnc) — Support for native Android VNC clients.
-
-### 🧩 Additional Containers (Experimental)
-
-Build extra distro + desktop combinations on-device from **Settings → New Container**,
-downloading a base rootfs and installing the chosen desktop directly rather than shipping
-one per combination. The distro and desktop lists are config-driven manifests
-(`lib/distros.dart`, `lib/desktop_environments.dart`); see those files for exactly which
-combinations are currently available and which ones are flagged experimental. Desktops
-installed this way follow the same X11-over-Termux:X11 model as the bundled Arch container;
-Wayland compositors are preview-only until a nested compositor bridge is prototyped.
-
----
-
-## 📦 Installation
-
-1. Visit the [**Latest Release**](https://github.com/DaRipper91/IntelNode/releases/latest).
-2. Download `app-arm64-v8a-release.apk`.
-3. Enable **"Install from unknown sources"** in your Android Settings.
-4. Install and launch the app.
-5. **Grant Storage Permissions** when prompted (required for the Linux container).
-6. Wait for the bootstrap process (5–15 minutes).
-7. Your Arch Linux desktop will appear!
+1. Open the [**Releases**](https://github.com/DaRipper91/IntelNode/releases) page and download the newest `IntelNode-…-arm64.apk`.
+2. **Uninstall any older IntelNode first.** Debug builds are signed with a different key each time, so Android refuses to update over them.
+3. Allow installs from your browser or file manager, then install the APK.
+4. Open the app and grant the storage permission when asked.
+5. **Keep the app open** while it unpacks the system. The first run takes about 12 minutes.
+6. The desktop opens when startup finishes.
 
 > [!IMPORTANT]
-> **Requirements:** Android 10+ (Android 15/16 recommended), ARM64 device, ~4 GB free storage.
+> **Requirements:** an ARM64 Android phone and about 4 GB of free storage. The APK is large (about 1.4 GB)
+> because the whole Arch rootfs ships inside it.
 
----
+## 🧪 Status
 
-## 🛠️ Architecture
+Last tested on a **Pixel 10 Pro, Android 17 developer preview**.
 
-IntelNode uses a custom two-stage bootstrap system to bypass the lack of `systemd` in proot environments:
+| Stage | State |
+|---|---|
+| Install and rootfs chunk copy | ✅ works on device |
+| Extraction (`busybox unxz \| tar x`) | ✅ works on device, about 12 min |
+| Container boot (proot, fake `/proc`, `start-arch.sh`) | ✅ reaches the X server step |
+| In-app X server | 🔧 fix shipped in `3e661ca`, awaiting device confirmation |
+| XFCE desktop on screen | ❌ not yet observed |
+| Browser (noVNC) / AVNC display | ❌ not wired for the Arch container |
 
-1. **`start-arch.sh`**: Handles low-level initialization, D-Bus bus generation, and network synchronization.
-2. **`start-desktop`**: Orchestrates the graphical session (XFCE4/LXQt), display socket synchronization, and HiDPI scaling.
+Details and logs for each stage live in [`debug/`](debug/README.md) and [`AGENT_REPORT.md`](AGENT_REPORT.md).
+
+## 🧭 How it boots
 
 ```mermaid
 flowchart LR
-    A["📱 IntelNode app<br/>(Flutter)"] --> B["Bootstrap<br/>proot · busybox · applib"]
-    B --> C["start-arch.sh<br/>D-Bus · network sync"]
-    C --> D["start-desktop<br/>XFCE4 / LXQt · HiDPI"]
-    D --> E{"Display backend"}
-    E --> F["Termux:X11<br/>(recommended)"]
-    E --> G["Built-in noVNC"]
-    E --> H["AVNC"]
-    A -. "Settings → New Container" .-> I["Distro + DE manifests<br/>lib/distros.dart"]
-    I -. "on-device install" .-> B
+    A["📱 IntelNode<br/>Flutter app"] --> B["Bootstrap<br/>proot · busybox · talloc"]
+    B --> C["Extract rootfs<br/>14 chunks → Arch ARM"]
+    C --> D["proot boot<br/>fake /proc · uid 1000"]
+    D --> E["start-arch.sh<br/>DNS · D-Bus"]
+    E --> F["start-desktop<br/>XFCE4"]
+    A --> G["In-app X server<br/>x11_flutter · :4"]
+    G --- F
 ```
 
----
+- **`start-arch.sh`** replaces systemd: it writes DNS from Android's settings, starts D-Bus, then runs the desktop as the `tiny` user.
+- **`start-desktop`** starts the XFCE session against the X server socket.
+- **Native tools** (`proot`, `busybox`, `tar`, `libtalloc`) ship as `libexec_*.so` inside the APK and are linked into the app's data directory at launch.
+- **Arch-specific fixes** covered so far: `libtalloc.so.2` staging, the `alarm`/`tiny` uid swap, a dangling `resolv.conf`, and an absolute `xkb` symlink that points outside proot.
 
-## 📝 Changelog
+## 🧩 Extra containers (experimental)
 
-<details open>
-<summary><b>v2.2.x</b> — multi-distro builder &amp; bootstrap hardening (Latest: v2.2.5)</summary>
+**Settings → New Container** builds other distro and desktop combinations on the device by downloading a base
+rootfs. The lists are config-driven (`lib/distros.dart`, `lib/desktop_environments.dart`). These use the same
+in-app X11 model and are untested beyond their unit tests.
 
-- **New (v2.2.5):** Multi-distro / multi-DE on-device container builder — config-driven distro and desktop manifests, a container installer with dry-run planning, and a New Container setup wizard in Settings.
-- **Fix:** Rootfs XZ extraction.
-- **Fix:** Bootstrap exit-127 error and X11 startup crash; busybox now resolves its real binary and dependency instead of the broken Termux applet stub.
-- **Fix:** Applib link failures are surfaced with the real error, `MANAGE_EXTERNAL_STORAGE` is checked, and LXQt boots correctly on the VNC path.
-- **Branding:** New IntelNode app icon; project references renamed from DaRipped Tiny Computer to IntelNode.
-- **CI:** `flutter test` and SDK license acceptance added to the build; silent failure masking removed.
-
-</details>
-
-<details>
-<summary><b>v2.1.1</b></summary>
-
-- **Fix:** Resolved `LateInitializationError` crash on startup.
-- **Fix:** Improved storage permission request flow for Android 13-16.
-- **Maintenance:** Consolidated repository branches and updated documentation.
-
-</details>
-
-<details>
-<summary><b>v2.1.0</b></summary>
-
-- **New:** Two-stage bootstrap system for better stability.
-- **Fix:** Android 16 (Cinnamon Bun) stability patches.
-- **Performance:** GZIP-based rootfs chunks for faster extraction.
-
-</details>
-
----
-
-## 🏗️ Building from Source
+## 🛠️ Build from source
 
 ```bash
 git clone https://github.com/DaRipper91/IntelNode.git
 cd IntelNode
 flutter pub get
-flutter build apk --release --target-platform android-arm64 --split-per-abi
+flutter test
+flutter build apk --debug --target-platform android-arm64
 ```
 
-> [!TIP]
-> Build with **JDK 17–21** (CI uses 17). The bundled Gradle 8.11 fails on very new system
-> JDKs (25+) with `Unsupported class file major version`. Branches named `wip/**`, `rebase/**` or `debug/**`
-> build a debug APK in CI and attach it as a workflow artifact — no release is published.
+- Use **JDK 17–21**; the bundled Gradle 8.11 fails on JDK 25+.
+- CI pins **Flutter 3.41.6**. Branches named `wip/**`, `rebase/**` or `debug/**` build a debug APK and attach it to the workflow run.
+- Do not run `dart format` across the whole repo; it rewrites unrelated files.
 
----
+## 📝 Changelog
+
+<details open>
+<summary><b>v2.2.6 debug builds</b> — Arch boot on a real device</summary>
+
+- **Fix:** `libtalloc.so.2` is staged so `proot` starts.
+- **Fix:** extraction failures are reported instead of showing "Installation Complete".
+- **Fix:** startup no longer waits forever on PulseAudio.
+- **Fix:** `tiny` is uid 1000, `su` no longer asks for a password, `resolv.conf` is replaced, `start-desktop` runs through bash.
+- **Fix:** fake `/proc` files and `cap_last_cap` for proot; the Termux `/tmp` bind is gone.
+- **Fix:** the in-app X server uses the real `xkeyboard-config-2` directory.
+- **Branding:** loading caption is "IntelNode".
+</details>
+
+<details>
+<summary><b>v2.2.5</b> — multi-distro builder</summary>
+
+- On-device multi-distro and multi-desktop container builder, installer with dry-run planning, and a New Container wizard.
+- Rootfs XZ extraction fix, applib link errors surfaced, new app icon.
+</details>
+
+<details>
+<summary><b>v2.1.x</b></summary>
+
+- Two-stage bootstrap, Android 13–16 storage permission flow, `LateInitializationError` fix.
+</details>
 
 ## Credits
 
-- [**Cateners/tiny_computer**](https://github.com/Cateners/tiny_computer) — The original upstream project.
-- [**Termux**](https://termux.dev/en/) — `proot`, `busybox`, and X11 tooling.
-- [**Arch Linux ARM**](https://archlinuxarm.org/) — The rolling-release base.
-
----
+- [**Cateners/tiny_computer**](https://github.com/Cateners/tiny_computer) — the upstream project this forks.
+- [**Termux**](https://termux.dev/en/) and [**termux-x11**](https://github.com/termux/termux-x11) — `proot`, `busybox` and the X server core.
+- [**Arch Linux ARM**](https://archlinuxarm.org/) — the rootfs.
 
 ## License
 

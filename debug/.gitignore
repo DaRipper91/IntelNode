@@ -1,0 +1,4 @@
+# Raw device logs hold other apps' package names and system chatter. Review
+# and trim before committing anything from here.
+logs/*
+!logs/.gitkeep
