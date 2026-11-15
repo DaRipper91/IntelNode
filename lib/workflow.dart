@@ -40,6 +40,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 
+import 'package:da_ripped_tiny_computer/fake_proc.dart';
 import 'package:da_ripped_tiny_computer/l10n/app_localizations.dart';
 
 import 'package:avnc_flutter/avnc_flutter.dart';
@@ -159,9 +160,22 @@ class Util {
   static String nativeLibLinkCommand(String libPath, String dataPath) =>
       "/system/bin/ln -sfn ${escapeShellArgument(libPath)} ${escapeShellArgument(dataPath)}/applib";
 
-  // GNU tar has no built-in XZ decoder: `tar -J` execs an external `xz`, and the
-  // bundled busybox provides unxz/xzcat but no `xz` applet, so `-J` dies instantly.
-  // Decompress with busybox unxz and feed plain tar instead.
+  // Arch Linux ARM ships a stock `alarm` user as uid/gid 1000, so useradd gave `tiny`
+  // 1001, but the boot command runs as 1000 (proot --change-id=1000:1000). That made
+  // the session the wrong user, and `su - tiny` then prompted for a password forever.
+  // Swap the two so uid 1000 is `tiny`, matching the upstream rootfs.
+  static String swapAlarmTinyIdsCommand(String rootDir) {
+    final String q = escapeShellArgument(rootDir);
+    return "sed -i -e 's/^alarm:\\([^:]*\\):1000:1000:/alarm:\\1:1001:1001:/' "
+        "-e 's/^tiny:\\([^:]*\\):1001:1001:/tiny:\\1:1000:1000:/' $q/etc/passwd\n"
+        "sed -i -e 's/^alarm:\\([^:]*\\):1000:/alarm:\\1:1001:/' "
+        "-e 's/^tiny:\\([^:]*\\):1001:/tiny:\\1:1000:/' $q/etc/group";
+  }
+
+  // GNU tar has no built-in XZ decoder: `tar -J` forks an external `xz`, resolved
+  // through PATH to the bin/xz -> busybox symlink. Upstream does exactly that and it
+  // works, but decompressing with busybox's unxz and feeding plain tar avoids the
+  // fork and the PATH dependency, and behaves the same on a ~1.3 GB stream.
   static String rootfsExtractCommand({String stagingDir = "containers/0_staging"}) =>
       "cat xa* | \$DATA_DIR/bin/busybox unxz | \$DATA_DIR/bin/tar x --delay-directory-restore --preserve-permissions -v -C $stagingDir";
 
@@ -1317,7 +1331,9 @@ class Workflow {
     builder.addMount("/storage");
     builder.addMount("/proc");
     builder.addMount("/dev");
-    builder.addMount("/data/data/com.termux/files/usr/tmp", target: "/tmp");
+    // /tmp stays the container's own tmp: the in-app X server (launchXServer)
+    // creates its socket in containers/N/tmp, so binding another directory over
+    // /tmp (e.g. Termux's) would hide it and reintroduce a Termux dependency.
     builder.addMount("\$CONTAINER_DIR/tmp", target: "/dev/shm");
     builder.addMount("/dev/urandom", target: "/dev/random");
 
@@ -1327,6 +1343,12 @@ class Workflow {
     builder.addMount("/proc/self/fd/1", target: "/dev/stdout");
     builder.addMount("/proc/self/fd/2", target: "/dev/stderr");
     builder.addMount("/dev/null", target: "/dev/tty0");
+
+    // Android denies apps several /proc files; mirror upstream's placeholders.
+    builder.addMount(FakeProc.capLastCapSource, target: FakeProc.capLastCapTarget);
+    for (final name in FakeProc.names) {
+      builder.addMount("\$DATA_DIR/${FakeProc.dirName}/$name", target: "/proc/$name");
+    }
 
     // Storage mounts
     builder.addMount("/storage/self/primary", target: "/media/sd");
@@ -1637,6 +1659,8 @@ if [ ! -x "\$STAGING_DIR/usr/bin/env" ] || [ ! -e "\$STAGING_DIR/etc/passwd" ]; 
     exit 1
 fi
 
+${Util.swapAlarmTinyIdsCommand(r"$STAGING_DIR")}
+
 # Configure passwd/group files in the staging directory
 chmod u+rw "\$STAGING_DIR/etc/passwd" "\$STAGING_DIR/etc/shadow" "\$STAGING_DIR/etc/group" "\$STAGING_DIR/etc/gshadow"
 echo "aid_\$(id -un):x:\$(id -u):\$(id -g):Termux:/:/sbin/nologin" >> "\$STAGING_DIR/etc/passwd"
@@ -1679,7 +1703,7 @@ mv "\$STAGING_DIR" "\$CONTAINER_DIR"
       """{
 "name":"$containerName",
 "packageManager":"$packageManager",
-"boot":"\${Workflow.getBootCommand()}",
+"boot":${jsonEncode(Workflow.getBootCommand())},
 "vnc":"start-desktop &",
 "vncPassword":"$initialVncPassword",
 "vncUrl":"http://localhost:36082/vnc.html?host=localhost&port=36082&autoconnect=true&resize=remote&password=$initialVncPassword",
@@ -1724,6 +1748,10 @@ mv "\$STAGING_DIR" "\$CONTAINER_DIR"
         "Bootstrap cannot proceed without it.",
       );
     }
+
+    // Mount sources for getBootCommand; rewritten every launch so containers
+    // installed by an older build gain them without a reinstall.
+    FakeProc.writeTo(G.dataPath);
 
     // Perform first-time setup if needed
     if (!G.prefs.containsKey("defaultContainer")) {
@@ -1982,7 +2010,10 @@ clear""");
       throw Exception("Storage permission is required to initialize the container system.");
     }
     await initTerminalForCurrent();
-    await setupAudio();
+    // PulseAudio runs in the foreground of its pty, so setupAudio() only completes
+    // when the daemon exits. Awaiting it here froze startup before the container
+    // ever launched; upstream deliberately fires it and moves on.
+    unawaited(setupAudio());
     await launchCurrentContainer();
     if (Util.getGlobal("autoLaunchVnc") as bool) {
       if (G.wasX11Enabled) {

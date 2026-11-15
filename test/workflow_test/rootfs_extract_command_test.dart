@@ -5,7 +5,7 @@ import 'package:da_ripped_tiny_computer/workflow.dart';
 
 void main() {
   group('Util.rootfsExtractCommand', () {
-    test('decompresses with busybox unxz, never tar -J (no xz applet shipped)', () {
+    test('decompresses with busybox unxz piped into plain tar (no xz fork via PATH)', () {
       final cmd = Util.rootfsExtractCommand();
       expect(cmd, contains('busybox unxz'));
       expect(cmd, isNot(contains(' -J')));
