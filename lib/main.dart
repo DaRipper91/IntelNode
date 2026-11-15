@@ -1844,10 +1844,19 @@ class _LoadingPageState extends State<LoadingPage> {
               child: ValueListenableBuilder(
                 valueListenable: G.updateText,
                 builder: (context, value, child) {
-                  return Text(
-                    value,
-                    textScaler: const TextScaler.linear(2),
-                    textAlign: TextAlign.center,
+                  // Long errors (e.g. a failed native-lib link) must scroll instead of
+                  // overflowing the screen; selectable so they can be copied.
+                  return ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.sizeOf(context).height * 0.35,
+                    ),
+                    child: SingleChildScrollView(
+                      child: SelectableText(
+                        value,
+                        textScaler: const TextScaler.linear(2),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
                   );
                 },
               ),

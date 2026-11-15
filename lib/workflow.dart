@@ -55,6 +55,18 @@ class Util {
     ).writeAsBytes((await rootBundle.load(src)).buffer.asUint8List());
   }
 
+  // rootBundle.load reads a whole asset into memory. The rootfs ships as ~14 chunks of
+  // ~98 MiB, so copying them concurrently needs >1 GiB at once and gets the app killed
+  // with no error. One at a time keeps the peak at a single chunk.
+  static Future<void> copyAssetsSequentially(
+    List<String> names,
+    Future<void> Function(String name) copy,
+  ) async {
+    for (final String name in (List<String>.of(names)..sort())) {
+      await copy(name);
+    }
+  }
+
   static Future<void> copyAsset2(String src, String dst) async {
     ByteData data = await rootBundle.load(src);
     await File(dst).writeAsBytes(
@@ -139,6 +151,13 @@ class Util {
   // Mirrors ShizukuHelper._escapeArg.
   static String escapeShellArgument(String arg) =>
       "'${arg.replaceAll("'", "'\\''")}'";
+
+  // -n is required: on every launch after the first, applib already exists as a
+  // symlink to the (read-only) APK lib dir, and plain `ln -sf` would follow it and
+  // try to create a link inside that dir, failing with exit 1. -n also re-points the
+  // link after a reinstall changes the /data/app/~~.../lib path.
+  static String nativeLibLinkCommand(String libPath, String dataPath) =>
+      "/system/bin/ln -sfn ${escapeShellArgument(libPath)} ${escapeShellArgument(dataPath)}/applib";
 
   static final List<Process> _backgroundProcesses = [];
 
@@ -1566,10 +1585,9 @@ fi
         .map((String key) => key.split('/').last)
         .toList();
 
-    await Future.wait(
-      xaFiles.map(
-        (String name) => Util.copyAsset("assets/$name", "${G.dataPath}/$name"),
-      ),
+    await Util.copyAssetsSequentially(
+      xaFiles,
+      (String name) => Util.copyAsset("assets/$name", "${G.dataPath}/$name"),
     );
 
     G.updateText.value = AppLocalizations.of(
@@ -1676,7 +1694,7 @@ mv "\$STAGING_DIR" "\$CONTAINER_DIR"
     Util.createDirFromString(G.dataPath);
     final String libPath = await D.androidChannel.invokeMethod("getNativeLibraryPath", {}) as String;
     final (linkExitCode, linkOutput) = await Util.executeCapture(
-      "/system/bin/ln -sf ${Util.escapeShellArgument(libPath)} ${Util.escapeShellArgument(G.dataPath)}/applib",
+      Util.nativeLibLinkCommand(libPath, G.dataPath),
     );
     if (linkExitCode != 0) {
       throw Exception(
