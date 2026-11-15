@@ -1,0 +1,61 @@
+name: Debug APK (branches)
+
+# Builds a debug APK for work-in-progress branches and uploads it as a workflow
+# artifact only. It never creates a tag or a GitHub Release, so it cannot touch
+# the `latest-build` prerelease or the "Latest" release that flutter-build.yml
+# and release.yml manage. contents: read below enforces that at the token level.
+
+on:
+  push:
+    branches:
+      - 'wip/**'
+      - 'rebase/**'
+      - 'debug/**'
+  workflow_dispatch:
+
+concurrency:
+  group: debug-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  debug-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Accept Android SDK licenses
+        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+
+      - name: Build Debug APK
+        run: flutter build apk --debug
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: DaRipped-debug-apk-${{ github.sha }}
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
