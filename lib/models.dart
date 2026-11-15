@@ -24,6 +24,7 @@ class ContainerInfo {
   String vncUrl;
   String vncUri;
   List<dynamic> commands;
+  String packageManager;
 
   // To preserve dynamically added fields in JSON that we might not know about
   Map<String, dynamic> additionalProps;
@@ -36,8 +37,26 @@ class ContainerInfo {
     required this.vncUrl,
     required this.vncUri,
     required this.commands,
+    this.packageManager = 'pacman',
     this.additionalProps = const {},
   });
+
+  static const supportedPackageManagers = ['pacman', 'apt', 'dnf', 'zypper'];
+
+  /// Maps a distro display name to its package manager; unknown names fall back to pacman (Arch).
+  static String packageManagerForDistro(String distroName) {
+    final lowerName = distroName.toLowerCase();
+    if (RegExp(r'\bfedora\b|\bf\d{2}\b').hasMatch(lowerName)) {
+      return 'dnf';
+    }
+    if (RegExp(r'opensuse|tumbleweed|\bleap\b').hasMatch(lowerName)) {
+      return 'zypper';
+    }
+    if (RegExp(r'ubuntu|debian|trixie').hasMatch(lowerName)) {
+      return 'apt';
+    }
+    return 'pacman';
+  }
 
   factory ContainerInfo.fromJson(Map<String, dynamic> json) {
     final knownKeys = [
@@ -48,6 +67,7 @@ class ContainerInfo {
       'vncUrl',
       'vncUri',
       'commands',
+      'packageManager',
     ];
 
     final extraProps = <String, dynamic>{};
@@ -57,8 +77,17 @@ class ContainerInfo {
       }
     }
 
+    // Determine distro from name field, with Arch Linux as default
+    final distroName = json['name'] as String? ?? 'Arch Linux ARM';
+    final storedPackageManager = json['packageManager'] as String?;
+    final packageManager =
+        supportedPackageManagers.contains(storedPackageManager)
+            ? storedPackageManager!
+            : packageManagerForDistro(distroName);
+
     return ContainerInfo(
-      name: json['name'] as String? ?? 'Arch Linux ARM',
+      name: distroName,
+      packageManager: packageManager,
       boot: json['boot'] as String? ?? '',
       vnc: json['vnc'] as String? ?? 'startnovnc &',
       vncPassword: json['vncPassword'] as String? ?? '',
@@ -78,6 +107,7 @@ class ContainerInfo {
       'vncUrl': vncUrl,
       'vncUri': vncUri,
       'commands': commands,
+      'packageManager': packageManager,
     };
     result.addAll(additionalProps);
     return result;
@@ -99,6 +129,8 @@ class ContainerInfo {
         return vncUri;
       case 'commands':
         return commands;
+      case 'packageManager':
+        return packageManager;
       default:
         return additionalProps[key];
     }
@@ -127,6 +159,9 @@ class ContainerInfo {
       case 'commands':
         commands = value;
         break;
+      case 'packageManager':
+        packageManager = value;
+        break;
       default:
         additionalProps[key] = value;
         break;
@@ -148,6 +183,8 @@ class ContainerInfo {
       case 'vncUri':
         return true;
       case 'commands':
+        return true;
+      case 'packageManager':
         return true;
       default:
         return additionalProps.containsKey(key);
