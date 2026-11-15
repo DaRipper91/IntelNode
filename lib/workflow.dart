@@ -159,6 +159,12 @@ class Util {
   static String nativeLibLinkCommand(String libPath, String dataPath) =>
       "/system/bin/ln -sfn ${escapeShellArgument(libPath)} ${escapeShellArgument(dataPath)}/applib";
 
+  // GNU tar has no built-in XZ decoder: `tar -J` execs an external `xz`, and the
+  // bundled busybox provides unxz/xzcat but no `xz` applet, so `-J` dies instantly.
+  // Decompress with busybox unxz and feed plain tar instead.
+  static String rootfsExtractCommand({String stagingDir = "containers/0_staging"}) =>
+      "cat xa* | \$DATA_DIR/bin/busybox unxz | \$DATA_DIR/bin/tar x --delay-directory-restore --preserve-permissions -v -C $stagingDir";
+
   static final List<Process> _backgroundProcesses = [];
 
   // Fire-and-forget background process (for long-running daemons like
@@ -1271,7 +1277,7 @@ class G {
   static ValueNotifier<bool> bootTextChange = ValueNotifier(
     true,
   ); //更改值，用于刷新启动命令
-  static ValueNotifier<String> updateText = ValueNotifier("小小电脑"); //加载界面的说明文字
+  static ValueNotifier<String> updateText = ValueNotifier("IntelNode"); // Loading screen caption
   static ValueNotifier<bool> showAdvancedLogs =
       ValueNotifier(false); // Whether to show the log console
   static ValueNotifier<List<String>> logLines =
@@ -1512,6 +1518,13 @@ fi""");
         script.writeln(
           "if [ -f applib/libproot-loader.so ]; then /system/bin/ln -sf ../applib/libproot-loader.so \$DATA_DIR/lib/loader; fi",
         );
+      } else if (lib == 'libtalloc.so.2') {
+        // libexec_proot.so declares NEEDED libtalloc.so.2, but Android's
+        // packager ships the file as libtalloc.so (SONAME libtalloc.so.2).
+        // Stage it under the NEEDED name or proot cannot load at all.
+        script.writeln(
+          "if [ -f applib/libtalloc.so.2 ]; then /system/bin/ln -sf ../applib/libtalloc.so.2 \$DATA_DIR/lib/libtalloc.so.2; elif [ -f applib/libtalloc.so ]; then /system/bin/ln -sf ../applib/libtalloc.so \$DATA_DIR/lib/libtalloc.so.2; fi",
+        );
       } else if (lib == 'libbusybox.so.1.37.0') {
         // The shipped file is named libbusybox.so (no version suffix), but
         // libexec_busybox.so's ELF NEEDED entry hardcodes the versioned name
@@ -1612,9 +1625,17 @@ export PROOT_LOADER_32=\$DATA_DIR/applib/libproot-loader32.so
 rm -rf "\$STAGING_DIR"
 mkdir -p "\$STAGING_DIR"
 
-# The bundled xa* rootfs is split from archlinux.tar.xz, so tar must use XZ
-# decompression. Using -z here attempts gzip decompression and aborts setup.
-\$DATA_DIR/bin/proot --link2symlink sh -c "cat xa* | \$DATA_DIR/bin/tar x -J --delay-directory-restore --preserve-permissions -v -C containers/0_staging"
+# The bundled xa* rootfs is split from archlinux.tar.xz (XZ, not gzip); see
+# Util.rootfsExtractCommand for why this does not use tar -J.
+\$DATA_DIR/bin/proot --link2symlink sh -c "${Util.rootfsExtractCommand()}" || { echo "Error: rootfs extraction failed" >&2; exit 1; }
+
+# A dead proot or a truncated tarball must not fall through to "Installation
+# Complete" over an empty container: the script's exit code is otherwise that
+# of the final rm.
+if [ ! -x "\$STAGING_DIR/usr/bin/env" ] || [ ! -e "\$STAGING_DIR/etc/passwd" ]; then
+    echo "Error: extracted rootfs is incomplete (missing usr/bin/env or etc/passwd)" >&2
+    exit 1
+fi
 
 # Configure passwd/group files in the staging directory
 chmod u+rw "\$STAGING_DIR/etc/passwd" "\$STAGING_DIR/etc/shadow" "\$STAGING_DIR/etc/group" "\$STAGING_DIR/etc/gshadow"
