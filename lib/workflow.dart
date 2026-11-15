@@ -387,6 +387,8 @@ class Util {
     }
   }
 
+  static String? xServerLaunchError;
+
   static Future<void> waitForXServer({
     int timeoutSeconds = 60,
     Future<bool> Function(String host, int port) isReadyCheck = isXServerReady,
@@ -402,7 +404,8 @@ class Util {
       await Future.delayed(const Duration(seconds: 1));
     }
     throw TimeoutException(
-      'X server did not start within $timeoutSeconds seconds',
+      'X server did not start within $timeoutSeconds seconds'
+      '${xServerLaunchError == null ? '' : ' (launch failed: $xServerLaunchError)'}',
     );
   }
 
@@ -1990,13 +1993,30 @@ clear""");
     );
   }
 
+  /// The X server runs outside proot, so it cannot follow an absolute symlink
+  /// target. Arch ships `usr/share/X11/xkb -> /usr/share/xkeyboard-config-2`,
+  /// which dangles against Android's root; point at the real directory instead.
+  static String xkbRoot(String containerPath) {
+    final real = Directory("$containerPath/usr/share/xkeyboard-config-2");
+    if (real.existsSync()) return real.path;
+    return "$containerPath/usr/share/X11/xkb";
+  }
+
   static Future<void> launchXServer() async {
-    Util.createDirFromString("${G.dataPath}/containers/${G.currentContainer}/usr/share/X11/xkb");
-    await X11Flutter.launchXServer(
-      "${G.dataPath}/containers/${G.currentContainer}/tmp",
-      "${G.dataPath}/containers/${G.currentContainer}/usr/share/X11/xkb",
-      [":4", "-extension", "MIT-SHM"],
-    );
+    final container = "${G.dataPath}/containers/${G.currentContainer}";
+    final xkb = xkbRoot(container);
+    if (!Directory(xkb).existsSync() &&
+        FileSystemEntity.typeSync(xkb, followLinks: false) ==
+            FileSystemEntityType.notFound) {
+      Util.createDirFromString(xkb);
+    }
+    try {
+      await X11Flutter.launchXServer("$container/tmp", xkb, [":4", "-extension", "MIT-SHM"]);
+    } catch (e) {
+      // launchXServer is fired without await; keep the reason for waitForXServer.
+      Util.xServerLaunchError = e.toString();
+      rethrow;
+    }
   }
 
   static Future<void> launchX11() async {
