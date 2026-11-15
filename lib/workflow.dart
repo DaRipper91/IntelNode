@@ -1805,7 +1805,7 @@ sed -i -E 's/echo "[^"]+" \\| vncpasswd -f/echo "${_sanitizeVncPassword(Util.get
 
     if (Localizations.localeOf(G.homePageStateContext).languageCode != 'zh') {
       G.postCommand +=
-          "\nsed -i 's/#en_US.UTF-8/en_US.UTF-8/' /etc/locale.gen && locale-gen";
+          "\nsudo sed -i 's/#en_US.UTF-8/en_US.UTF-8/' /etc/locale.gen && sudo locale-gen";
       G.settings.isTerminalWriteEnabled = true;
       G.settings.isTerminalCommandsEnabled = true;
       G.settings.isStickyKey = false;
@@ -1832,7 +1832,7 @@ export XDG_CURRENT_DESKTOP=$deDesktop
 exec $deExec
 XINITRC
 chmod +x /home/tiny/.xinitrc
-pacman -Rns --noconfirm $removePackages 2>/dev/null || true""";
+sudo pacman -Rns --noconfirm $removePackages 2>/dev/null || true""";
   }
 
   static Future<void> initTerminalForCurrent() async {
@@ -1857,6 +1857,15 @@ exit
     );
     await G.audioPty?.exitCode;
   }
+
+  /// First-run commands (locale, .xinitrc, removing the unchosen desktop) used to be
+  /// typed into the boot PTY, but the boot command now ends in the desktop session,
+  /// so they became stdin to XFCE and never ran. start-arch.sh runs this script
+  /// once, before the desktop, and the marker keeps it from running again.
+  static const String firstRunMarker = ".intelnode-first-run";
+
+  static String firstRunScript(String postCommand) =>
+      "#!/bin/bash\n$postCommand\ntouch \"\$HOME/$firstRunMarker\"\n";
 
   static Future<void> launchCurrentContainer() async {
     String extraMount = "";
@@ -1909,6 +1918,12 @@ export CONTAINER_DIR=\$DATA_DIR/containers/${G.currentContainer}
     extraMount += "--mount=\$DATA_DIR/tiny/extra/tiny_virtual_mic:/home/tiny/.local/bin/tiny_virtual_mic ";
     extraMount += "--mount=\$DATA_DIR/tiny/extra/to_vault:/usr/local/bin/to_vault ";
     
+    if (G.postCommand.isNotEmpty) {
+      File("${G.dataPath}/tiny/extra/first-run.sh")
+          .writeAsStringSync(firstRunScript(G.postCommand));
+      G.postCommand = "";
+    }
+
     Util.termWrite("""
 export DATA_DIR=${G.dataPath}
 export PATH=\$DATA_DIR/bin:\$PATH
@@ -1921,7 +1936,6 @@ export PROOT_TMP_DIR=\$DATA_DIR/proot_tmp
 export PROOT_LOADER=\$DATA_DIR/applib/libproot-loader.so
 export PROOT_LOADER_32=\$DATA_DIR/applib/libproot-loader32.so
 ${Workflow.getBootCommand(extraMount: extraMount, extraOpt: extraOpt)}
-${G.postCommand}
 clear""");
   }
 

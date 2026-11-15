@@ -21,7 +21,13 @@ fi
 sudo -n dbus-daemon --system --fork 2>/dev/null || dbus-daemon --system --fork
 chmod 1777 /tmp
 
-# --- 3. Execute Desktop Session ---
+# --- 3. First-run setup (written by the app on first launch; runs once) ---
+FIRST_RUN=/home/tiny/.local/share/tiny/extra/first-run.sh
+if [ -f "$FIRST_RUN" ] && [ ! -e "$HOME/.intelnode-first-run" ]; then
+    /bin/bash "$FIRST_RUN" || echo "[Warn] first-run setup failed; it will retry next launch"
+fi
+
+# --- 4. Execute Desktop Session ---
 # `su` from a non-root user prompts for a password and hangs forever; only
 # switch users when actually started as root. start-desktop is run through bash
 # because the app copies assets without the executable bit.

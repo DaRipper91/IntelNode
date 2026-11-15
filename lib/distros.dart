@@ -187,7 +187,12 @@ const String _removeTermuxProfileScripts =
 
 String _commonUserSetup(String username) =>
     """
-useradd -m -s /bin/bash $username 2>/dev/null || true
+existing=\$(getent passwd 1000 | cut -d: -f1 || true)
+if [ -n "\$existing" ] && [ "\$existing" != "$username" ]; then userdel -r "\$existing" || true; fi
+grp=wheel
+if getent group sudo >/dev/null; then grp=sudo; fi
+getent group "\$grp" >/dev/null || groupadd "\$grp"
+id -u $username >/dev/null 2>&1 || useradd -m -s /bin/bash -u 1000 -G "\$grp" $username
 echo "$username ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/$username
 chmod 0440 /etc/sudoers.d/$username
 mkdir -p /etc/polkit-1/rules.d
@@ -236,7 +241,7 @@ class Distros {
           "Rolling release, pacman. Matches the bundled default container.",
       packageManager: PackageManagerFamily.pacman,
       rootfs: const RootfsSource.direct(
-        url: "http://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz",
+        url: "https://de3.mirror.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz",
         verified: true,
         notes: "Stable, long-standing ArchLinuxARM release path.",
       ),

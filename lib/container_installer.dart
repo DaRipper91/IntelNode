@@ -135,52 +135,57 @@ class ContainerInstaller {
             : 'z';
     final String tarballPath = "${G.dataPath}/new_rootfs_$containerIndex.tar";
 
-    onProgress("Downloading ${distro.displayName} rootfs...");
-    await Util.downloadFile(rootfsUrl, tarballPath, onProgress: onProgress);
+    try {
+      onProgress("Downloading ${distro.displayName} rootfs...");
+      await Util.downloadFile(rootfsUrl, tarballPath, onProgress: onProgress);
 
-    onProgress("Extracting rootfs...");
-    Util.createDirFromString(stagingDir);
-    int exitCode = await Util.execute("""
+      onProgress("Extracting rootfs...");
+      Util.createDirFromString(stagingDir);
+      int exitCode = await Util.execute("""
+set -e
 export DATA_DIR=${G.dataPath}
+export PATH=\$DATA_DIR/bin:\$PATH
 export LD_LIBRARY_PATH=\$DATA_DIR/lib
+export PROOT_TMP_DIR=\$DATA_DIR/proot_tmp
+export PROOT_LOADER=\$DATA_DIR/applib/libproot-loader.so
+export PROOT_LOADER_32=\$DATA_DIR/applib/libproot-loader32.so
 rm -rf ${Util.escapeShellArgument(stagingDir)}
 mkdir -p ${Util.escapeShellArgument(stagingDir)}
 \$DATA_DIR/bin/proot --link2symlink sh -c "\$DATA_DIR/bin/tar -x${compressLetter}f ${Util.escapeShellArgument(tarballPath)} -C ${Util.escapeShellArgument(stagingDir)}"
 """);
-    if (exitCode != 0) {
-      throw Exception("Rootfs extraction failed with exit code $exitCode");
-    }
+      if (exitCode != 0) {
+        throw Exception("Rootfs extraction failed with exit code $exitCode");
+      }
 
-    onProgress("Running first-boot provisioning...");
-    exitCode = await Util.execute(
-      _prootRun(rootfs: stagingDir, script: distro.firstBootScript(username)),
-    );
-    if (exitCode != 0) {
-      throw Exception(
-        "First-boot provisioning failed with exit code $exitCode",
+      onProgress("Running first-boot provisioning...");
+      exitCode = await Util.execute(
+        _prootRun(rootfs: stagingDir, script: distro.firstBootScript(username)),
       );
-    }
+      if (exitCode != 0) {
+        throw Exception(
+          "First-boot provisioning failed with exit code $exitCode",
+        );
+      }
 
-    onProgress("Installing ${desktop.displayName}...");
-    final packages = desktop.packagesFor(distro);
-    exitCode = await Util.execute(
-      _prootRun(
-        rootfs: stagingDir,
-        script: "${distro.updateCommand}\n${distro.installCommand(packages)}",
-      ),
-    );
-    if (exitCode != 0) {
-      throw Exception(
-        "${desktop.displayName} package install failed with exit code $exitCode",
+      onProgress("Installing ${desktop.displayName}...");
+      final packages = desktop.packagesFor(distro);
+      exitCode = await Util.execute(
+        _prootRun(
+          rootfs: stagingDir,
+          script: "${distro.updateCommand}\n${distro.installCommand(packages)}",
+        ),
       );
-    }
+      if (exitCode != 0) {
+        throw Exception(
+          "${desktop.displayName} package install failed with exit code $exitCode",
+        );
+      }
 
-    onProgress("Writing session startup files...");
-    exitCode = await Util.execute(
-      _prootRun(
-        rootfs: stagingDir,
-        script:
-            """
+      onProgress("Writing session startup files...");
+      exitCode = await Util.execute(
+        _prootRun(
+          rootfs: stagingDir,
+          script: """
 cat > /home/$username/.xinitrc << 'XINITRC'
 #!/bin/bash
 export XDG_SESSION_TYPE=x11
@@ -190,27 +195,35 @@ XINITRC
 chown $username:$username /home/$username/.xinitrc
 chmod +x /home/$username/.xinitrc
 """,
-      ),
-    );
-    if (exitCode != 0) {
-      throw Exception(
-        "Writing session startup files failed with exit code $exitCode",
+        ),
       );
-    }
+      if (exitCode != 0) {
+        throw Exception(
+          "Writing session startup files failed with exit code $exitCode",
+        );
+      }
 
-    onProgress("Finalizing container...");
-    exitCode = await Util.execute("""
+      onProgress("Finalizing container...");
+      exitCode = await Util.execute("""
+set -e
 export DATA_DIR=${G.dataPath}
 \$DATA_DIR/bin/busybox rm -rf ${Util.escapeShellArgument(containerDir)}
 mv ${Util.escapeShellArgument(stagingDir)} ${Util.escapeShellArgument(containerDir)}
 rm -f ${Util.escapeShellArgument(tarballPath)}
 """);
-    if (exitCode != 0) {
-      throw Exception("Finalizing container failed with exit code $exitCode");
-    }
+      if (exitCode != 0) {
+        throw Exception("Finalizing container failed with exit code $exitCode");
+      }
 
-    await _registerContainer(installPlan, existing);
-    onProgress("Done.");
+      await _registerContainer(installPlan, existing);
+      onProgress("Done.");
+    } catch (_) {
+      // Don't leave a ~1 GB tarball or a half-extracted staging dir behind.
+      await Util.execute(
+        "rm -rf ${Util.escapeShellArgument(stagingDir)} ${Util.escapeShellArgument(tarballPath)}",
+      );
+      rethrow;
+    }
   }
 
   // Runs [script] as root inside [rootfs] via proot, with a clean guest PATH
@@ -221,9 +234,12 @@ rm -f ${Util.escapeShellArgument(tarballPath)}
   // already uses to launch the bundled Arch container).
   static String _prootRun({required String rootfs, required String script}) =>
       """
+set -e
 export DATA_DIR=${G.dataPath}
 export LD_LIBRARY_PATH=\$DATA_DIR/lib
 export PROOT_TMP_DIR=\$DATA_DIR/proot_tmp
+export PROOT_LOADER=\$DATA_DIR/applib/libproot-loader.so
+export PROOT_LOADER_32=\$DATA_DIR/applib/libproot-loader32.so
 \$DATA_DIR/bin/proot -0 -r ${Util.escapeShellArgument(rootfs)} -b /proc -b /sys -b /dev /usr/bin/env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/root /bin/sh -c ${Util.escapeShellArgument(script)}
 """;
 
