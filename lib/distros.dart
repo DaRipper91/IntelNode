@@ -298,13 +298,14 @@ class Distros {
       description: "apt/dpkg, LTS release.",
       packageManager: PackageManagerFamily.apt,
       rootfs: const RootfsSource.direct(
-        url: "https://cloud-images.ubuntu.com/releases/noble/release/"
+        url: "https://cloud-images.ubuntu.com/releases/noble/release-20261017/"
             "ubuntu-24.04-server-cloudimg-arm64-root.tar.xz",
         verified: true,
         notes:
-            "Official Ubuntu cloud-image release build for 24.04 LTS "
-            "(Noble) -- released builds under /releases/<codename>/release/ "
-            "are immutable once published, unlike the /current/ daily path.",
+            "Official Ubuntu 24.04 LTS (Noble) cloud-image build pinned to "
+            "release-20261017. The unversioned /release/ path is only a pointer "
+            "that moves to each point release; the installer checks the "
+            "download against the SHA256SUMS published in the same directory.",
       ),
       firstBootScript: _debianFirstBoot,
     ),

@@ -250,22 +250,48 @@ mv ${Util.escapeShellArgument(stagingDir)} ${Util.escapeShellArgument(containerD
 rm -f ${Util.escapeShellArgument(tarballPath)}
 """;
 
-  /// Checks [tarballPath] against the md5 published next to [url]. Distros that
-  /// publish none are skipped (returns null).
+  /// Checks [tarballPath] against the checksum the distro publishes next to
+  /// [url] (md5 for Arch Linux ARM, SHA256SUMS for Ubuntu cloud images).
+  /// Returns null for sources that publish none.
   static Future<String?> _checksumScript(String url, String tarballPath) async {
-    if (!url.contains("archlinuxarm.org")) return null;
-    final resp = await http.get(Uri.parse("$url.md5"));
-    if (resp.statusCode != 200) {
-      throw Exception("Could not fetch checksum $url.md5 (HTTP ${resp.statusCode})");
+    final String? sumsUrl;
+    final String tool;
+    if (url.contains("archlinuxarm.org")) {
+      sumsUrl = "$url.md5";
+      tool = "md5sum";
+    } else if (url.contains("cloud-images.ubuntu.com")) {
+      sumsUrl = "${url.substring(0, url.lastIndexOf('/'))}/SHA256SUMS";
+      tool = "sha256sum";
+    } else {
+      return null;
     }
-    final hash = resp.body.trim().split(RegExp(r"\s+")).first;
-    if (!RegExp(r"^[0-9a-f]{32}$").hasMatch(hash)) {
-      throw Exception("Unexpected checksum format from $url.md5");
+    final resp = await http.get(Uri.parse(sumsUrl));
+    if (resp.statusCode != 200) {
+      throw Exception("Could not fetch checksum $sumsUrl (HTTP ${resp.statusCode})");
+    }
+    final fileName = url.substring(url.lastIndexOf('/') + 1);
+    final hash = checksumFor(resp.body, fileName);
+    if (hash == null) {
+      throw Exception("No checksum for $fileName in $sumsUrl");
     }
     return """
 export DATA_DIR=${G.dataPath}
-echo "$hash  ${tarballPath}" | \$DATA_DIR/bin/busybox md5sum -c -
+echo "$hash  ${tarballPath}" | \$DATA_DIR/bin/busybox $tool -c -
 """;
+  }
+
+  /// Finds [fileName]'s hash in a checksum listing. Handles a bare `<hash>`
+  /// line (Arch's .md5 holds a single entry), `<hash>  <name>` and
+  /// `<hash> *<name>` (binary-mode marker).
+  static String? checksumFor(String listing, String fileName) {
+    final hex = RegExp(r"^[0-9a-f]{32,64}$");
+    for (final line in listing.split("\n")) {
+      final parts = line.trim().split(RegExp(r"\s+"));
+      if (parts.isEmpty || !hex.hasMatch(parts.first)) continue;
+      if (parts.length == 1) return parts.first;
+      if (parts.last.replaceFirst("*", "") == fileName) return parts.first;
+    }
+    return null;
   }
 
   static String _verifyScript(DistroSpec distro) {

@@ -7,6 +7,7 @@ import 'package:da_ripped_tiny_computer/distros.dart';
 import 'package:da_ripped_tiny_computer/setup_session.dart';
 
 void main() {
+  checksumTests();
   group('desktop manifest kinds', () {
     test('has both desktop environments and window managers', () {
       final kinds = DesktopEnvironments.all.map((d) => d.kind).toSet();
@@ -85,6 +86,24 @@ void main() {
     test('ignores the echoed command and other runs', () {
       expect(SetupSession.parseExitMarker('echo "@@INTELNODE-2@@ \$?"', '@@INTELNODE-2@@'), isNull);
       expect(SetupSession.parseExitMarker('@@INTELNODE-1@@ 0', '@@INTELNODE-2@@'), isNull);
+    });
+  });
+}
+
+void checksumTests() {
+  group('ContainerInstaller.checksumFor', () {
+    const ubuntu = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa *other.tar.xz\n'
+        'b68ef0444ca56ce4f00ae7e8ccfb0c553ffbc92e4a1b14ed7dd8aa18c6d68652 *root.tar.xz\n';
+    test('finds the entry for a file in a SHA256SUMS listing', () {
+      expect(ContainerInstaller.checksumFor(ubuntu, 'root.tar.xz'),
+          'b68ef0444ca56ce4f00ae7e8ccfb0c553ffbc92e4a1b14ed7dd8aa18c6d68652');
+    });
+    test('accepts a single-entry md5 file', () {
+      expect(ContainerInstaller.checksumFor('0123456789abcdef0123456789abcdef  ArchLinuxARM.tar.gz\n', 'ArchLinuxARM.tar.gz'),
+          '0123456789abcdef0123456789abcdef');
+    });
+    test('returns null when the file is not listed', () {
+      expect(ContainerInstaller.checksumFor(ubuntu, 'missing.tar.xz'), isNull);
     });
   });
 }

@@ -119,7 +119,7 @@ class Util {
       debugPrint("Error waiting for shell exit: $e");
       return -1;
     } finally {
-      await sub?.cancel();
+      await sub.cancel();
     }
   }
 
@@ -148,7 +148,7 @@ class Util {
     } catch (e) {
       return (-1, "Error waiting for shell exit: $e");
     } finally {
-      await sub?.cancel();
+      await sub.cancel();
     }
   }
 
