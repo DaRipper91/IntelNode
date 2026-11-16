@@ -48,7 +48,11 @@ export ELM_SCALE=1.5 # Elementary/Enlightenment scale fallback
 # uninstalls the non-chosen DE's packages, so whichever launcher is still on PATH
 # reflects the user's real choice (fixes LXQt selections crashing on this launch path).
 # Order matches DesktopEnvironments.all's stable tier in lib/desktop_environments.dart.
-if command -v startlxqt >/dev/null 2>&1; then
+SESSION_FILE="$HOME/.intelnode-session"
+if [ -s "$SESSION_FILE" ] && command -v "$(head -n 1 "$SESSION_FILE")" >/dev/null 2>&1; then
+    # The session chosen at install time wins over autodetection.
+    DE_EXEC="$(head -n 1 "$SESSION_FILE")"
+elif command -v startlxqt >/dev/null 2>&1; then
     DE_EXEC=startlxqt
 elif command -v startxfce4 >/dev/null 2>&1; then
     DE_EXEC=startxfce4

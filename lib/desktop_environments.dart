@@ -19,12 +19,16 @@ enum DesktopTier { stable, experimental }
 
 enum SessionType { x11, wayland }
 
+// Shown as separate sections in the first-run picker.
+enum DesktopKind { environment, windowManager }
+
 class DesktopEnvironmentSpec {
   final String id;
   final String displayName;
   final String description;
   final DesktopTier tier;
   final SessionType sessionType;
+  final DesktopKind kind;
   // Packages to install, keyed by package manager family. Package names
   // genuinely differ per distro for some desktops (not just per package
   // manager family) -- packagesByDistroId overrides packagesByFamily when
@@ -44,6 +48,7 @@ class DesktopEnvironmentSpec {
     required this.description,
     required this.tier,
     required this.sessionType,
+    this.kind = DesktopKind.environment,
     required this.packagesByFamily,
     this.packagesByDistroId = const {},
     required this.xinitrcExec,
@@ -69,7 +74,7 @@ class DesktopEnvironments {
       tier: DesktopTier.stable,
       sessionType: SessionType.x11,
       packagesByFamily: {
-        PackageManagerFamily.pacman: ["xfce4", "xfce4-goodies", "dbus-x11"],
+        PackageManagerFamily.pacman: ["xfce4", "xfce4-goodies", "dbus"],
         PackageManagerFamily.dnf: ["@xfce-desktop-environment", "dbus-x11"],
         PackageManagerFamily.apt: ["xfce4", "xfce4-goodies", "dbus-x11"],
       },
@@ -83,7 +88,7 @@ class DesktopEnvironments {
       tier: DesktopTier.stable,
       sessionType: SessionType.x11,
       packagesByFamily: {
-        PackageManagerFamily.pacman: ["lxqt", "openbox", "dbus-x11"],
+        PackageManagerFamily.pacman: ["lxqt", "openbox", "dbus"],
         PackageManagerFamily.dnf: ["@lxqt-desktop-environment", "dbus-x11"],
         PackageManagerFamily.apt: ["lxqt", "openbox", "dbus-x11"],
       },
@@ -97,7 +102,7 @@ class DesktopEnvironments {
       tier: DesktopTier.stable,
       sessionType: SessionType.x11,
       packagesByFamily: {
-        PackageManagerFamily.pacman: ["mate", "mate-extra", "dbus-x11"],
+        PackageManagerFamily.pacman: ["mate", "mate-extra", "dbus"],
         PackageManagerFamily.dnf: ["@mate-desktop-environment", "dbus-x11"],
         PackageManagerFamily.apt: ["mate-desktop-environment", "dbus-x11"],
       },
@@ -110,13 +115,15 @@ class DesktopEnvironments {
       description: "Manual tiling window manager, minimal footprint.",
       tier: DesktopTier.stable,
       sessionType: SessionType.x11,
+      kind: DesktopKind.windowManager,
       packagesByFamily: {
         PackageManagerFamily.pacman: [
           "i3-wm",
           "i3status",
           "i3lock",
           "dmenu",
-          "dbus-x11",
+          "xterm",
+          "dbus",
         ],
         PackageManagerFamily.dnf: [
           "i3",
@@ -137,6 +144,52 @@ class DesktopEnvironments {
       xdgDesktopName: "i3",
     ),
 
+    const DesktopEnvironmentSpec(
+      id: "openbox",
+      displayName: "Openbox",
+      description: "Lightweight, highly configurable stacking window manager.",
+      tier: DesktopTier.stable,
+      sessionType: SessionType.x11,
+      kind: DesktopKind.windowManager,
+      packagesByFamily: {
+        PackageManagerFamily.pacman: ["openbox", "tint2", "xterm", "dbus"],
+        PackageManagerFamily.dnf: ["openbox", "tint2", "xterm", "dbus-x11"],
+        PackageManagerFamily.apt: ["openbox", "tint2", "xterm", "dbus-x11"],
+      },
+      xinitrcExec: "openbox-session",
+      xdgDesktopName: "Openbox",
+    ),
+    const DesktopEnvironmentSpec(
+      id: "fluxbox",
+      displayName: "Fluxbox",
+      description: "Fast, minimal window manager with tabs and a toolbar.",
+      tier: DesktopTier.stable,
+      sessionType: SessionType.x11,
+      kind: DesktopKind.windowManager,
+      packagesByFamily: {
+        PackageManagerFamily.pacman: ["fluxbox", "xterm", "dbus"],
+        PackageManagerFamily.dnf: ["fluxbox", "xterm", "dbus-x11"],
+        PackageManagerFamily.apt: ["fluxbox", "xterm", "dbus-x11"],
+      },
+      xinitrcExec: "startfluxbox",
+      xdgDesktopName: "Fluxbox",
+    ),
+    const DesktopEnvironmentSpec(
+      id: "icewm",
+      displayName: "IceWM",
+      description: "Small, fast window manager with a familiar taskbar.",
+      tier: DesktopTier.stable,
+      sessionType: SessionType.x11,
+      kind: DesktopKind.windowManager,
+      packagesByFamily: {
+        PackageManagerFamily.pacman: ["icewm", "xterm", "dbus"],
+        PackageManagerFamily.dnf: ["icewm", "xterm", "dbus-x11"],
+        PackageManagerFamily.apt: ["icewm", "xterm", "dbus-x11"],
+      },
+      xinitrcExec: "icewm-session",
+      xdgDesktopName: "IceWM",
+    ),
+
     // ---- Tier 2: experimental (Wayland) ----
     const DesktopEnvironmentSpec(
       id: "niri",
@@ -144,6 +197,7 @@ class DesktopEnvironments {
       description: "Scrollable-tiling Wayland compositor. Experimental.",
       tier: DesktopTier.experimental,
       sessionType: SessionType.wayland,
+      kind: DesktopKind.windowManager,
       packagesByFamily: {
         PackageManagerFamily.pacman: ["niri", "xwayland-satellite"],
         PackageManagerFamily.dnf: ["niri", "xwayland-satellite"],

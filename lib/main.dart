@@ -32,6 +32,8 @@ import 'package:xterm/xterm.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:da_ripped_tiny_computer/l10n/app_localizations.dart';
 
+import 'package:da_ripped_tiny_computer/setup_session.dart';
+import 'package:da_ripped_tiny_computer/setup_terminal.dart';
 import 'package:da_ripped_tiny_computer/workflow.dart';
 import 'package:da_ripped_tiny_computer/container_setup_page.dart';
 
@@ -1865,21 +1867,28 @@ class _LoadingPageState extends State<LoadingPage> {
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(8),
-                child: ValueListenableBuilder<bool>(
-                  valueListenable: G.showAdvancedLogs,
-                  builder: (context, showLogs, _) {
-                    if (showLogs) {
-                      return const LogView();
-                    }
-                    return const Card(
-                      child: Padding(
-                        padding: EdgeInsets.all(8),
-                        child: Scrollbar(
-                          child: SingleChildScrollView(
-                            child: InfoPage(openFirstInfo: true),
+                child: ValueListenableBuilder<SetupSession?>(
+                  valueListenable: G.setupSession,
+                  builder: (context, session, _) {
+                    // First-run install: show the interactive terminal instead.
+                    if (session != null) return SetupTerminal(session: session);
+                    return ValueListenableBuilder<bool>(
+                      valueListenable: G.showAdvancedLogs,
+                      builder: (context, showLogs, _) {
+                        if (showLogs) {
+                          return const LogView();
+                        }
+                        return const Card(
+                          child: Padding(
+                            padding: EdgeInsets.all(8),
+                            child: Scrollbar(
+                              child: SingleChildScrollView(
+                                child: InfoPage(openFirstInfo: true),
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
+                        );
+                      },
                     );
                   },
                 ),

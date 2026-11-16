@@ -13,6 +13,8 @@
 // provision work and reports progress through onProgress.
 import 'dart:convert';
 
+import 'package:http/http.dart' as http;
+
 import 'package:da_ripped_tiny_computer/desktop_environments.dart';
 import 'package:da_ripped_tiny_computer/distros.dart';
 import 'package:da_ripped_tiny_computer/models.dart';
@@ -141,18 +143,9 @@ class ContainerInstaller {
 
       onProgress("Extracting rootfs...");
       Util.createDirFromString(stagingDir);
-      int exitCode = await Util.execute("""
-set -e
-export DATA_DIR=${G.dataPath}
-export PATH=\$DATA_DIR/bin:\$PATH
-export LD_LIBRARY_PATH=\$DATA_DIR/lib
-export PROOT_TMP_DIR=\$DATA_DIR/proot_tmp
-export PROOT_LOADER=\$DATA_DIR/applib/libproot-loader.so
-export PROOT_LOADER_32=\$DATA_DIR/applib/libproot-loader32.so
-rm -rf ${Util.escapeShellArgument(stagingDir)}
-mkdir -p ${Util.escapeShellArgument(stagingDir)}
-\$DATA_DIR/bin/proot --link2symlink sh -c "\$DATA_DIR/bin/tar -x${compressLetter}f ${Util.escapeShellArgument(tarballPath)} -C ${Util.escapeShellArgument(stagingDir)}"
-""");
+      int exitCode = await Util.execute(
+        _extractScript(stagingDir, tarballPath, compressLetter),
+      );
       if (exitCode != 0) {
         throw Exception("Rootfs extraction failed with exit code $exitCode");
       }
@@ -226,6 +219,168 @@ rm -f ${Util.escapeShellArgument(tarballPath)}
     }
   }
 
+  static String _extractScript(
+    String stagingDir,
+    String tarballPath,
+    String compressLetter,
+  ) =>
+      """
+set -e
+export DATA_DIR=${G.dataPath}
+export PATH=\$DATA_DIR/bin:\$PATH
+export LD_LIBRARY_PATH=\$DATA_DIR/lib
+export PROOT_TMP_DIR=\$DATA_DIR/proot_tmp
+export PROOT_LOADER=\$DATA_DIR/applib/libproot-loader.so
+export PROOT_LOADER_32=\$DATA_DIR/applib/libproot-loader32.so
+rm -rf ${Util.escapeShellArgument(stagingDir)}
+mkdir -p ${Util.escapeShellArgument(stagingDir)}
+\$DATA_DIR/bin/proot --link2symlink sh -c "\$DATA_DIR/bin/tar -x${compressLetter}f ${Util.escapeShellArgument(tarballPath)} -C ${Util.escapeShellArgument(stagingDir)}"
+""";
+
+  static String _finalizeScript(
+    String stagingDir,
+    String containerDir,
+    String tarballPath,
+  ) =>
+      """
+set -e
+export DATA_DIR=${G.dataPath}
+\$DATA_DIR/bin/busybox rm -rf ${Util.escapeShellArgument(containerDir)}
+mv ${Util.escapeShellArgument(stagingDir)} ${Util.escapeShellArgument(containerDir)}
+rm -f ${Util.escapeShellArgument(tarballPath)}
+""";
+
+  /// Checks [tarballPath] against the md5 published next to [url]. Distros that
+  /// publish none are skipped (returns null).
+  static Future<String?> _checksumScript(String url, String tarballPath) async {
+    if (!url.contains("archlinuxarm.org")) return null;
+    final resp = await http.get(Uri.parse("$url.md5"));
+    if (resp.statusCode != 200) {
+      throw Exception("Could not fetch checksum $url.md5 (HTTP ${resp.statusCode})");
+    }
+    final hash = resp.body.trim().split(RegExp(r"\s+")).first;
+    if (!RegExp(r"^[0-9a-f]{32}$").hasMatch(hash)) {
+      throw Exception("Unexpected checksum format from $url.md5");
+    }
+    return """
+export DATA_DIR=${G.dataPath}
+echo "$hash  ${tarballPath}" | \$DATA_DIR/bin/busybox md5sum -c -
+""";
+  }
+
+  static String _verifyScript(DistroSpec distro) {
+    final pm = switch (distro.packageManager) {
+      PackageManagerFamily.pacman => "pacman",
+      PackageManagerFamily.dnf => "dnf",
+      PackageManagerFamily.apt => "apt-get",
+    };
+    return "set -e\nid $username\ncommand -v $pm\nsudo -n true";
+  }
+
+  /// Stage 1 of the guided first run: download, verify, extract and provision
+  /// the bare base system (no desktop) into containers/[containerIndex], then
+  /// check that it actually runs. Every script goes through [run] so it is
+  /// visible in the setup terminal; [log] prints plain status lines.
+  static Future<void> installBase({
+    required DistroSpec distro,
+    required int containerIndex,
+    required Future<int> Function(String script) run,
+    required void Function(String line) log,
+    required void Function(String progress) onProgress,
+  }) async {
+    final containerDir = "${G.dataPath}/containers/$containerIndex";
+    final stagingDir = "${containerDir}_staging";
+    final tarballPath = "${G.dataPath}/new_rootfs_$containerIndex.tar";
+
+    Future<void> step(String what, String script, {String? failure}) async {
+      log("\r\n== $what");
+      final code = await run(script);
+      if (code != 0) throw Exception("${failure ?? what} failed (exit code $code)");
+    }
+
+    try {
+      log("== Resolving ${distro.displayName} rootfs");
+      final url = await distro.rootfs.resolve();
+      log(url);
+      final letter = url.endsWith('.xz') ? 'J' : url.endsWith('.bz2') ? 'j' : 'z';
+
+      log("== Downloading");
+      await Util.downloadFile(url, tarballPath, onProgress: onProgress);
+
+      final checksum = await _checksumScript(url, tarballPath);
+      if (checksum != null) await step("Verifying checksum", checksum);
+
+      await step("Extracting rootfs", _extractScript(stagingDir, tarballPath, letter));
+      await step(
+        "Provisioning base system (keys, user, sudo, locale)",
+        _prootRun(rootfs: stagingDir, script: distro.firstBootScript(username)),
+        failure: "Base provisioning",
+      );
+      await step("Finalizing", _finalizeScript(stagingDir, containerDir, tarballPath));
+      await step(
+        "Verifying the base system boots",
+        _prootRun(rootfs: containerDir, script: _verifyScript(distro)),
+        failure: "Base verification",
+      );
+      log("\r\n== Base system installed and verified");
+    } catch (_) {
+      await run(
+        "rm -rf ${Util.escapeShellArgument(stagingDir)} ${Util.escapeShellArgument(tarballPath)}",
+      );
+      rethrow;
+    }
+  }
+
+  /// Stage 2: installs [desktop] on top of an installed base and records it as
+  /// the session `start-desktop` launches.
+  static Future<void> installDesktop({
+    required DistroSpec distro,
+    required DesktopEnvironmentSpec desktop,
+    required int containerIndex,
+    required Future<int> Function(String script) run,
+    required void Function(String line) log,
+  }) async {
+    if (desktop.tier == DesktopTier.experimental) {
+      throw StateError(
+        "Refusing to install ${desktop.displayName}: "
+        "${desktop.experimentalCaveat ?? 'experimental, preview-only'}",
+      );
+    }
+    final containerDir = "${G.dataPath}/containers/$containerIndex";
+    final packages = desktop.packagesFor(distro);
+    log("\r\n== Installing ${desktop.displayName}: ${packages.join(' ')}");
+    var code = await run(
+      _prootRun(
+        rootfs: containerDir,
+        script: "set -e\n${distro.updateCommand}\n${distro.installCommand(packages)}",
+      ),
+    );
+    if (code != 0) {
+      throw Exception("${desktop.displayName} install failed (exit code $code)");
+    }
+    log("\r\n== Writing session files");
+    code = await run(_prootRun(rootfs: containerDir, script: sessionFilesScript(desktop)));
+    if (code != 0) {
+      throw Exception("Writing session files failed (exit code $code)");
+    }
+    log("\r\n== ${desktop.displayName} installed");
+  }
+
+  /// `.intelnode-session` is what start-desktop launches first; `.xinitrc`
+  /// keeps the xinit path working too.
+  static String sessionFilesScript(DesktopEnvironmentSpec desktop) => """
+set -e
+printf '%s\\n' '${desktop.xinitrcExec}' > /home/$username/.intelnode-session
+cat > /home/$username/.xinitrc << 'XINITRC'
+#!/bin/bash
+export XDG_SESSION_TYPE=x11
+export XDG_CURRENT_DESKTOP=${desktop.xdgDesktopName}
+exec ${desktop.xinitrcExec}
+XINITRC
+chown $username:$username /home/$username/.intelnode-session /home/$username/.xinitrc
+chmod +x /home/$username/.xinitrc
+""";
+
   // Runs [script] as root inside [rootfs] via proot, with a clean guest PATH
   // -- the outer shell's own PATH points at host binaries ($DATA_DIR/bin),
   // which resolve to nothing useful once proot has switched roots, so the
@@ -240,7 +395,7 @@ export LD_LIBRARY_PATH=\$DATA_DIR/lib
 export PROOT_TMP_DIR=\$DATA_DIR/proot_tmp
 export PROOT_LOADER=\$DATA_DIR/applib/libproot-loader.so
 export PROOT_LOADER_32=\$DATA_DIR/applib/libproot-loader32.so
-\$DATA_DIR/bin/proot -0 -r ${Util.escapeShellArgument(rootfs)} -b /proc -b /sys -b /dev /usr/bin/env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/root /bin/sh -c ${Util.escapeShellArgument(script)}
+\$DATA_DIR/bin/proot -0 -r ${Util.escapeShellArgument(rootfs)} --link2symlink -b /proc -b /sys -b /dev /usr/bin/env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/root LANG=C /bin/sh -c ${Util.escapeShellArgument(script)}
 """;
 
   static Future<void> _registerContainer(

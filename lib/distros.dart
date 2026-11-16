@@ -208,8 +208,15 @@ $_removeTermuxProfileScripts""";
 String _archFirstBoot(String username) =>
     """
 set -e
+# The tarball's resolv.conf points into /run/systemd, which does not exist here.
+rm -f /etc/resolv.conf
+printf 'nameserver 1.1.1.1\\nnameserver 8.8.8.8\\n' > /etc/resolv.conf
+# proot has no statvfs for mountpoints and cannot run pacman's download sandbox.
+sed -i 's/^CheckSpace/#CheckSpace/' /etc/pacman.conf
+grep -q '^DisableSandbox' /etc/pacman.conf || sed -i '/^\\[options\\]/a DisableSandbox' /etc/pacman.conf
 pacman-key --init
-pacman-key --populate archlinux
+pacman-key --populate archlinuxarm
+pacman -Syu --noconfirm --needed sudo dbus xorg-xauth xorg-xkbcomp xkeyboard-config ttf-dejavu
 ${_commonUserSetup(username)}
 sed -i 's/#en_US.UTF-8/en_US.UTF-8/' /etc/locale.gen
 locale-gen""";
