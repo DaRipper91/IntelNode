@@ -49,9 +49,18 @@ export ELM_SCALE=1.5 # Elementary/Enlightenment scale fallback
 # reflects the user's real choice (fixes LXQt selections crashing on this launch path).
 # Order matches DesktopEnvironments.all's stable tier in lib/desktop_environments.dart.
 SESSION_FILE="$HOME/.intelnode-session"
-if [ -s "$SESSION_FILE" ] && command -v "$(head -n 1 "$SESSION_FILE")" >/dev/null 2>&1; then
+SESSION_CMD=""
+if [ -s "$SESSION_FILE" ]; then
+    # First word of the first line, tolerant of CRLF and stray spaces.
+    SESSION_CMD="$(head -n 1 "$SESSION_FILE" | tr -d '\r' | awk '{print $1}')"
+fi
+if [ -n "$SESSION_CMD" ] && ! command -v "$SESSION_CMD" >/dev/null 2>&1; then
+    echo "[Warn] session '$SESSION_CMD' from $SESSION_FILE is not installed; autodetecting."
+    SESSION_CMD=""
+fi
+if [ -n "$SESSION_CMD" ]; then
     # The session chosen at install time wins over autodetection.
-    DE_EXEC="$(head -n 1 "$SESSION_FILE")"
+    DE_EXEC="$SESSION_CMD"
 elif command -v startlxqt >/dev/null 2>&1; then
     DE_EXEC=startlxqt
 elif command -v startxfce4 >/dev/null 2>&1; then
@@ -60,8 +69,14 @@ elif command -v mate-session >/dev/null 2>&1; then
     DE_EXEC=mate-session
 elif command -v i3 >/dev/null 2>&1; then
     DE_EXEC=i3
+elif command -v openbox-session >/dev/null 2>&1; then
+    DE_EXEC=openbox-session
+elif command -v startfluxbox >/dev/null 2>&1; then
+    DE_EXEC=startfluxbox
+elif command -v icewm-session >/dev/null 2>&1; then
+    DE_EXEC=icewm-session
 else
-    echo "[Err] No supported desktop environment found (checked startlxqt, startxfce4, mate-session, i3)."
+    echo "[Err] No supported desktop environment found (checked startlxqt, startxfce4, mate-session, i3, openbox-session, startfluxbox, icewm-session)."
     exit 1
 fi
 

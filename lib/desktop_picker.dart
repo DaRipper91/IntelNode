@@ -64,12 +64,17 @@ Future<DesktopEnvironmentSpec> showDesktopPicker(BuildContext context) async {
   final choice = await showDialog<DesktopEnvironmentSpec>(
     context: context,
     barrierDismissible: false,
-    builder: (dialogContext) => AlertDialog(
-      title: const Text("Choose your desktop"),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: DesktopPickerBody(
-          onSelected: (d) => Navigator.of(dialogContext).pop(d),
+    // barrierDismissible does not stop the Android back button; without
+    // PopScope it pops null and `choice!` throws after the base is installed.
+    builder: (dialogContext) => PopScope(
+      canPop: false,
+      child: AlertDialog(
+        title: const Text("Choose your desktop"),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: DesktopPickerBody(
+            onSelected: (d) => Navigator.of(dialogContext).pop(d),
+          ),
         ),
       ),
     ),

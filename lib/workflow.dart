@@ -1348,7 +1348,6 @@ class G {
   // Set when startup fails; the loading screen then offers a Retry button.
   static ValueNotifier<bool> startupFailed = ValueNotifier(false);
   static Future<void> Function()? retryStartup;
-  static String postCommand = ""; //第一次进入容器时额外运行的命令
 
   static bool wasAvncEnabled = false;
   static bool wasX11Enabled = false;
@@ -1616,7 +1615,6 @@ fi
 
     G.updateText.value = "Base system ready";
     final desktop = await showDesktopPicker(G.homePageStateContext);
-    G.settings.selectedDE = desktop.id;
     G.updateText.value = "Installing ${desktop.displayName}...";
     await ContainerInstaller.installDesktop(
       distro: distro,
@@ -1625,6 +1623,7 @@ fi
       run: session.run,
       log: session.log,
     );
+    G.settings.selectedDE = desktop.id;
 
     // Initialize container metadata
     String initialVncPassword = Util.generateRandomPassword();
@@ -1765,15 +1764,6 @@ exit
     await G.audioPty?.exitCode;
   }
 
-  /// First-run commands (locale, .xinitrc, removing the unchosen desktop) used to be
-  /// typed into the boot PTY, but the boot command now ends in the desktop session,
-  /// so they became stdin to XFCE and never ran. start-arch.sh runs this script
-  /// once, before the desktop, and the marker keeps it from running again.
-  static const String firstRunMarker = ".intelnode-first-run";
-
-  static String firstRunScript(String postCommand) =>
-      "#!/bin/bash\n$postCommand\ntouch \"\$HOME/$firstRunMarker\"\n";
-
   static Future<void> launchCurrentContainer() async {
     String extraMount = "";
     String extraOpt = "";
@@ -1825,12 +1815,6 @@ export CONTAINER_DIR=\$DATA_DIR/containers/${G.currentContainer}
     extraMount += "--mount=\$DATA_DIR/tiny/extra/tiny_virtual_mic:/home/tiny/.local/bin/tiny_virtual_mic ";
     extraMount += "--mount=\$DATA_DIR/tiny/extra/to_vault:/usr/local/bin/to_vault ";
     
-    if (G.postCommand.isNotEmpty) {
-      File("${G.dataPath}/tiny/extra/first-run.sh")
-          .writeAsStringSync(firstRunScript(G.postCommand));
-      G.postCommand = "";
-    }
-
     Util.termWrite("""
 export DATA_DIR=${G.dataPath}
 export PATH=\$DATA_DIR/bin:\$PATH

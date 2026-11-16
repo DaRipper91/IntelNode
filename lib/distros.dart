@@ -188,7 +188,7 @@ const String _removeTermuxProfileScripts =
 String _commonUserSetup(String username) =>
     """
 existing=\$(getent passwd 1000 | cut -d: -f1 || true)
-if [ -n "\$existing" ] && [ "\$existing" != "$username" ]; then userdel -r "\$existing" || true; fi
+if [ -n "\$existing" ] && [ "\$existing" != "$username" ]; then userdel -r "\$existing" || { echo "could not remove uid-1000 user \$existing" >&2; exit 1; }; fi
 grp=wheel
 if getent group sudo >/dev/null; then grp=sudo; fi
 getent group "\$grp" >/dev/null || groupadd "\$grp"

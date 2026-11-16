@@ -24,6 +24,12 @@ class SetupSession {
         .listen(_onOutput);
     terminal.onOutput = (data) => pty.write(const Utf8Encoder().convert(data));
     terminal.onResize = (w, h, pw, ph) => pty.resize(h, w);
+    // A dead shell (the user typed `exit`, or it was killed) must fail the run
+    // instead of leaving the install waiting for a marker that never comes.
+    pty.exitCode.then((code) {
+      final pending = _pending;
+      if (pending != null && !pending.isCompleted) pending.complete(-1);
+    });
   }
 
   final String dataPath;
@@ -41,7 +47,7 @@ class SetupSession {
   /// The marker echoed back with the literal `$?` never matches, only the
   /// expanded exit code does.
   static int? parseExitMarker(String text, String token) {
-    final m = RegExp("${RegExp.escape(token)} (\\d+)").firstMatch(text);
+    final m = RegExp("${RegExp.escape(token)}\\s*(\\d+)").firstMatch(text);
     return m == null ? null : int.parse(m.group(1)!);
   }
 
@@ -75,16 +81,18 @@ class SetupSession {
     final token = "@@INTELNODE-$n@@";
     _pendingToken = token;
     _tail = "";
-    _pending = Completer<int>();
-    pty.write(
-      const Utf8Encoder().convert(
-        "/system/bin/sh ${file.path}; echo \"$token \$?\"\n",
-      ),
-    );
+    final pending = _pending = Completer<int>();
     try {
-      return await _pending!.future;
+      pty.write(
+        const Utf8Encoder().convert(
+          "/system/bin/sh ${file.path}; echo \"$token \$?\"\n",
+        ),
+      );
+      return await pending.future;
     } finally {
+      // Reset even when the write throws so later runs (e.g. cleanup) can go.
       _pending = null;
+      _pendingToken = null;
     }
   }
 

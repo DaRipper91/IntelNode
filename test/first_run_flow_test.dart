@@ -8,6 +8,7 @@ import 'package:da_ripped_tiny_computer/setup_session.dart';
 
 void main() {
   checksumTests();
+  markerToleranceTests();
   group('desktop manifest kinds', () {
     test('has both desktop environments and window managers', () {
       final kinds = DesktopEnvironments.all.map((d) => d.kind).toSet();
@@ -105,5 +106,12 @@ void checksumTests() {
     test('returns null when the file is not listed', () {
       expect(ContainerInstaller.checksumFor(ubuntu, 'missing.tar.xz'), isNull);
     });
+  });
+}
+
+void markerToleranceTests() {
+  test('marker tolerates extra whitespace between token and code', () {
+    expect(SetupSession.parseExitMarker('@@INTELNODE-3@@   0', '@@INTELNODE-3@@'), 0);
+    expect(SetupSession.parseExitMarker('@@INTELNODE-3@@\t5', '@@INTELNODE-3@@'), 5);
   });
 }
