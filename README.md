@@ -169,10 +169,10 @@ debug/capture.sh <serial>                                     # full logcat + pr
 ```
 
 <div align="center">
-<img src="images/logcat-card.svg" alt="Illustrative logcat output: workflow started, container launch, X server launch and wait, then the timeout" width="100%">
+<img src="images/logcat-card.svg" alt="Real boot.log excerpt from a successful boot: X server thread started, X server ready after 0s, startxfce4 launched, then two XFCE warnings" width="100%">
 </div>
 
-The card above is **illustrative**: the line formats are the real ones from `lib/boot_log.dart`, and the timeout it ends on is the first failure in the table, not the current one. A real `boot.log` from the Pixel exists on the phone and showed the failure-3 lines quoted in the table (`Function not implemented`, `Could not chdir() to root directory`); I have not pulled it myself, so no full capture is reproduced here. Logcat lines go through Flutter's throttled `debugPrint`, so they can lag and the last ones may be lost if the process dies; `boot.log` is written synchronously and is the reliable record.
+The card above is a **real, grep-filtered excerpt** of `files/boot.log` from a successful boot on the Pixel 10 Pro, pulled by the on-device debugging session (one long line is shortened with an ellipsis). It shows a healthy boot, so the X server answers on the first probe (`ready after 0s`); the failure signatures are in the table above. The two warnings at the end are known: a missing systemd proxy, and an icon theme that looks absent. Logcat lines go through Flutter's throttled `debugPrint`, so they can lag and the last ones may be lost if the process dies; `boot.log` is written synchronously and is the reliable record.
 
 | Line | Means |
 |---|---|
