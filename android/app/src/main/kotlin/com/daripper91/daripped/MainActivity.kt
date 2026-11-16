@@ -4,6 +4,7 @@ import android.system.Os.setenv
 
 import android.content.Intent
 import android.os.Looper
+import android.util.Log
 import androidx.annotation.NonNull
 import androidx.annotation.Keep
 import androidx.appcompat.app.AppCompatDelegate
@@ -16,7 +17,8 @@ class MainActivity: FlutterActivity() {
 
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "android").setMethodCallHandler {
+        val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "android")
+        channel.setMethodCallHandler {
             // 注册通道并设置方法调用处理器
             call, result ->
             // 判断方法名
@@ -45,11 +47,19 @@ class MainActivity: FlutterActivity() {
                             // on the UI thread, where that is a nested loop that never returns and
                             // Android 17 reports an ANR and kills the app. Give it its own looper thread.
                             Thread({
-                                Looper.prepare()
-                                // Reflection: the plugin's classes are not on this module's compile classpath.
-                                Class.forName("com.termux.x11.CmdEntryPoint")
-                                    .getMethod("main", Array<String>::class.java)
-                                    .invoke(null, xserverArgs.toTypedArray())
+                                try {
+                                    Looper.prepare()
+                                    // Reflection: the plugin's classes are not on this module's compile classpath.
+                                    Class.forName("com.termux.x11.CmdEntryPoint")
+                                        .getMethod("main", Array<String>::class.java)
+                                        .invoke(null, xserverArgs.toTypedArray())
+                                } catch (t: Throwable) {
+                                    // An uncaught exception on this thread would kill the app, and the
+                                    // caller already got result.success; report it back to Dart instead.
+                                    val cause = t.cause ?: t
+                                    Log.e("IntelNode", "X server entry point failed", cause)
+                                    runOnUiThread { channel.invokeMethod("xServerLaunchFailed", cause.toString()) }
+                                }
                             }, "x11-server").start()
                             result.success(0)
                         } catch (e: Exception) {

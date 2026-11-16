@@ -1947,6 +1947,14 @@ clear""");
       Util.createDirFromString(xkb);
     }
     BootLog.event('launching X server (xkb root: $xkb)');
+    // The native side starts the server on its own thread and reports a failure
+    // there (after it has already returned success) through this call.
+    D.androidChannel.setMethodCallHandler((call) async {
+      if (call.method == "xServerLaunchFailed") {
+        Util.xServerLaunchError = "${call.arguments}";
+        BootLog.event('X server entry point failed: ${call.arguments}');
+      }
+    });
     try {
       // Not X11Flutter.launchXServer: that runs CmdEntryPoint.main on the UI thread
       // and blocks it forever (see MainActivity.kt).
@@ -1955,6 +1963,7 @@ clear""");
         "xkb": xkb,
         "xserverArgs": [":4", "-extension", "MIT-SHM"],
       });
+      BootLog.event('X server thread started');
     } catch (e) {
       // launchXServer is fired without await; keep the reason for waitForXServer.
       Util.xServerLaunchError = e.toString();
