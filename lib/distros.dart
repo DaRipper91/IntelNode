@@ -222,6 +222,18 @@ polkit.addRule(function(action, subject) {
     }
 });
 EOF
+mkdir -p /home/$username/.local/bin
+cat > /home/$username/.local/bin/xflock4 << 'EOF'
+#!/bin/sh
+exit 0
+EOF
+chmod 0755 /home/$username/.local/bin/xflock4
+chown -R $username:$username /home/$username/.local 2>/dev/null || true
+mkdir -p /home/$username/.config/autostart
+for desktop in xfce4-screensaver.desktop light-locker.desktop xscreensaver.desktop mate-screensaver.desktop; do
+  printf '[Desktop Entry]\nType=Application\nHidden=true\n' > /home/$username/.config/autostart/\$desktop
+done
+chown -R $username:$username /home/$username/.config 2>/dev/null || true
 $_removeTermuxProfileScripts""";
 
 String _archFirstBoot(String username) =>

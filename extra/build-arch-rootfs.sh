@@ -144,6 +144,79 @@ EOF"
 </channel>
 EOF"
 
+    # Suppress lock screen, DPMS, and screensavers for mobile container UX
+    su - tiny -c "cat > ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-power-manager.xml << EOF
+<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<channel name=\"xfce4-power-manager\" version=\"1.0\">
+  <property name=\"xfce4-power-manager\" type=\"empty\">
+    <property name=\"lock-screen-suspend-hibernate\" type=\"bool\" value=\"false\"/>
+    <property name=\"dpms-enabled\" type=\"bool\" value=\"false\"/>
+    <property name=\"presentation-mode\" type=\"bool\" value=\"true\"/>
+    <property name=\"blank-on-ac\" type=\"int\" value=\"0\"/>
+    <property name=\"blank-on-battery\" type=\"int\" value=\"0\"/>
+    <property name=\"dpms-on-ac-sleep\" type=\"int\" value=\"0\"/>
+    <property name=\"dpms-on-ac-off\" type=\"int\" value=\"0\"/>
+    <property name=\"dpms-on-battery-sleep\" type=\"int\" value=\"0\"/>
+    <property name=\"dpms-on-battery-off\" type=\"int\" value=\"0\"/>
+    <property name=\"power-button-action\" type=\"uint\" value=\"0\"/>
+    <property name=\"sleep-button-action\" type=\"uint\" value=\"0\"/>
+    <property name=\"hibernate-button-action\" type=\"uint\" value=\"0\"/>
+    <property name=\"battery-button-action\" type=\"uint\" value=\"0\"/>
+  </property>
+</channel>
+EOF"
+
+    su - tiny -c "cat > ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-screensaver.xml << EOF
+<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<channel name=\"xfce4-screensaver\" version=\"1.0\">
+  <property name=\"saver\" type=\"empty\">
+    <property name=\"enabled\" type=\"bool\" value=\"false\"/>
+    <property name=\"mode\" type=\"int\" value=\"0\"/>
+    <property name=\"idle-activation-enabled\" type=\"bool\" value=\"false\"/>
+  </property>
+  <property name=\"lock\" type=\"empty\">
+    <property name=\"enabled\" type=\"bool\" value=\"false\"/>
+    <property name=\"saver-activation\" type=\"empty\">
+      <property name=\"enabled\" type=\"bool\" value=\"false\"/>
+      <property name=\"delay\" type=\"int\" value=\"0\"/>
+    </property>
+    <property name=\"user-switch\" type=\"empty\">
+      <property name=\"enabled\" type=\"bool\" value=\"false\"/>
+    </property>
+    <property name=\"logout\" type=\"empty\">
+      <property name=\"enabled\" type=\"bool\" value=\"false\"/>
+    </property>
+  </property>
+</channel>
+EOF"
+
+    su - tiny -c "cat > ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-session.xml << EOF
+<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<channel name=\"xfce4-session\" version=\"1.0\">
+  <property name=\"general\" type=\"empty\">
+    <property name=\"LockCommand\" type=\"string\" value=\"/bin/true\"/>
+  </property>
+  <property name=\"shutdown\" type=\"empty\">
+    <property name=\"ShowSuspend\" type=\"bool\" value=\"false\"/>
+    <property name=\"ShowHibernate\" type=\"bool\" value=\"false\"/>
+  </property>
+</channel>
+EOF"
+
+    # Mask out screensaver autostarts
+    su - tiny -c "mkdir -p ~/.config/autostart && for desktop in xfce4-screensaver.desktop light-locker.desktop xscreensaver.desktop mate-screensaver.desktop; do
+        printf '[Desktop Entry]\nType=Application\nHidden=true\n' > ~/.config/autostart/\$desktop
+    done"
+
+    # Stub out locker scripts
+    su - tiny -c "mkdir -p ~/.local/bin && for stub in xflock4 xfce4-screensaver xfce4-screensaver-command light-locker light-locker-command xscreensaver xscreensaver-command mate-screensaver mate-screensaver-command i3lock; do
+        printf '#!/bin/sh\nexit 0\n' > ~/.local/bin/\$stub
+        chmod +x ~/.local/bin/\$stub
+    done"
+
+    ln -sf /bin/true /usr/local/bin/xflock4
+    ln -sf /bin/true /usr/bin/xflock4
+
     # Locale
     sed -i "s/#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/" /etc/locale.gen
     locale-gen
