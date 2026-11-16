@@ -83,6 +83,7 @@ sudo systemd-nspawn -D "$ROOTFS" --bind-ro=/etc/resolv.conf /bin/bash -c "
         bash-completion htop nano vim \
         xdg-utils xdg-user-dirs dbus \
         xorg-server xorg-xinit xorg-xauth \
+        at-spi2-core \
         onboard plank \
         breeze-gtk papirus-icon-theme
 "

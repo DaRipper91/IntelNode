@@ -261,4 +261,22 @@ exit "${TEST_SESSION_EXIT:-0}"
     final thunarContent = File('${xfceConfDir.path}/thunar.xml').readAsStringSync();
     expect(thunarContent, contains('name="misc-thumbnail-mode" type="string" value="THUNAR_THUMBNAIL_MODE_NEVER"'));
   });
+
+  test('installs intelnode-ime helper and configures mobile IME accessibility environment', () {
+    final result = run();
+    expect(result.exitCode, 0, reason: '${result.stderr}');
+
+    final imeHelper = File('${fixture.path}/.local/bin/intelnode-ime');
+    expect(imeHelper.existsSync(), isTrue);
+    final imeContent = imeHelper.readAsStringSync();
+    expect(imeContent, contains('/dev/tcp/127.0.0.1/4720'));
+    expect(imeContent, contains('ACTION_KEYBOARD'));
+
+    // Check that start-desktop exports GTK_MODULES and accessibility variables
+    final scriptContent = File(script).readAsStringSync();
+    expect(scriptContent, contains('export GTK_MODULES='));
+    expect(scriptContent, contains('gail:atk-bridge'));
+    expect(scriptContent, contains('export QT_ACCESSIBILITY=1'));
+    expect(scriptContent, contains('export NO_AT_BRIDGE=0'));
+  });
 }

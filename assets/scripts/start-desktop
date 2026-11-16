@@ -64,6 +64,11 @@ export QT_AUTO_SCREEN_SCALE_FACTOR=1
 export QT_SCALE_FACTOR=2
 export ELM_SCALE=1.5 # Elementary/Enlightenment scale fallback
 
+# Enable accessibility bridge for soft keyboard auto-invocation
+export GTK_MODULES="${GTK_MODULES:+${GTK_MODULES}:}gail:atk-bridge"
+export QT_ACCESSIBILITY=1
+export NO_AT_BRIDGE=0
+
 # --- 3.5. Lock Screen & Inactivity Prevention ---
 # The container runs inside an Android app where the host OS manages screen lock
 # and device security. Container-level lock screens, screensavers, or sleep locks
@@ -94,6 +99,26 @@ if command -v mkdir >/dev/null 2>&1; then
     if command -v sudo >/dev/null 2>&1; then
         sudo -n ln -sf /bin/true /usr/local/bin/xflock4 2>/dev/null || true
         sudo -n ln -sf /bin/true /usr/bin/xflock4 2>/dev/null || true
+    fi
+
+    # Install mobile IME CLI helper (intelnode-ime)
+    cat > "$HOME/.local/bin/intelnode-ime" << 'EOF'
+#!/bin/sh
+# intelnode-ime: send keyboard control signal to Android host
+ACTION="${1:-show}"
+if [ -n "$BASH_VERSION" ] || [ -f /bin/bash ]; then
+    /bin/bash -c "printf '%s\n' '$ACTION' > /dev/tcp/127.0.0.1/4720" 2>/dev/null && exit 0
+fi
+if command -v nc >/dev/null 2>&1; then
+    printf "%s\n" "$ACTION" | nc -w 1 127.0.0.1 4720 2>/dev/null && exit 0
+fi
+if [ -x /system/bin/am ]; then
+    /system/bin/am broadcast -a com.daripper91.daripped.ACTION_KEYBOARD --es state "$ACTION" >/dev/null 2>&1 && exit 0
+fi
+EOF
+    chmod +x "$HOME/.local/bin/intelnode-ime"
+    if command -v sudo >/dev/null 2>&1; then
+        sudo -n cp "$HOME/.local/bin/intelnode-ime" /usr/local/bin/intelnode-ime 2>/dev/null || true
     fi
 
     # Mask screensaver autostart in XDG desktop environments
@@ -290,6 +315,29 @@ EOF
             # File manager thumbnail storm suppression
             xfconf-query -c thunar -p /misc-thumbnail-mode -s "THUNAR_THUMBNAIL_MODE_NEVER" --create -t string 2>/dev/null || true
             xfconf-query -c thunar -p /misc-thumbnail-draw-frames -s false --create -t bool 2>/dev/null || true
+        fi
+    ) >/dev/null 2>&1 &
+
+    # Background AT-SPI focus monitor to bridge text-field clicks to Android IME
+    (
+        sleep 2
+        DISPLAY_NUM="${DISPLAY#:}"
+        BUS_PATH="$HOME/.cache/at-spi/bus_$DISPLAY_NUM"
+        for _ in 1 2 3 4 5; do
+            if [ -S "$BUS_PATH" ]; then break; fi
+            sleep 1
+        done
+        if [ -S "$BUS_PATH" ] && command -v dbus-monitor >/dev/null 2>&1; then
+            dbus-monitor --address "unix:path=$BUS_PATH" "type='signal',interface='org.a11y.atspi.Event.Object',member='StateChanged'" 2>/dev/null | while read -r line; do
+                if echo "$line" | grep -q "focused"; then
+                    read -r val_line
+                    if echo "$val_line" | grep -q "1"; then
+                        "$HOME/.local/bin/intelnode-ime" show 2>/dev/null || true
+                    elif echo "$val_line" | grep -q "0"; then
+                        "$HOME/.local/bin/intelnode-ime" hide 2>/dev/null || true
+                    fi
+                fi
+            done
         fi
     ) >/dev/null 2>&1 &
 fi
