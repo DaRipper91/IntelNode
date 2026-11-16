@@ -4,7 +4,6 @@ import android.system.Os.setenv
 
 import android.content.Intent
 import android.os.Looper
-import com.termux.x11.CmdEntryPoint
 import androidx.annotation.NonNull
 import androidx.annotation.Keep
 import androidx.appcompat.app.AppCompatDelegate
@@ -47,7 +46,10 @@ class MainActivity: FlutterActivity() {
                             // Android 17 reports an ANR and kills the app. Give it its own looper thread.
                             Thread({
                                 Looper.prepare()
-                                CmdEntryPoint.main(xserverArgs.toTypedArray())
+                                // Reflection: the plugin's classes are not on this module's compile classpath.
+                                Class.forName("com.termux.x11.CmdEntryPoint")
+                                    .getMethod("main", Array<String>::class.java)
+                                    .invoke(null, xserverArgs.toTypedArray())
                             }, "x11-server").start()
                             result.success(0)
                         } catch (e: Exception) {

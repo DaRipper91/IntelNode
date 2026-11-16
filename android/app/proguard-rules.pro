@@ -15,3 +15,5 @@
 
 
 -dontwarn javax.annotation.Nullable
+# Started by reflection from MainActivity (launchXServer).
+-keep class com.termux.x11.CmdEntryPoint { *; }
