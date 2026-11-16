@@ -133,4 +133,134 @@ void main() {
       expect(out.last, endsWith('and again'));
     });
   });
+
+  group('BootLog failure isolation', () {
+    setUp(() => BootLog.printer = (_) => throw StateError('printer failed'));
+
+    test('event, feed and flush never throw when the printer throws', () {
+      expect(() => BootLog.event('x'), returnsNormally);
+      expect(() => BootLog.feed('t', 'line\n'), returnsNormally);
+      BootLog.feed('t', 'pending');
+      expect(() => BootLog.flush('t'), returnsNormally);
+      expect(BootLog.loggerFailures, greaterThan(0));
+    });
+
+    test('mirrors the Util.execute shape: the real exit code survives', () {
+      int execute() {
+        try {
+          const code = 137;
+          BootLog.event('shell finished with exit code $code');
+          return code;
+        } catch (_) {
+          return -1;
+        }
+      }
+
+      expect(execute(), 137);
+    });
+
+    test('a failure part-way through a chunk does not re-emit earlier lines',
+        () {
+      var calls = 0;
+      final got = <String>[];
+      BootLog.printer = (line) {
+        calls++;
+        if (calls == 2) throw StateError('second line fails');
+        got.add(line);
+      };
+      BootLog.feed('t', 'one\ntwo\nthree\nrest');
+      BootLog.feed('t', '\n');
+      final texts = got.map((l) => l.split('] ').last).toList();
+      expect(texts.where((t) => t == 'one'), hasLength(1));
+      expect(texts, containsAll(['three', 'rest']));
+    });
+
+    test('a throwing printer still reaches the attached file', () {
+      final dir = Directory.systemTemp.createTempSync('bootlog_iso_');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      BootLog.attachFile('${dir.path}/boot.log');
+      BootLog.event('survives');
+      expect(File('${dir.path}/boot.log').readAsStringSync(),
+          contains('survives'));
+    });
+
+    test('a throwing printer inside the file-disabled notice does not throw',
+        () {
+      final dir = Directory.systemTemp.createTempSync('bootlog_iso2_');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      BootLog.attachFile('${dir.path}/no/such/dir/boot.log');
+      expect(() => BootLog.event('x'), returnsNormally);
+    });
+  });
+
+  group('BootLog sessions', () {
+    test('attachFile starts a new line budget so a later boot is not silenced',
+        () {
+      final dir = Directory.systemTemp.createTempSync('bootlog_sess_');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      BootLog.maxLines = 2;
+      BootLog.feed('t', 'a\nb\nc\n');
+      expect(out.where((l) => l.contains('log capped')), hasLength(1));
+      out.clear();
+      BootLog.attachFile('${dir.path}/boot.log');
+      BootLog.feed('t', 'd\ne\nf\n');
+      expect(out.where((l) => l.contains('[t] d') || l.contains('[t] e')),
+          hasLength(2));
+      expect(out.where((l) => l.contains('log capped')), hasLength(1),
+          reason: 'the new session gets its own notice');
+    });
+  });
+
+  group('BootLog byte accounting and guard', () {
+    late Directory dir;
+    setUp(() => dir = Directory.systemTemp.createTempSync('bootlog_bytes_'));
+    tearDown(() => dir.deleteSync(recursive: true));
+
+    test('rollover counts UTF-8 bytes, not UTF-16 units', () {
+      final path = '${dir.path}/boot.log';
+      BootLog.maxFileBytes = 300;
+      BootLog.attachFile(path);
+      for (var i = 0; i < 5; i++) {
+        BootLog.event('漢' * 30);
+      }
+      expect(File('$path.1').existsSync(), isTrue);
+      expect(File(path).lengthSync(), lessThanOrEqualTo(300));
+    });
+
+    test('the unterminated-line guard says how many characters it dropped', () {
+      BootLog.maxLineLength = 10;
+      BootLog.feed('t', 'z' * 100);
+      expect(out.single, contains('[+90 chars dropped]'));
+    });
+
+    test('the guard holds 1200 characters and releases at 1201', () {
+      BootLog.feed('t', 'a' * 1200);
+      expect(out, isEmpty);
+      BootLog.feed('t', 'a');
+      expect(out, hasLength(1));
+      expect(out.single, contains('chars dropped'));
+    });
+
+    test('the file-disabled notice names the path', () {
+      final path = '${dir.path}/missing-dir/boot.log';
+      BootLog.attachFile(path);
+      BootLog.event('x');
+      expect(out.firstWhere((l) => l.contains('boot log file disabled')),
+          contains(path));
+    });
+  });
+
+  group('BootLog escape stripping', () {
+    test('charset selects, bare escapes and an unterminated OSC are removed',
+        () {
+      BootLog.feed('t', '\x1B(Bhi\n\x1Bcclean\n\x1B]0;never closed\n');
+      expect(out.map((l) => l.split('] ').last), ['hi', 'clean']);
+    });
+
+    test('a CSI sequence split across chunks is still stripped', () {
+      BootLog.feed('t', '\x1B[1;3');
+      BootLog.feed('t', '2mok\n');
+      expect(out.single, endsWith('[t] ok'));
+    });
+  });
 }
