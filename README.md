@@ -22,9 +22,11 @@ IntelNode is a fork of [Cateners/tiny_computer](https://github.com/Cateners/tiny
 ## Contents
 
 - [How first run works](#how-first-run-works)
+- [Inside the sandbox](#inside-the-sandbox)
 - [Requirements](#requirements)
 - [Install](#install)
 - [Status](#status)
+- [Reading a failed boot](#reading-a-failed-boot)
 - [Repo layout](#repo-layout)
 - [Build from source](#build-from-source)
 - [Credits and license](#credits-and-license)
@@ -72,6 +74,30 @@ The image is an illustrative mock, not a screenshot.
 
 </details>
 
+<img src="images/divider-prompt.svg" alt="" width="100%">
+
+## Inside the sandbox
+
+Six layers sit between the phone's kernel and the desktop. Everything above the app sandbox runs unprivileged, so each layer is something proot has to fake or something Android has to allow.
+
+<div align="center">
+<img src="images/sandbox-anatomy.svg" alt="Cross-section of the sandbox: Android kernel, app sandbox, proot, Arch rootfs, in-app X server, XFCE session" width="100%">
+</div>
+
+What the cross-section is built from, all observed over adb on a Pixel 10 Pro (Android 17 developer preview) on 2026-11-15:
+
+| Observation | Where it came from |
+|---|---|
+| The app runs in SELinux domain `untrusted_app_34`, enforcing | audit lines in logcat |
+| Executing guest binaries (`bash`, `ld-linux-aarch64.so.1`, `cp`, ...) from the app data directory is **granted** | `avc: granted { execute }` audit lines |
+| proot's `setattr` on `/proc` and `/sys` directories is **denied**, and proot keeps running anyway | audit lines; one 8.6-minute proot run drew hundreds of them and survived |
+| The extracted Arch rootfs is about 2.8 GiB from a 791 MiB tar | `du` and file size on the device |
+| The X server is a TCP listener on `127.0.0.1:7897` (`1ED9` in `/proc/net/tcp`) | `Util.waitForXServer` in `lib/workflow.dart` |
+
+The top layer is dashed on purpose: the XFCE session has not been seen on screen yet.
+
+<img src="images/divider-prompt.svg" alt="" width="100%">
+
 ## Requirements
 
 - An ARM64 Android phone.
@@ -108,7 +134,47 @@ Extra containers: Settings -> New Container builds other distro/desktop combinat
 - The XFCE desktop appearing on screen has not been observed.
 - The browser noVNC / AVNC display path is not wired for the Arch container.
 
+One real first run, reconstructed from adb timestamps. The build on the phone was the bundled-rootfs flow, not the new two-stage one, and the stage names are inferred from timing:
+
+<div align="center">
+<img src="images/first-run-timeline.svg" alt="Timeline: install at 19:08, reinstall at 21:27, rootfs tar written at 21:29, an 8.6 minute proot run, seven short proot runs at 21:39:44, then no proot child" width="100%">
+</div>
+
 If a boot fails, [`debug/`](debug/) has `capture.sh` and a README for diagnosing it. Logs are git-ignored.
+
+<img src="images/divider-prompt.svg" alt="" width="100%">
+
+## Reading a failed boot
+
+The known failure is the last visible stage: the app polls the in-app X server for 60 seconds and gives up.
+
+<div align="center">
+<img src="images/wait-for-x-server.svg" alt="Sixty ticks, one per second, filling while the app probes 127.0.0.1 port 7897, then the timeout message" width="100%">
+</div>
+
+Until recently the container terminal wrote only to the on-screen xterm, so a failed boot left almost nothing in logcat. Since commit `ad49a08` (hardened in `ab6e2d9`) the terminal output, shell exit codes and the X server launch and wait events are mirrored to logcat (prefix `IntelNode`) and to a rolling `files/boot.log`:
+
+```sh
+adb logcat -d | grep IntelNode
+adb shell run-as com.daripper91.daripped cat files/boot.log   # debuggable builds only
+debug/capture.sh <serial>                                     # full logcat + process/port state every 15 s (restarts the app)
+```
+
+<div align="center">
+<img src="images/logcat-card.svg" alt="Illustrative logcat output: workflow started, container launch, X server launch and wait, then the timeout" width="100%">
+</div>
+
+The card above is **illustrative**: the line formats are the real ones from `lib/boot_log.dart`, but this output has not been captured from a device yet, because no build containing the logging has been installed. Logcat lines go through Flutter's throttled `debugPrint`, so they can lag and the last ones may be lost if the process dies; `boot.log` is written synchronously and is the reliable record.
+
+| Line | Means |
+|---|---|
+| `workflow started` / `launching container N` | startup reached the container launch |
+| `[term] ...` | one line of the container terminal's output |
+| `shell finished with exit code N` | a helper shell (extraction, provisioning) ended |
+| `launching X server (xkb root: ...)` | the in-app X server was started |
+| `waiting for X server on 127.0.0.1:7897 (timeout 60s)` | the 60-second probe began |
+| `X server not ready after 60s (launch failed: ...)` | the probe gave up; the reason, if any, follows |
+| `terminal pty exited with exit code N` | the container's terminal process ended |
 
 ## Repo layout
 
@@ -126,6 +192,9 @@ If a boot fails, [`debug/`](debug/) has `capture.sh` and a README for diagnosing
 | `lib/desktop_picker.dart` | Stage 2 picker |
 | `lib/setup_session.dart` | Setup session |
 | `lib/setup_terminal.dart` | Interactive setup terminal |
+| `lib/boot_log.dart` | Mirrors boot and X server output to logcat and `files/boot.log` |
+| `test/boot_log_test.dart` | Tests for `BootLog` |
+| `images/` | README artwork (animated SVG) |
 | `assets/scripts/` | `start-arch.sh`, `start-desktop` |
 | `debug/` | `capture.sh` and README for failed-boot diagnosis |
 | `AGENT_REPORT.md` | Agent report |

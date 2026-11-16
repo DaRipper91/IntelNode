@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 28" width="900" height="28" role="presentation" aria-hidden="true">
+<rect x="40" y="13" width="0" height="2" rx="1" fill="#585b70"><animate attributeName="width" values="0;780;780;0" keyTimes="0;0.55;0.9;1" dur="6s" repeatCount="indefinite"/></rect>
+<rect x="40" y="6" width="9" height="16" fill="#cba6f7"><animate attributeName="x" values="40;820;820;40" keyTimes="0;0.55;0.9;1" dur="6s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;0.2;1" dur="0.9s" repeatCount="indefinite"/></rect>
+<text x="14" y="21" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="14" fill="#a6e3a1">$</text>
+</svg>

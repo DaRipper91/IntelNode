@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 492" width="900" height="492" role="img" aria-labelledby="t d">
+  <title id="t">Cross-section of the IntelNode sandbox</title>
+  <desc id="d">Six stacked layers from the Android kernel up to the XFCE session, with observed facts beside each and the unobserved top layer dashed.</desc>
+  <defs></defs>
+  <rect width="900" height="492" rx="14" fill="#1e1e2e"/>
+<text x="40" y="38" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="15" fill="#cdd6f4" font-weight="700">Inside the sandbox: one cross-section, six layers</text>
+<rect x="41" y="65" width="478" height="52" rx="10" fill="none" stroke="#fab387" stroke-width="2" stroke-dasharray="7 6"><animate attributeName="stroke-dashoffset" values="0;-26" dur="2s" repeatCount="indefinite"/></rect>
+<text x="58" y="96" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13.5" font-weight="700" fill="#fab387">XFCE4 session  /  start-desktop</text>
+<text x="548" y="87" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12.5" fill="#cdd6f4">Never observed on screen yet.</text>
+<text x="548" y="105" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#a6adc8">dashed outline = not yet observed</text>
+<line x1="520" y1="91.0" x2="540" y2="91.0" stroke="#6c7086" stroke-width="1.5"/>
+<rect x="40" y="128" width="480" height="54" rx="10" fill="#74c7ec"/>
+<text x="58" y="160" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13.5" font-weight="700" fill="#11111b">In-app X server :4  /  x11_flutter</text>
+<text x="548" y="151" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12.5" fill="#cdd6f4">TCP 127.0.0.1:7897 (0x1ED9)</text>
+<text x="548" y="169" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#a6adc8">polled for 60 s, then TimeoutException</text>
+<line x1="520" y1="155.0" x2="540" y2="155.0" stroke="#6c7086" stroke-width="1.5"/>
+<rect x="40" y="192" width="480" height="54" rx="10" fill="#a6e3a1"/>
+<text x="58" y="224" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13.5" font-weight="700" fill="#11111b">Arch Linux ARM rootfs  /  containers/0</text>
+<text x="548" y="215" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12.5" fill="#cdd6f4">791 MiB tar -&gt; 2.8 GiB on disk</text>
+<text x="548" y="233" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#a6adc8">extraction verified on device</text>
+<line x1="520" y1="219.0" x2="540" y2="219.0" stroke="#6c7086" stroke-width="1.5"/>
+<rect x="40" y="256" width="480" height="54" rx="10" fill="#cba6f7"/>
+<text x="58" y="288" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13.5" font-weight="700" fill="#11111b">proot (ptrace)  /  loader from applib</text>
+<text x="548" y="279" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12.5" fill="#cdd6f4">exec from the app data dir: GRANTED</text>
+<text x="548" y="297" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#a6adc8">setattr on /proc, /sys dirs: denied, proot runs on</text>
+<line x1="520" y1="283.0" x2="540" y2="283.0" stroke="#6c7086" stroke-width="1.5"/>
+<rect x="40" y="320" width="480" height="54" rx="10" fill="#89b4fa"/>
+<text x="58" y="352" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13.5" font-weight="700" fill="#11111b">App sandbox  /  untrusted_app_34</text>
+<text x="548" y="343" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12.5" fill="#cdd6f4">com.daripper91.daripped</text>
+<text x="548" y="361" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#a6adc8">SELinux enforcing, no root</text>
+<line x1="520" y1="347.0" x2="540" y2="347.0" stroke="#6c7086" stroke-width="1.5"/>
+<rect x="40" y="384" width="480" height="54" rx="10" fill="#585b70"/>
+<text x="58" y="416" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="13.5" font-weight="700" fill="#cdd6f4">Android 17 DP11  /  arm64-v8a</text>
+<text x="548" y="407" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="12.5" fill="#cdd6f4">Pixel 10 Pro, Developer Preview build</text>
+<text x="548" y="425" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#a6adc8">no 32-bit ABI on this device</text>
+<line x1="520" y1="411.0" x2="540" y2="411.0" stroke="#6c7086" stroke-width="1.5"/>
+<circle cx="500" cy="438" r="5" fill="#cdd6f4" opacity="0"><animate attributeName="cy" values="438;91.0" dur="4.2s" begin="0s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;0.95;0.95;0" keyTimes="0;0.1;0.85;1" dur="4.2s" begin="0s" repeatCount="indefinite"/></circle>
+<circle cx="500" cy="438" r="5" fill="#cdd6f4" opacity="0"><animate attributeName="cy" values="438;91.0" dur="4.2s" begin="1.4s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;0.95;0.95;0" keyTimes="0;0.1;0.85;1" dur="4.2s" begin="1.4s" repeatCount="indefinite"/></circle>
+<circle cx="500" cy="438" r="5" fill="#cdd6f4" opacity="0"><animate attributeName="cy" values="438;91.0" dur="4.2s" begin="2.8s" repeatCount="indefinite"/><animate attributeName="opacity" values="0;0.95;0.95;0" keyTimes="0;0.1;0.85;1" dur="4.2s" begin="2.8s" repeatCount="indefinite"/></circle>
+<text x="40" y="476" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="11" fill="#6c7086">Observed over adb on 2026-11-15. Layer names come from the code; facts come from audit lines and file sizes. Not a screenshot.</text>
+</svg>
