@@ -20,10 +20,24 @@ while [ ! -S /tmp/.X11-unix/X4 ]; do
 done
 echo "[Log] Socket synchronization successful: /tmp/.X11-unix/X4 is ready."
 
+# --- 1.1 X11 Display Server Screensaver & Power-Save Suppression ---
+# Mobile Android container UX: prevent display sleep, DPMS, and screensaver blanking
+if command -v xset >/dev/null 2>&1; then
+    echo "[Log] Suppressing X11 screensaver, DPMS power-saving, and blanking..."
+    xset s off 2>/dev/null || true
+    xset s 0 0 2>/dev/null || true
+    xset -dpms 2>/dev/null || true
+    xset s noblank 2>/dev/null || true
+fi
+
 # --- 2. Hardware Acceleration Engine (VirGL) ---
 # Testing for VirGL pipe availability to determine fallback strategy.
 # If virgl_test_server is running on the host, the gallium pipe should be bridged.
-if [ -n "$VIRGL_ENABLE" ] || [ -S /tmp/virgl-0 ]; then
+# The app passes its selected driver through the guest environment. Do not
+# replace it just because the legacy auto-detection socket is absent.
+if [ -n "$GALLIUM_DRIVER" ]; then
+    echo "[Log] Using configured Gallium driver: $GALLIUM_DRIVER"
+elif [ -n "$VIRGL_ENABLE" ] || [ -S /tmp/virgl-0 ]; then
     echo "[Log] Hardware Acceleration: VirGL Engine active (Mali-G925 Passthrough)."
     export GALLIUM_DRIVER=virpipe
     export MESA_GL_VERSION_OVERRIDE=4.5
@@ -34,6 +48,13 @@ else
     export GALLIUM_DRIVER=llvmpipe
 fi
 
+# Multi-threaded software rasterization and driver tuning
+if [ "$GALLIUM_DRIVER" = "llvmpipe" ] || [ -z "$GALLIUM_DRIVER" ]; then
+    # Tensor G5 has 8 cores; 4 threads accelerates 2D/3D rendering without saturating all cores
+    export LP_NUM_THREADS="${LP_NUM_THREADS:-4}"
+fi
+export MESA_NO_ERROR="${MESA_NO_ERROR:-1}"
+
 # --- 3. HiDPI & Mobile UX Scaling ---
 # Target: 2.0x Scaling for usable touch targets on high-density displays (e.g. Pixel 10 Pro)
 echo "[Log] Applying HiDPI Scaling: 2.0x Factor."
@@ -42,6 +63,284 @@ export GDK_DPI_SCALE=0.5
 export QT_AUTO_SCREEN_SCALE_FACTOR=1
 export QT_SCALE_FACTOR=2
 export ELM_SCALE=1.5 # Elementary/Enlightenment scale fallback
+
+# Enable accessibility bridge for soft keyboard auto-invocation
+export GTK_MODULES="${GTK_MODULES:+${GTK_MODULES}:}gail:atk-bridge"
+export QT_ACCESSIBILITY=1
+export NO_AT_BRIDGE=0
+
+# --- 3.5. Lock Screen & Inactivity Prevention ---
+# The container runs inside an Android app where the host OS manages screen lock
+# and device security. Container-level lock screens, screensavers, or sleep locks
+# disrupt mobile UX by requesting passwords or logging out when leaving the app.
+export PATH="$HOME/.local/bin:$PATH"
+
+if command -v mkdir >/dev/null 2>&1; then
+    mkdir -p "$HOME/.local/bin"
+    for stub in xflock4 xfce4-screensaver xfce4-screensaver-command light-locker light-locker-command xscreensaver xscreensaver-command mate-screensaver mate-screensaver-command i3lock; do
+        stub_file="$HOME/.local/bin/$stub"
+        if [ ! -f "$stub_file" ]; then
+            printf '#!/bin/sh\nexit 0\n' > "$stub_file"
+            if command -v chmod >/dev/null 2>&1; then
+                chmod +x "$stub_file"
+            fi
+        fi
+    done
+
+    # Stub pm-is-supported to prevent xfce4-session from repeatedly failing child process lookups
+    if [ ! -f "$HOME/.local/bin/pm-is-supported" ]; then
+        printf '#!/bin/sh\nexit 1\n' > "$HOME/.local/bin/pm-is-supported"
+        if command -v chmod >/dev/null 2>&1; then
+            chmod +x "$HOME/.local/bin/pm-is-supported"
+        fi
+    fi
+
+    # Intercept system-level xflock4 if passwordless sudo is available
+    if command -v sudo >/dev/null 2>&1; then
+        sudo -n ln -sf /bin/true /usr/local/bin/xflock4 2>/dev/null || true
+        sudo -n ln -sf /bin/true /usr/bin/xflock4 2>/dev/null || true
+    fi
+
+    # Install mobile IME CLI helper (intelnode-ime)
+    cat > "$HOME/.local/bin/intelnode-ime" << 'EOF'
+#!/bin/sh
+# intelnode-ime: send keyboard control signal to Android host
+ACTION="${1:-show}"
+if [ -n "$BASH_VERSION" ] || [ -f /bin/bash ]; then
+    /bin/bash -c "printf '%s\n' '$ACTION' > /dev/tcp/127.0.0.1/4720" 2>/dev/null && exit 0
+fi
+if command -v nc >/dev/null 2>&1; then
+    printf "%s\n" "$ACTION" | nc -w 1 127.0.0.1 4720 2>/dev/null && exit 0
+fi
+if [ -x /system/bin/am ]; then
+    /system/bin/am broadcast -a com.daripper91.daripped.ACTION_KEYBOARD --es state "$ACTION" >/dev/null 2>&1 && exit 0
+fi
+EOF
+    chmod +x "$HOME/.local/bin/intelnode-ime"
+    if command -v sudo >/dev/null 2>&1; then
+        sudo -n cp "$HOME/.local/bin/intelnode-ime" /usr/local/bin/intelnode-ime 2>/dev/null || true
+    fi
+
+    # Mask screensaver autostart in XDG desktop environments
+    mkdir -p "$HOME/.config/autostart"
+    for desktop in xfce4-screensaver.desktop light-locker.desktop xscreensaver.desktop mate-screensaver.desktop; do
+        printf '[Desktop Entry]\nType=Application\nHidden=true\n' > "$HOME/.config/autostart/$desktop"
+    done
+
+    # GTK settings: disable animations and cursor blink for instantaneous menu rendering
+    mkdir -p "$HOME/.config/gtk-3.0"
+    cat > "$HOME/.config/gtk-3.0/settings.ini" << 'EOF'
+[Settings]
+gtk-enable-animations = false
+gtk-cursor-blink = false
+gtk-xft-rgba = none
+EOF
+
+    cat > "$HOME/.gtkrc-2.0" << 'EOF'
+gtk-enable-animations = 0
+gtk-cursor-blink = 0
+EOF
+
+    # XFCE Power Manager, Screensaver, and Performance XML configuration
+    mkdir -p "$HOME/.config/xfce4/xfconf/xfce-perchannel-xml"
+
+    # Disable DPMS, blanking, sleep, and lock-screen in xfce4-power-manager
+    cat > "$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-power-manager.xml" << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xfce4-power-manager" version="1.0">
+  <property name="xfce4-power-manager" type="empty">
+    <property name="lock-screen-suspend-hibernate" type="bool" value="false"/>
+    <property name="dpms-enabled" type="bool" value="false"/>
+    <property name="presentation-mode" type="bool" value="true"/>
+    <property name="blank-on-ac" type="int" value="0"/>
+    <property name="blank-on-battery" type="int" value="0"/>
+    <property name="dpms-on-ac-sleep" type="int" value="0"/>
+    <property name="dpms-on-ac-off" type="int" value="0"/>
+    <property name="dpms-on-battery-sleep" type="int" value="0"/>
+    <property name="dpms-on-battery-off" type="int" value="0"/>
+    <property name="power-button-action" type="uint" value="0"/>
+    <property name="sleep-button-action" type="uint" value="0"/>
+    <property name="hibernate-button-action" type="uint" value="0"/>
+    <property name="battery-button-action" type="uint" value="0"/>
+  </property>
+</channel>
+EOF
+
+    # Disable screensaver and locking in xfce4-screensaver
+    cat > "$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-screensaver.xml" << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xfce4-screensaver" version="1.0">
+  <property name="saver" type="empty">
+    <property name="enabled" type="bool" value="false"/>
+    <property name="mode" type="int" value="0"/>
+    <property name="idle-activation-enabled" type="bool" value="false"/>
+  </property>
+  <property name="lock" type="empty">
+    <property name="enabled" type="bool" value="false"/>
+    <property name="saver-activation" type="empty">
+      <property name="enabled" type="bool" value="false"/>
+      <property name="delay" type="int" value="0"/>
+    </property>
+    <property name="user-switch" type="empty">
+      <property name="enabled" type="bool" value="false"/>
+    </property>
+    <property name="logout" type="empty">
+      <property name="enabled" type="bool" value="false"/>
+    </property>
+  </property>
+</channel>
+EOF
+
+    # Set xfce4-session LockCommand to no-op
+    cat > "$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-session.xml" << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xfce4-session" version="1.0">
+  <property name="general" type="empty">
+    <property name="LockCommand" type="string" value="/bin/true"/>
+  </property>
+  <property name="shutdown" type="empty">
+    <property name="ShowSuspend" type="bool" value="false"/>
+    <property name="ShowHibernate" type="bool" value="false"/>
+  </property>
+</channel>
+EOF
+
+    # XFCE Window Manager performance tuning:
+    # Disable compositing and vblank stalls (causes input capture freezes under synthetic X servers),
+    # disable drop shadows, and enable wireframe move/resize.
+    XFWM4_XML="$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml"
+    if [ -f "$XFWM4_XML" ] && command -v sed >/dev/null 2>&1; then
+        sed -i 's/name="use_compositing" type="bool" value="true"/name="use_compositing" type="bool" value="false"/g' "$XFWM4_XML" 2>/dev/null || true
+        sed -i 's/name="vblank_mode" type="string" value="auto"/name="vblank_mode" type="string" value="off"/g' "$XFWM4_XML" 2>/dev/null || true
+        sed -i 's/name="show_dock_shadow" type="bool" value="true"/name="show_dock_shadow" type="bool" value="false"/g' "$XFWM4_XML" 2>/dev/null || true
+        sed -i 's/name="show_frame_shadow" type="bool" value="true"/name="show_frame_shadow" type="bool" value="false"/g' "$XFWM4_XML" 2>/dev/null || true
+        sed -i 's/name="show_popup_shadow" type="bool" value="true"/name="show_popup_shadow" type="bool" value="false"/g' "$XFWM4_XML" 2>/dev/null || true
+        sed -i 's/name="box_move" type="bool" value="false"/name="box_move" type="bool" value="true"/g' "$XFWM4_XML" 2>/dev/null || true
+        sed -i 's/name="box_resize" type="bool" value="false"/name="box_resize" type="bool" value="true"/g' "$XFWM4_XML" 2>/dev/null || true
+    elif [ ! -f "$XFWM4_XML" ]; then
+        cat > "$XFWM4_XML" << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xfwm4" version="1.0">
+  <property name="general" type="empty">
+    <property name="use_compositing" type="bool" value="false"/>
+    <property name="vblank_mode" type="string" value="off"/>
+    <property name="show_dock_shadow" type="bool" value="false"/>
+    <property name="show_frame_shadow" type="bool" value="false"/>
+    <property name="show_popup_shadow" type="bool" value="false"/>
+    <property name="box_move" type="bool" value="true"/>
+    <property name="box_resize" type="bool" value="true"/>
+    <property name="unredirect_overlays" type="bool" value="true"/>
+  </property>
+</channel>
+EOF
+    fi
+
+    # XSettings configuration: disable GTK animations and cursor blink
+    XSETTINGS_XML="$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml"
+    if [ ! -f "$XSETTINGS_XML" ]; then
+        cat > "$XSETTINGS_XML" << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xsettings" version="1.0">
+  <property name="Net" type="empty">
+    <property name="CursorBlink" type="bool" value="false"/>
+  </property>
+  <property name="Xft" type="empty">
+    <property name="RGBA" type="string" value="none"/>
+  </property>
+  <property name="Gtk" type="empty">
+    <property name="EnableAnimations" type="bool" value="false"/>
+    <property name="CursorBlink" type="bool" value="false"/>
+    <property name="DecorationLayout" type="string" value="icon,menu:minimize,maximize,close"/>
+  </property>
+</channel>
+EOF
+    fi
+
+    # Thunar configuration: disable automatic thumbnail generation to stop CPU storms
+    THUNAR_XML="$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/thunar.xml"
+    if [ -f "$THUNAR_XML" ] && command -v sed >/dev/null 2>&1; then
+        if grep -q 'name="misc-thumbnail-mode"' "$THUNAR_XML" 2>/dev/null; then
+            sed -i 's/name="misc-thumbnail-mode" type="string" value="[^"]*"/name="misc-thumbnail-mode" type="string" value="THUNAR_THUMBNAIL_MODE_NEVER"/g' "$THUNAR_XML" 2>/dev/null || true
+        fi
+    elif [ ! -f "$THUNAR_XML" ]; then
+        cat > "$THUNAR_XML" << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="thunar" version="1.0">
+  <property name="last-view" type="string" value="ThunarIconView"/>
+  <property name="misc-thumbnail-mode" type="string" value="THUNAR_THUMBNAIL_MODE_NEVER"/>
+  <property name="misc-thumbnail-draw-frames" type="bool" value="false"/>
+</channel>
+EOF
+    fi
+
+    # Background reinforcement to ensure live xfconfd daemon retains no-lock and performance properties
+    (
+        for _ in 1 2 3 4 5 6 7 8 9 10; do
+            if command -v xfconf-query >/dev/null 2>&1; then
+                if xfconf-query -c xfce4-power-manager -p / -l >/dev/null 2>&1; then
+                    break
+                fi
+            fi
+            sleep 1
+        done
+        if command -v xfconf-query >/dev/null 2>&1; then
+            # Power manager & screensaver
+            xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/lock-screen-suspend-hibernate -s false --create -t bool 2>/dev/null || true
+            xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/dpms-enabled -s false --create -t bool 2>/dev/null || true
+            xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/presentation-mode -s true --create -t bool 2>/dev/null || true
+            xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/blank-on-ac -s 0 --create -t int 2>/dev/null || true
+            xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/blank-on-battery -s 0 --create -t int 2>/dev/null || true
+            xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/dpms-on-ac-sleep -s 0 --create -t int 2>/dev/null || true
+            xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/dpms-on-ac-off -s 0 --create -t int 2>/dev/null || true
+            xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/dpms-on-battery-sleep -s 0 --create -t int 2>/dev/null || true
+            xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/dpms-on-battery-off -s 0 --create -t int 2>/dev/null || true
+            xfconf-query -c xfce4-screensaver -p /saver/enabled -s false --create -t bool 2>/dev/null || true
+            xfconf-query -c xfce4-screensaver -p /saver/idle-activation-enabled -s false --create -t bool 2>/dev/null || true
+            xfconf-query -c xfce4-screensaver -p /lock/enabled -s false --create -t bool 2>/dev/null || true
+            xfconf-query -c xfce4-screensaver -p /lock/saver-activation/enabled -s false --create -t bool 2>/dev/null || true
+            xfconf-query -c xfce4-session -p /general/LockCommand -s "/bin/true" --create -t string 2>/dev/null || true
+            # Window manager performance (eliminate compositing overhead and vblank blocking)
+            xfconf-query -c xfwm4 -p /general/use_compositing -s false --create -t bool 2>/dev/null || true
+            xfconf-query -c xfwm4 -p /general/vblank_mode -s off --create -t string 2>/dev/null || true
+            xfconf-query -c xfwm4 -p /general/show_dock_shadow -s false --create -t bool 2>/dev/null || true
+            xfconf-query -c xfwm4 -p /general/show_frame_shadow -s false --create -t bool 2>/dev/null || true
+            xfconf-query -c xfwm4 -p /general/show_popup_shadow -s false --create -t bool 2>/dev/null || true
+            xfconf-query -c xfwm4 -p /general/box_move -s true --create -t bool 2>/dev/null || true
+            xfconf-query -c xfwm4 -p /general/box_resize -s true --create -t bool 2>/dev/null || true
+            # Instant UI rendering & disable glyph subpixel overhead
+            xfconf-query -c xsettings -p /Gtk/EnableAnimations -s false --create -t bool 2>/dev/null || true
+            xfconf-query -c xsettings -p /Gtk/CursorBlink -s false --create -t bool 2>/dev/null || true
+            xfconf-query -c xsettings -p /Net/CursorBlink -s false --create -t bool 2>/dev/null || true
+            xfconf-query -c xsettings -p /Xft/RGBA -s none --create -t string 2>/dev/null || true
+            # File manager thumbnail storm suppression
+            xfconf-query -c thunar -p /misc-thumbnail-mode -s "THUNAR_THUMBNAIL_MODE_NEVER" --create -t string 2>/dev/null || true
+            xfconf-query -c thunar -p /misc-thumbnail-draw-frames -s false --create -t bool 2>/dev/null || true
+        fi
+    ) >/dev/null 2>&1 &
+
+    # Background AT-SPI focus monitor to bridge text-field clicks to Android IME
+    (
+        sleep 2
+        DISPLAY_NUM="${DISPLAY#:}"
+        BUS_PATH="$HOME/.cache/at-spi/bus_$DISPLAY_NUM"
+        for _ in 1 2 3 4 5; do
+            if [ -S "$BUS_PATH" ]; then break; fi
+            sleep 1
+        done
+        if [ -S "$BUS_PATH" ] && command -v dbus-monitor >/dev/null 2>&1; then
+            dbus-monitor --address "unix:path=$BUS_PATH" "type='signal',interface='org.a11y.atspi.Event.Object',member='StateChanged'" 2>/dev/null | while read -r line; do
+                if echo "$line" | grep -q "focused"; then
+                    read -r val_line
+                    if echo "$val_line" | grep -q "1"; then
+                        "$HOME/.local/bin/intelnode-ime" show 2>/dev/null || true
+                    elif echo "$val_line" | grep -q "0"; then
+                        "$HOME/.local/bin/intelnode-ime" hide 2>/dev/null || true
+                    fi
+                fi
+            done
+        fi
+    ) >/dev/null 2>&1 &
+fi
 
 # --- 4. Session D-Bus & Desktop Bootstrap ---
 # The session chosen at install time (~/.intelnode-session) wins. If it is missing

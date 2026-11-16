@@ -120,7 +120,6 @@ class DesktopEnvironments {
         PackageManagerFamily.pacman: [
           "i3-wm",
           "i3status",
-          "i3lock",
           "dmenu",
           "xterm",
           "dbus",
@@ -128,14 +127,12 @@ class DesktopEnvironments {
         PackageManagerFamily.dnf: [
           "i3",
           "i3status",
-          "i3lock",
           "dmenu",
           "dbus-x11",
         ],
         PackageManagerFamily.apt: [
           "i3",
           "i3status",
-          "i3lock",
           "suckless-tools",
           "dbus-x11",
         ],

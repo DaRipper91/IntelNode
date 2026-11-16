@@ -199,10 +199,13 @@ class Util {
   static final List<Process> _backgroundProcesses = [];
 
   // Fire-and-forget background process (for long-running daemons like
-  // virgl_test_server and getifaddrs_bridge_server).
+  // virgl_test_server and getifaddrs_bridge_server). Drains stdout and stderr
+  // so background daemons never deadlock on a full pipe buffer.
   static void executeBackground(String str) {
     Process.start("/system/bin/sh", ["-c", str]).then((process) {
       _backgroundProcesses.add(process);
+      process.stdout.drain<void>().catchError((_) {});
+      process.stderr.drain<void>().catchError((_) {});
       process.exitCode.then((_) => _backgroundProcesses.remove(process));
     });
   }
@@ -1460,7 +1463,7 @@ class Workflow {
     if (extraMount.isNotEmpty) cmd += " $extraMount";
 
     cmd +=
-        " /usr/bin/env -i HOME=/home/tiny USER=tiny LANG=en_US.UTF-8 TERM=xterm-256color PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin PULSE_SERVER=tcp:127.0.0.1:4718 DISPLAY=:4 $extraOpt /bin/bash /usr/local/bin/start-arch.sh";
+        " /usr/bin/env -i HOME=/home/tiny USER=tiny LANG=en_US.UTF-8 TERM=xterm-256color PATH=/home/tiny/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin PULSE_SERVER=tcp:127.0.0.1:4718 DISPLAY=:4 $extraOpt /bin/bash /usr/local/bin/start-arch.sh";
 
     return cmd;
   }
@@ -1754,6 +1757,9 @@ fi
       G.prefs.setBool("reinstallBootstrap", false);
     }
 
+    // Refresh this app-managed script so APK updates also fix existing containers.
+    await refreshDesktopStartupScript(G.dataPath);
+
     // Initialize display backends
     if (Util.getGlobal("useX11")) {
       G.wasX11Enabled = true;
@@ -1808,6 +1814,29 @@ exit
     await G.audioPty?.exitCode;
   }
 
+  static String virglServerArguments(String options, String containerPath) {
+    final placeholder = RegExp(
+      r'\$\{CONTAINER_DIR\}|\$CONTAINER_DIR(?![A-Za-z0-9_])',
+    );
+    // Substitute before quoting, but after tokenizing so spaces in the path
+    // remain inside one argument. No other shell expansion is supported.
+    return options
+        .split(' ')
+        .where((s) => s.isNotEmpty)
+        .map((s) => s.replaceAllMapped(placeholder, (_) => containerPath))
+        .map(Util.escapeShellArgument)
+        .join(' ');
+  }
+
+  static Future<void> refreshDesktopStartupScript(String dataPath) async {
+    final extra = Directory("$dataPath/tiny/extra");
+    await extra.create(recursive: true);
+    await Util.copyAsset(
+      "assets/scripts/start-desktop",
+      "${extra.path}/start-desktop",
+    );
+  }
+
   static Future<void> launchCurrentContainer() async {
     String extraMount = "";
     String extraOpt = "";
@@ -1834,13 +1863,17 @@ exit
 
     // Configure Hardware Acceleration (VirGL)
     if (Util.getGlobal("virgl")) {
+      final arguments = virglServerArguments(
+        Util.getGlobal("defaultVirglCommand").toString(),
+        "${G.dataPath}/containers/${G.currentContainer}",
+      );
       Util.executeBackground(
         """
 export DATA_DIR=${Util.escapeShellArgument(G.dataPath)}
 export PATH=\$DATA_DIR/bin:\$PATH
 export LD_LIBRARY_PATH=\$DATA_DIR/lib
 export CONTAINER_DIR=\$DATA_DIR/containers/${G.currentContainer}
-\$DATA_DIR/bin/virgl_test_server ${(Util.getGlobal("defaultVirglCommand").toString()).split(' ').where((s) => s.isNotEmpty).map(Util.escapeShellArgument).join(' ')}""",
+\$DATA_DIR/bin/virgl_test_server $arguments""",
       );
       extraOpt += "${Util.getGlobal("defaultVirglOpt")} ";
     }

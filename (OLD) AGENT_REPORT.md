@@ -1,42 +1,35 @@
 # Agent Report
 
 ## Summary
-Branch `rebase/arch-multidistro-on-upstream`, mirrored to `main`. Goal: IntelNode = Tiny Computer with Arch Linux ARM,
-one APK, no Termux steps. This turn (all on Pixel 10 Pro, Android 17 DP11):
-- `8be852d`: boot fixes. Root cause of the permanent "Installation Complete" freeze was `await setupAudio()` (pulseaudio
-  runs in the foreground of its pty and never returns); now `unawaited`. Also tiny=uid 1000, resolv.conf replaced,
-  start-desktop run via bash, fake /proc + cap_last_cap, Termux /tmp bind removed, stored boot string fixed.
-  DEVICE RESULT: startup now reaches `waitForXServer` and fails "X server did not start within 60 seconds".
-- `3e661ca`: Arch ships `usr/share/X11/xkb` as an ABSOLUTE symlink to `/usr/share/xkeyboard-config-2`; it dangles outside
-  proot, so the in-app X server had no keymaps, and `createDirFromString` over the link threw inside an un-awaited call.
-  Added `Workflow.xkbRoot()`, no mkdir over a link, launch error text in the timeout message. Test:
-  `test/workflow_test/xkb_root_test.dart`. NOT yet confirmed on device.
-- Docs/tooling (this commit): `README.md` rewritten with honest status, `images/pipeline.svg`, new `debug/`
-  (`README.md`, `capture.sh`, git-ignored `logs/`). Raw logs are deliberately not committed (other apps' package names).
-- Releases: `v2.2.6-debug.1` (8be852d, fails at X server step). `v2.2.6-debug.2` (3e661ca) uploaded as pre-release.
+Installed an Android SDK/native ARM64 toolchain and **built IntelNode's debug APK successfully on this M1/Fedora Asahi laptop**. Preserved the uncommitted XFCE rendering fixes on branch fix/xfce-rendering. No APK installation, app-data deletion, commit, push, PR or release.
+
+New documentation: docs/asahi-apk-build.md records exact source archives/hashes, host setup, local build launcher, build failure/recovery, artifact validation and remaining native/runtime gaps. AGENT_REPORT.md is this report; (OLD) AGENT_REPORT.md preserves the prior performance-fix report. The performance plan was updated to supersede the missing-SDK blocker. Application code was not changed during this SDK/build task.
 
 ## Feature / Task Status
-- ✅ Bootstrap, chunk copy, extraction (busybox unxz | tar x) — verified on device
-- ✅ Startup no longer hangs on audio — verified on device (error screen reached)
-- 🔄 In-app X server — xkb fix shipped, awaiting device result
-- ❌ XFCE visible on screen — never observed
-- ❌ noVNC/AVNC path on Arch — no server wired
-- ❌ WPS / Edraw / QQ / DingTalk container tests
+- Local Android toolchain: installed and executed successfully. SDK at /home/daripper/Android/Sdk; API 36 plus plugin APIs 33/34/35; ARM64 build-tools 37.0.0 with aapt2 override; exact NDK 27.0.12077973 from custom r27; official ARM64 CMake 3.22.1; existing Java 17 / Ninja.
+- Local debug APK: built successfully, includes current uncommitted rendering fixes. Successful build: 184.8 s; 65,566,685 bytes. Download copy: /home/daripper/Downloads/IntelNode-xfce-rendering-local-debug-20261116.apk.
+- Signature and ZIP alignment: verified, local debug key and APK v2 signature; zipalign -c -P16 4 passed.
+- Tests: 167 passed after the build; analysis retains 18 pre-existing infos. pubspec.lock unchanged.
+- XFCE freezes: unresolved/unmeasured on device. Previous three configuration fixes remain in working tree; see (OLD) AGENT_REPORT.md and performance plan.
+- Release/profile builds: not verified; downloaded Android release gen_snapshot is x86-64. Debug success does not establish release/profile host compatibility.
+- Native 16 KiB ELF alignment:3 of 24 AArch64 ELF files have 4 KiB PT_LOAD alignment. No claim of complete 16 KiB-native compatibility or successful phone startup.
 
 ## What the Next Agent Should Do First
-1. Run `debug/capture.sh 192.168.1.68:5555` with `v2.2.6-debug.2` installed (uninstall older first). Check port 7897
-   (`1ED9` in /proc/net/tcp) and `containers/0/tmp/.X11-unix`.
-2. If the X server still fails: read the new "(launch failed: …)" text on the error screen; then try dropping
-   `-extension MIT-SHM` (upstream passes only `:4`); then inspect `com.termux.x11.CmdEntryPoint` in the x11_flutter plugin.
-3. Local `assets/` has stale untracked `xaaa`..`xaaj`; delete (needs user OK) before local builds.
-4. README hardware claims were removed; protected CI files still use floating Flutter `stable` in
-   `flutter-build.yml`/`release.yml` (debug workflow pins 3.41.6).
-Constraints: debug keys differ per CI run (uninstall first); never run `dart format` repo-wide; do not screenshot a locked phone.
+1. Read docs/asahi-apk-build.md and current git status. Reuse /home/daripper/.cache/intelnode-tools/build-intelnode-apk.sh debug for a bounded local build. The ignored android/local.properties points to SDK/Flutter/CMake. No tracked Gradle config or CI changes were needed.
+2. The launcher applies 1.5 GiB Gradle heap, one worker, Kotlin in-process, native aapt2, and a narrow Jetifier ignore regex for Flutter's native-only debug JAR; systemd memory cap 3 GiB and swap cap 3 GiB. Avoid the project's tracked 16 GiB default heap on this 8 GiB machine. Full setup receipt: /home/daripper/.cache/intelnode-tools/toolchain-sources.json.
+3. Before updating an existing phone app, compare installed and new signing certificates. This APK is locally debug-signed; it is not assumed to share CI's stable signing key. Never uninstall or clear app data to bypass a signing mismatch without user authorization.
+4. Restore physical-phone access or set up an explicitly chosen local Android runtime, then reproduce the same XFCE menu/window actions. Preserve logs, verify device identity, and test compositor changes one at a time. Never am start MainActivity over a live X11 screen.
+5. For full 16 KiB support, investigate/rebuild libXlorie.so, libexec_getifaddrs_bridge_server.so and libnative-socket.so; ZIP alignment passing alone does not fix ELF alignment. For release/profile, supply a compatible host AOT compiler before claiming support.
 
 ## Blocking Issues
-- No confirmation yet that the X server or desktop starts. Everything past the xkb fix is unverified.
+No blocker to local debug compilation remains. No physical-phone/emulator runtime verification. Earlier Tailscale/KDE Connect access failed; not reconfigured in this SDK task. Local debug signing compatibility with the installed phone APK is unknown. Three native libraries retain 4 KiB ELF alignment. Release/profile AOT host tooling remains unverified.
 
 ## Build / Test Status
-- Build: ✅ CI debug APK green for 8be852d (run 43718769069) and 3e661ca (run 43768736251)
-- Lint:  ✅ no errors (pre-existing infos only)
-- Tests: ✅ 91/91 passing
+- Build: PASS, local debug ARM64 Flutter target, exit 0. /home/daripper/.cache/intelnode-tools/build-debug-20261116T190031Z.log.
+- Initial build:failed after dependency resolution due to Jetifier Java heap exhaustion; verified offending JAR contains only two native libs/no Java/XML. Narrow local ignore rule resolved it with unchanged memory limits.
+- Tests: PASS, 167 tests, flutter test --no-pub --concurrency=1.
+- Lint:flutter analyze --no-pub --no-fatal-infos, same 18 existing infos, no new issues.
+- Artifact SHA256: ca221abae0e601dcf91fbc988754b6ff36d9ad954846e55863b1e12e7a196d2d.
+- Local signing cert SHA256: 0c3b05210576d98e0080195462fcdb5aeb46443778c62b97fa6b91f133e0b4d6.
+- Lock SHA256 unchanged:88d280c82f85236b96a8c8079c365e2ee7e8488e80e8e2a837aa03680af168fa.
+- Device/emulator: NOT RUN. Source remains uncommitted on fix/xfce-rendering.

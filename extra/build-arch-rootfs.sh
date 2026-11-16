@@ -83,6 +83,7 @@ sudo systemd-nspawn -D "$ROOTFS" --bind-ro=/etc/resolv.conf /bin/bash -c "
         bash-completion htop nano vim \
         xdg-utils xdg-user-dirs dbus \
         xorg-server xorg-xinit xorg-xauth \
+        at-spi2-core \
         onboard plank \
         breeze-gtk papirus-icon-theme
 "
@@ -143,6 +144,137 @@ EOF"
   </property>
 </channel>
 EOF"
+
+    # Suppress lock screen, DPMS, and screensavers for mobile container UX
+    su - tiny -c "cat > ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-power-manager.xml << EOF
+<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<channel name=\"xfce4-power-manager\" version=\"1.0\">
+  <property name=\"xfce4-power-manager\" type=\"empty\">
+    <property name=\"lock-screen-suspend-hibernate\" type=\"bool\" value=\"false\"/>
+    <property name=\"dpms-enabled\" type=\"bool\" value=\"false\"/>
+    <property name=\"presentation-mode\" type=\"bool\" value=\"true\"/>
+    <property name=\"blank-on-ac\" type=\"int\" value=\"0\"/>
+    <property name=\"blank-on-battery\" type=\"int\" value=\"0\"/>
+    <property name=\"dpms-on-ac-sleep\" type=\"int\" value=\"0\"/>
+    <property name=\"dpms-on-ac-off\" type=\"int\" value=\"0\"/>
+    <property name=\"dpms-on-battery-sleep\" type=\"int\" value=\"0\"/>
+    <property name=\"dpms-on-battery-off\" type=\"int\" value=\"0\"/>
+    <property name=\"power-button-action\" type=\"uint\" value=\"0\"/>
+    <property name=\"sleep-button-action\" type=\"uint\" value=\"0\"/>
+    <property name=\"hibernate-button-action\" type=\"uint\" value=\"0\"/>
+    <property name=\"battery-button-action\" type=\"uint\" value=\"0\"/>
+  </property>
+</channel>
+EOF"
+
+    su - tiny -c "cat > ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-screensaver.xml << EOF
+<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<channel name=\"xfce4-screensaver\" version=\"1.0\">
+  <property name=\"saver\" type=\"empty\">
+    <property name=\"enabled\" type=\"bool\" value=\"false\"/>
+    <property name=\"mode\" type=\"int\" value=\"0\"/>
+    <property name=\"idle-activation-enabled\" type=\"bool\" value=\"false\"/>
+  </property>
+  <property name=\"lock\" type=\"empty\">
+    <property name=\"enabled\" type=\"bool\" value=\"false\"/>
+    <property name=\"saver-activation\" type=\"empty\">
+      <property name=\"enabled\" type=\"bool\" value=\"false\"/>
+      <property name=\"delay\" type=\"int\" value=\"0\"/>
+    </property>
+    <property name=\"user-switch\" type=\"empty\">
+      <property name=\"enabled\" type=\"bool\" value=\"false\"/>
+    </property>
+    <property name=\"logout\" type=\"empty\">
+      <property name=\"enabled\" type=\"bool\" value=\"false\"/>
+    </property>
+  </property>
+</channel>
+EOF"
+
+    su - tiny -c "cat > ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-session.xml << EOF
+<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<channel name=\"xfce4-session\" version=\"1.0\">
+  <property name=\"general\" type=\"empty\">
+    <property name=\"LockCommand\" type=\"string\" value=\"/bin/true\"/>
+  </property>
+  <property name=\"shutdown\" type=\"empty\">
+    <property name=\"ShowSuspend\" type=\"bool\" value=\"false\"/>
+    <property name=\"ShowHibernate\" type=\"bool\" value=\"false\"/>
+  </property>
+</channel>
+EOF"
+
+    # XFCE Window Manager performance tuning: disable compositing, vblank blocking, and shadows
+    su - tiny -c "cat > ~/.config/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml << EOF
+<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<channel name=\"xfwm4\" version=\"1.0\">
+  <property name=\"general\" type=\"empty\">
+    <property name=\"use_compositing\" type=\"bool\" value=\"false\"/>
+    <property name=\"vblank_mode\" type=\"string\" value=\"off\"/>
+    <property name=\"show_dock_shadow\" type=\"bool\" value=\"false\"/>
+    <property name=\"show_frame_shadow\" type=\"bool\" value=\"false\"/>
+    <property name=\"show_popup_shadow\" type=\"bool\" value=\"false\"/>
+    <property name=\"box_move\" type=\"bool\" value=\"true\"/>
+    <property name=\"box_resize\" type=\"bool\" value=\"true\"/>
+    <property name=\"unredirect_overlays\" type=\"bool\" value=\"true\"/>
+  </property>
+</channel>
+EOF"
+
+    # XSettings: disable animations and cursor blink
+    su - tiny -c "cat > ~/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml << EOF
+<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<channel name=\"xsettings\" version=\"1.0\">
+  <property name=\"Net\" type=\"empty\">
+    <property name=\"CursorBlink\" type=\"bool\" value=\"false\"/>
+  </property>
+  <property name=\"Xft\" type=\"empty\">
+    <property name=\"RGBA\" type=\"string\" value=\"none\"/>
+  </property>
+  <property name=\"Gtk\" type=\"empty\">
+    <property name=\"EnableAnimations\" type=\"bool\" value=\"false\"/>
+    <property name=\"CursorBlink\" type=\"bool\" value=\"false\"/>
+    <property name=\"DecorationLayout\" type=\"string\" value=\"icon,menu:minimize,maximize,close\"/>
+  </property>
+</channel>
+EOF"
+
+    # Thunar: disable thumbnail generation CPU storms
+    su - tiny -c "cat > ~/.config/xfce4/xfconf/xfce-perchannel-xml/thunar.xml << EOF
+<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<channel name=\"thunar\" version=\"1.0\">
+  <property name=\"last-view\" type=\"string\" value=\"ThunarIconView\"/>
+  <property name=\"misc-thumbnail-mode\" type=\"string\" value=\"THUNAR_THUMBNAIL_MODE_NEVER\"/>
+  <property name=\"misc-thumbnail-draw-frames\" type=\"bool\" value=\"false\"/>
+</channel>
+EOF"
+
+    # GTK settings
+    su - tiny -c "mkdir -p ~/.config/gtk-3.0 && cat > ~/.config/gtk-3.0/settings.ini << EOF
+[Settings]
+gtk-enable-animations = false
+gtk-cursor-blink = false
+gtk-xft-rgba = none
+EOF"
+
+    su - tiny -c "cat > ~/.gtkrc-2.0 << EOF
+gtk-enable-animations = 0
+gtk-cursor-blink = 0
+EOF"
+
+    # Mask out screensaver autostarts
+    su - tiny -c "mkdir -p ~/.config/autostart && for desktop in xfce4-screensaver.desktop light-locker.desktop xscreensaver.desktop mate-screensaver.desktop; do
+        printf '[Desktop Entry]\nType=Application\nHidden=true\n' > ~/.config/autostart/\$desktop
+    done"
+
+    # Stub out locker scripts and pm-is-supported
+    su - tiny -c "mkdir -p ~/.local/bin && for stub in xflock4 xfce4-screensaver xfce4-screensaver-command light-locker light-locker-command xscreensaver xscreensaver-command mate-screensaver mate-screensaver-command i3lock; do
+        printf '#!/bin/sh\nexit 0\n' > ~/.local/bin/\$stub
+        chmod +x ~/.local/bin/\$stub
+    done && printf '#!/bin/sh\nexit 1\n' > ~/.local/bin/pm-is-supported && chmod +x ~/.local/bin/pm-is-supported"
+
+    ln -sf /bin/true /usr/local/bin/xflock4
+    ln -sf /bin/true /usr/bin/xflock4
 
     # Locale
     sed -i "s/#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/" /etc/locale.gen
