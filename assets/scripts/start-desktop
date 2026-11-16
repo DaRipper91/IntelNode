@@ -70,6 +70,14 @@ export GTK_MODULES="${GTK_MODULES:+${GTK_MODULES}:}gail:atk-bridge"
 export QT_ACCESSIBILITY=1
 export NO_AT_BRIDGE=0
 
+if command -v at-spi-bus-launcher >/dev/null 2>&1; then
+    at-spi-bus-launcher --launch-immediately >/dev/null 2>&1 &
+elif ! command -v at-spi2-registryd >/dev/null 2>&1; then
+    # Suppress Qt synchronous D-Bus timeout stalls when AT-SPI bus launcher is not installed
+    export QT_ACCESSIBILITY=0
+    export NO_AT_BRIDGE=1
+fi
+
 # --- 3.5. Lock Screen & Inactivity Prevention ---
 # The container runs inside an Android app where the host OS manages screen lock
 # and device security. Container-level lock screens, screensavers, or sleep locks
@@ -78,7 +86,7 @@ export PATH="$HOME/.local/bin:$PATH"
 
 if command -v mkdir >/dev/null 2>&1; then
     mkdir -p "$HOME/.local/bin"
-    for stub in xflock4 xfce4-screensaver xfce4-screensaver-command light-locker light-locker-command xscreensaver xscreensaver-command mate-screensaver mate-screensaver-command i3lock; do
+    for stub in xflock4 xfce4-screensaver xfce4-screensaver-command light-locker light-locker-command xscreensaver xscreensaver-command mate-screensaver mate-screensaver-command i3lock lxqt-powermanagement lxqt-screensaver; do
         stub_file="$HOME/.local/bin/$stub"
         if [ ! -f "$stub_file" ]; then
             printf '#!/bin/sh\nexit 0\n' > "$stub_file"
@@ -122,11 +130,86 @@ EOF
         sudo -n cp "$HOME/.local/bin/intelnode-ime" /usr/local/bin/intelnode-ime 2>/dev/null || true
     fi
 
-    # Mask screensaver autostart in XDG desktop environments
+    # Mask screensaver and power management autostart in XDG desktop environments
     mkdir -p "$HOME/.config/autostart"
-    for desktop in xfce4-screensaver.desktop light-locker.desktop xscreensaver.desktop mate-screensaver.desktop; do
+    for desktop in lxqt-powermanagement.desktop lxqt-screensaver.desktop xfce4-screensaver.desktop light-locker.desktop xscreensaver.desktop mate-screensaver.desktop; do
         printf '[Desktop Entry]\nType=Application\nHidden=true\n' > "$HOME/.config/autostart/$desktop"
     done
+
+    # Openbox window manager tuning (used by LXQt, LXDE, and Openbox standalone):
+    # Disable synchronous XSync calls (<sync>no</sync>) to prevent input stalls on Termux:X11,
+    # eliminate window resistance delay, and ensure click-to-focus without focus-stealing hangs.
+    mkdir -p "$HOME/.config/openbox"
+    for ob_file in "$HOME/.config/openbox/rc.xml" "$HOME/.config/openbox/lxqt-rc.xml"; do
+        if [ ! -f "$ob_file" ]; then
+            cat > "$ob_file" << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<openbox_config xmlns="http://openbox.org/3.4/rc">
+  <resistance>
+    <strength>0</strength>
+    <screen_strength>0</screen_strength>
+  </resistance>
+  <focus>
+    <focusNew>yes</focusNew>
+    <followMouse>no</followMouse>
+    <focusLast>yes</focusLast>
+    <underMouse>no</underMouse>
+    <focusModel>click</focusModel>
+    <raiseOnFocus>yes</raiseOnFocus>
+  </focus>
+  <placement>
+    <policy>smart</policy>
+    <center>yes</center>
+    <monitor>primary</monitor>
+  </placement>
+  <theme>
+    <sync>no</sync>
+    <font place="ActiveWindowTitle"><name>sans</name><size>10</size><weight>bold</weight><slant>normal</slant></font>
+    <font place="InactiveWindowTitle"><name>sans</name><size>10</size><weight>normal</weight><slant>normal</slant></font>
+    <font place="MenuHeader"><name>sans</name><size>10</size><weight>bold</weight><slant>normal</slant></font>
+    <font place="MenuItem"><name>sans</name><size>10</size><weight>normal</weight><slant>normal</slant></font>
+    <font place="ActiveOnScreenDisplay"><name>sans</name><size>10</size><weight>bold</weight><slant>normal</slant></font>
+    <font place="InactiveOnScreenDisplay"><name>sans</name><size>10</size><weight>normal</weight><slant>normal</slant></font>
+  </theme>
+  <margins>
+    <top>0</top>
+    <bottom>0</bottom>
+    <left>0</left>
+    <right>0</right>
+  </margins>
+</openbox_config>
+EOF
+        elif command -v sed >/dev/null 2>&1; then
+            sed -i 's/<sync>yes<\/sync>/<sync>no<\/sync>/g' "$ob_file" 2>/dev/null || true
+        fi
+    done
+
+    # LXQt session performance & power settings
+    mkdir -p "$HOME/.config/lxqt"
+    LXQT_SESSION_CONF="$HOME/.config/lxqt/session.conf"
+    if [ ! -f "$LXQT_SESSION_CONF" ]; then
+        cat > "$LXQT_SESSION_CONF" << 'EOF'
+[General]
+leave_confirmation=false
+window_manager=openbox
+
+[Environment]
+TERM=xterm-256color
+EOF
+    fi
+
+    LXQT_CONF="$HOME/.config/lxqt/lxqt.conf"
+    if [ ! -f "$LXQT_CONF" ]; then
+        cat > "$LXQT_CONF" << 'EOF'
+[General]
+theme=frost
+icon_theme=Papirus
+
+[Qt]
+style=Fusion
+font="Sans,10,-1,5,50,0,0,0,0,0"
+EOF
+    fi
 
     # GTK settings: disable animations and cursor blink for instantaneous menu rendering
     mkdir -p "$HOME/.config/gtk-3.0"

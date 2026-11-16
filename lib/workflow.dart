@@ -216,6 +216,7 @@ class Util {
     }
     _backgroundProcesses.clear();
     G.audioPty?.kill();
+    Workflow.stopContainerForegroundService();
   }
 
   static void termWrite(String str) {
@@ -2033,7 +2034,20 @@ clear""");
     return "$containerPath/usr/share/X11/xkb";
   }
 
+  static Future<void> startContainerForegroundService() async {
+    try {
+      await D.androidChannel.invokeMethod("startContainerService");
+    } catch (_) {}
+  }
+
+  static Future<void> stopContainerForegroundService() async {
+    try {
+      await D.androidChannel.invokeMethod("stopContainerService");
+    } catch (_) {}
+  }
+
   static Future<void> launchXServer() async {
+    await startContainerForegroundService();
     final container = "${G.dataPath}/containers/${G.currentContainer}";
     final xkb = xkbRoot(container);
     if (!Directory(xkb).existsSync() &&
@@ -2085,6 +2099,7 @@ clear""");
     // ever launched; upstream deliberately fires it and moves on.
     unawaited(setupAudio());
     BootLog.event('launching container ${G.currentContainer}');
+    await startContainerForegroundService();
     await launchCurrentContainer();
     if (Util.getGlobal("autoLaunchVnc") as bool) {
       if (G.wasX11Enabled) {

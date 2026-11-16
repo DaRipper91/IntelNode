@@ -279,4 +279,51 @@ exit "${TEST_SESSION_EXIT:-0}"
     expect(scriptContent, contains('export QT_ACCESSIBILITY=1'));
     expect(scriptContent, contains('export NO_AT_BRIDGE=0'));
   });
+
+  test('provisions Openbox no-sync configuration for rc.xml and lxqt-rc.xml', () {
+    final result = run();
+    expect(result.exitCode, 0, reason: '${result.stderr}');
+
+    final obRc = File('${fixture.path}/.config/openbox/rc.xml');
+    expect(obRc.existsSync(), isTrue);
+    expect(obRc.readAsStringSync(), contains('<sync>no</sync>'));
+
+    final lxqtRc = File('${fixture.path}/.config/openbox/lxqt-rc.xml');
+    expect(lxqtRc.existsSync(), isTrue);
+    expect(lxqtRc.readAsStringSync(), contains('<sync>no</sync>'));
+  });
+
+  test('masks LXQt power management and screensaver stubs and autostart', () {
+    final result = run();
+    expect(result.exitCode, 0, reason: '${result.stderr}');
+
+    final pmStub = File('${fixture.path}/.local/bin/lxqt-powermanagement');
+    expect(pmStub.existsSync(), isTrue);
+    expect(pmStub.readAsStringSync(), contains('exit 0'));
+
+    final ssStub = File('${fixture.path}/.local/bin/lxqt-screensaver');
+    expect(ssStub.existsSync(), isTrue);
+    expect(ssStub.readAsStringSync(), contains('exit 0'));
+
+    final pmAutostart = File('${fixture.path}/.config/autostart/lxqt-powermanagement.desktop');
+    expect(pmAutostart.existsSync(), isTrue);
+    expect(pmAutostart.readAsStringSync(), contains('Hidden=true'));
+
+    final ssAutostart = File('${fixture.path}/.config/autostart/lxqt-screensaver.desktop');
+    expect(ssAutostart.existsSync(), isTrue);
+    expect(ssAutostart.readAsStringSync(), contains('Hidden=true'));
+  });
+
+  test('provisions LXQt session.conf and lxqt.conf', () {
+    final result = run();
+    expect(result.exitCode, 0, reason: '${result.stderr}');
+
+    final sessionConf = File('${fixture.path}/.config/lxqt/session.conf');
+    expect(sessionConf.existsSync(), isTrue);
+    expect(sessionConf.readAsStringSync(), contains('window_manager=openbox'));
+
+    final lxqtConf = File('${fixture.path}/.config/lxqt/lxqt.conf');
+    expect(lxqtConf.existsSync(), isTrue);
+    expect(lxqtConf.readAsStringSync(), contains('theme=frost'));
+  });
 }

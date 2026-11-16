@@ -23,6 +23,14 @@ class MainActivity: FlutterActivity() {
             call, result ->
             // 判断方法名
             when (call.method) {
+                "startContainerService" -> {
+                    ContainerSessionService.start(this)
+                    result.success(0)
+                }
+                "stopContainerService" -> {
+                    ContainerSessionService.stop(this)
+                    result.success(0)
+                }
                 "launchSignal9Page" -> {
                     startActivity(Intent(this, Signal9Activity::class.java))
                     result.success(0)
@@ -31,6 +39,8 @@ class MainActivity: FlutterActivity() {
                     result.success(getApplicationInfo().nativeLibraryDir)
                 }
                 "launchXServer" -> {
+                    // Keep process immune from Android CachedAppOptimizer cgroup freeze
+                    ContainerSessionService.start(this)
                     val tmpdir = call.argument<String>("tmpdir")
                     val xkb = call.argument<String>("xkb")
                     val xserverArgs = call.argument<List<String>>("xserverArgs")
