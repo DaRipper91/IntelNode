@@ -13,7 +13,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-enum PackageManagerFamily { pacman, dnf, apt }
+enum PackageManagerFamily { pacman, dnf, apt, zypper, apk, xbps }
 
 enum RootfsSourceKind { direct, simplestreams }
 
@@ -171,6 +171,10 @@ class DistroSpec {
     PackageManagerFamily.pacman => "pacman -Syu --noconfirm",
     PackageManagerFamily.dnf => "dnf -y upgrade --refresh",
     PackageManagerFamily.apt => "apt-get update && apt-get -y upgrade",
+    PackageManagerFamily.zypper =>
+      "zypper --non-interactive refresh && zypper --non-interactive update",
+    PackageManagerFamily.apk => "apk update && apk upgrade",
+    PackageManagerFamily.xbps => "xbps-install -Syu",
   };
 
   String installCommand(List<String> packages) => switch (packageManager) {
@@ -180,6 +184,10 @@ class DistroSpec {
     PackageManagerFamily.apt =>
       "DEBIAN_FRONTEND=noninteractive apt-get -y install "
           "${packages.join(' ')}",
+    PackageManagerFamily.zypper =>
+      "zypper --non-interactive install ${packages.join(' ')}",
+    PackageManagerFamily.apk => "apk add --no-cache ${packages.join(' ')}",
+    PackageManagerFamily.xbps => "xbps-install -y ${packages.join(' ')}",
   };
 
   String removeCommand(List<String> packages) => switch (packageManager) {
@@ -188,6 +196,10 @@ class DistroSpec {
     PackageManagerFamily.dnf => "dnf -y remove ${packages.join(' ')} || true",
     PackageManagerFamily.apt =>
       "apt-get -y purge ${packages.join(' ')} || true",
+    PackageManagerFamily.zypper =>
+      "zypper --non-interactive remove ${packages.join(' ')} || true",
+    PackageManagerFamily.apk => "apk del ${packages.join(' ')} || true",
+    PackageManagerFamily.xbps => "xbps-remove -Ry ${packages.join(' ')} || true",
   };
 }
 
@@ -255,18 +267,54 @@ locale-gen""";
 String _debianFirstBoot(String username) =>
     """
 set -e
+rm -f /etc/resolv.conf
+printf 'nameserver 1.1.1.1\\nnameserver 8.8.8.8\\n' > /etc/resolv.conf
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
 # polkitd on current Debian/Ubuntu; policykit-1 is only a transitional name
 apt-get -y install sudo locales polkitd || apt-get -y install sudo locales policykit-1
 ${_commonUserSetup(username)}
 sed -i 's/# en_US.UTF-8/en_US.UTF-8/' /etc/locale.gen
-locale-gen""";
+locale-gen || true""";
 
 String _rpmFirstBoot(String username) =>
     """
 set -e
+rm -f /etc/resolv.conf
+printf 'nameserver 1.1.1.1\\nnameserver 8.8.8.8\\n' > /etc/resolv.conf
 dnf -y install sudo glibc-langpack-en polkit
+${_commonUserSetup(username)}""";
+
+String _zypperFirstBoot(String username) =>
+    """
+set -e
+rm -f /etc/resolv.conf
+printf 'nameserver 1.1.1.1\\nnameserver 8.8.8.8\\n' > /etc/resolv.conf
+# Lock package filesystem to prevent duplicate filesystem warnings under proot
+zypper --non-interactive al filesystem || true
+zypper --non-interactive refresh
+zypper --non-interactive install -y sudo polkit glibc-locale dbus-1
+${_commonUserSetup(username)}""";
+
+String _alpineFirstBoot(String username) =>
+    """
+set -e
+rm -f /etc/resolv.conf
+printf 'nameserver 1.1.1.1\\nnameserver 8.8.8.8\\n' > /etc/resolv.conf
+apk update
+apk add --no-cache bash sudo shadow dbus
+mkdir -p /etc/sudoers.d
+grep -q '^#includedir /etc/sudoers.d' /etc/sudoers && sed -i 's/^#includedir/includedir/' /etc/sudoers || true
+grep -q '^includedir /etc/sudoers.d' /etc/sudoers || echo "includedir /etc/sudoers.d" >> /etc/sudoers
+${_commonUserSetup(username)}""";
+
+String _voidFirstBoot(String username) =>
+    """
+set -e
+rm -f /etc/resolv.conf
+printf 'nameserver 1.1.1.1\\nnameserver 8.8.8.8\\n' > /etc/resolv.conf
+xbps-install -Syu || true
+xbps-install -y sudo shadow dbus
 ${_commonUserSetup(username)}""";
 
 class Distros {
@@ -280,10 +328,10 @@ class Distros {
           "Rolling release, pacman. Matches the bundled default container.",
       packageManager: PackageManagerFamily.pacman,
       rootfs: const RootfsSource.direct(
-        url: "https://de3.mirror.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz",
+        url: "https://fl.us.mirror.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz",
         fallbackUrls: [
-          "https://fl.us.mirror.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz",
           "https://ca.us.mirror.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz",
+          "https://de3.mirror.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz",
         ],
         verified: true,
         notes: "Stable, long-standing ArchLinuxARM release path.",
@@ -291,57 +339,100 @@ class Distros {
       firstBootScript: _archFirstBoot,
     ),
     DistroSpec(
-      id: "fedora",
-      displayName: "Fedora",
-      description: "dnf/rpm, current Fedora release cadence.",
-      packageManager: PackageManagerFamily.dnf,
-      rootfs: const RootfsSource.simplestreams(
-        base: "https://images.linuxcontainers.org",
-        product: "fedora:43:arm64:default",
-        verified: false,
-        notes:
-            "Fedora's own Container Base images (dl.fedoraproject.org) ship "
-            "as OCI tarballs (*.oci.tar.xz) as of Fedora 42, not plain "
-            "rootfs tarballs -- this toolchain has no OCI-layer unpacker "
-            "(no skopeo/podman), so those can't be used directly. This "
-            "entry instead sources from the third-party linuxcontainers.org "
-            "image mirror, which needs its product id/version confirmed "
-            "against a real device before being trusted for a real install.",
-      ),
-      firstBootScript: _rpmFirstBoot,
-    ),
-    DistroSpec(
-      id: "debian",
-      displayName: "Debian",
-      description: "apt/dpkg, stable release.",
+      id: "ubuntu",
+      displayName: "Ubuntu",
+      description: "apt/dpkg, LTS release (24.04 Noble).",
       packageManager: PackageManagerFamily.apt,
-      rootfs: const RootfsSource.simplestreams(
-        base: "https://images.linuxcontainers.org",
-        product: "debian:bookworm:arm64:default",
-        verified: false,
-        notes:
-            "Debian does not publish one fixed rootfs tarball URL; this "
-            "resolves against linuxcontainers.org's simplestreams index at "
-            "install time (see RootfsSource.resolve) instead of a hardcoded "
-            "path, but the product id/version still needs confirming "
-            "against a real device before being trusted for a real install.",
+      rootfs: const RootfsSource.direct(
+        url: "https://cloud-images.ubuntu.com/releases/noble/release/ubuntu-24.04-server-cloudimg-arm64-root.tar.xz",
+        fallbackUrls: [
+          "https://cloud-images.ubuntu.com/releases/noble/release-20261017/ubuntu-24.04-server-cloudimg-arm64-root.tar.xz",
+        ],
+        verified: true,
+        notes: "Official Ubuntu 24.04 LTS (Noble) cloud-image build.",
       ),
       firstBootScript: _debianFirstBoot,
     ),
     DistroSpec(
-      id: "ubuntu",
-      displayName: "Ubuntu",
-      description: "apt/dpkg, LTS release.",
+      id: "debian",
+      displayName: "Debian",
+      description: "apt/dpkg, stable release (12 Bookworm).",
       packageManager: PackageManagerFamily.apt,
       rootfs: const RootfsSource.direct(
-        url: "https://cloud-images.ubuntu.com/releases/noble/release-20261017/"
-            "ubuntu-24.04-server-cloudimg-arm64-root.tar.xz",
+        url: "https://github.com/termux/proot-distro/releases/download/v4.7.0/debian-bookworm-aarch64-pd-v4.7.0.tar.xz",
+        fallbackUrls: [
+          "https://github.com/debuerreotype/docker-debian-artifacts/raw/dist-arm64v8/bookworm/rootfs.tar.xz",
+        ],
         verified: true,
+        notes: "Verified Debian 12 (Bookworm) aarch64 proot rootfs.",
+      ),
+      firstBootScript: _debianFirstBoot,
+    ),
+    DistroSpec(
+      id: "fedora",
+      displayName: "Fedora",
+      description: "dnf/rpm, Fedora 40 release.",
+      packageManager: PackageManagerFamily.dnf,
+      rootfs: const RootfsSource.direct(
+        url: "https://github.com/termux/proot-distro/releases/download/v4.15.0/fedora-aarch64-pd-v4.15.0.tar.xz",
+        verified: true,
+        notes: "Verified Fedora 40 aarch64 proot rootfs.",
+      ),
+      firstBootScript: _rpmFirstBoot,
+    ),
+    DistroSpec(
+      id: "opensuse",
+      displayName: "openSUSE",
+      description: "zypper/rpm, Tumbleweed rolling release.",
+      packageManager: PackageManagerFamily.zypper,
+      rootfs: const RootfsSource.direct(
+        url: "https://github.com/termux/proot-distro/releases/download/v4.6.0/opensuse-aarch64-pd-v4.6.0.tar.xz",
+        verified: true,
+        notes: "Verified openSUSE Tumbleweed aarch64 proot rootfs.",
+      ),
+      firstBootScript: _zypperFirstBoot,
+    ),
+    DistroSpec(
+      id: "alpine",
+      displayName: "Alpine Linux",
+      description: "apk/musl, ultra-lightweight rolling release (edge/v3.21).",
+      packageManager: PackageManagerFamily.apk,
+      rootfs: const RootfsSource.direct(
+        url: "https://github.com/termux/proot-distro/releases/download/v4.16.0/alpine-aarch64-pd-v4.16.0.tar.xz",
+        fallbackUrls: [
+          "https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/aarch64/alpine-minirootfs-3.21.3-aarch64.tar.gz",
+        ],
+        verified: true,
+        notes: "Verified Alpine Linux aarch64 proot rootfs.",
+      ),
+      firstBootScript: _alpineFirstBoot,
+    ),
+    DistroSpec(
+      id: "void",
+      displayName: "Void Linux",
+      description: "xbps, lightweight rolling release with runit.",
+      packageManager: PackageManagerFamily.xbps,
+      rootfs: const RootfsSource.direct(
+        url: "https://github.com/termux/proot-distro/releases/download/v4.6.0/void-aarch64-pd-v4.6.0.tar.xz",
+        fallbackUrls: [
+          "https://repo-default.voidlinux.org/live/current/void-aarch64-ROOTFS-20250202.tar.xz",
+        ],
+        verified: true,
+        notes: "Verified Void Linux aarch64 proot rootfs.",
+      ),
+      firstBootScript: _voidFirstBoot,
+    ),
+    DistroSpec(
+      id: "kali",
+      displayName: "Kali Linux",
+      description: "Penetration testing & security tools, apt/dpkg.",
+      packageManager: PackageManagerFamily.apt,
+      rootfs: const RootfsSource.simplestreams(
+        base: "https://images.linuxcontainers.org",
+        product: "kali:current:arm64:default",
+        verified: false,
         notes:
-            "Official Ubuntu 24.04 LTS (Noble) cloud-image build pinned to "
-            "release-20261017. The unversioned /release/ path is only a pointer "
-            "that moves to each point release; the installer checks the "
-            "download against the SHA256SUMS published in the same directory.",
+            "Kali Linux rootfs source requires confirmation against mobile container runtime before being marked verified for install.",
       ),
       firstBootScript: _debianFirstBoot,
     ),

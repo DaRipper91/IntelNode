@@ -41,7 +41,14 @@ class ContainerInfo {
     this.additionalProps = const {},
   });
 
-  static const supportedPackageManagers = ['pacman', 'apt', 'dnf', 'zypper'];
+  static const supportedPackageManagers = [
+    'pacman',
+    'apt',
+    'dnf',
+    'zypper',
+    'apk',
+    'xbps',
+  ];
 
   /// Maps a distro display name to its package manager; unknown names fall back to pacman (Arch).
   static String packageManagerForDistro(String distroName) {
@@ -52,8 +59,14 @@ class ContainerInfo {
     if (RegExp(r'opensuse|tumbleweed|\bleap\b').hasMatch(lowerName)) {
       return 'zypper';
     }
-    if (RegExp(r'ubuntu|debian|trixie').hasMatch(lowerName)) {
+    if (RegExp(r'ubuntu|debian|trixie|kali').hasMatch(lowerName)) {
       return 'apt';
+    }
+    if (RegExp(r'alpine').hasMatch(lowerName)) {
+      return 'apk';
+    }
+    if (RegExp(r'void').hasMatch(lowerName)) {
+      return 'xbps';
     }
     return 'pacman';
   }

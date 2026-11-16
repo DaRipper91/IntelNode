@@ -28,7 +28,7 @@ void main() {
 
     test('is blocked for an unverified distro even with a stable desktop', () {
       final plan = ContainerInstaller.plan(
-        distro: Distros.byId('fedora'),
+        distro: Distros.byId('kali'),
         desktop: DesktopEnvironments.byId('xfce4'),
         containerName: 'test',
       );
@@ -38,7 +38,7 @@ void main() {
 
     test('dry-run preview is always available regardless of blocked state', () {
       final plan = ContainerInstaller.plan(
-        distro: Distros.byId('fedora'),
+        distro: Distros.byId('kali'),
         desktop: DesktopEnvironments.byId('cosmic'),
         containerName: 'test',
       );

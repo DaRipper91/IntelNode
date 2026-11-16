@@ -357,6 +357,9 @@ echo "checksum ok: \$calc"
       PackageManagerFamily.pacman => "pacman",
       PackageManagerFamily.dnf => "dnf",
       PackageManagerFamily.apt => "apt-get",
+      PackageManagerFamily.zypper => "zypper",
+      PackageManagerFamily.apk => "apk",
+      PackageManagerFamily.xbps => "xbps-install",
     };
     return "set -e\nid $username\n[ \"\$(id -u $username)\" = 1000 ]\n[ \"\$(id -g $username)\" = 1000 ]\ncommand -v $pm\nsudo -n true";
   }

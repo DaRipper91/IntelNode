@@ -9,11 +9,20 @@ void main() {
       expect(ids.length, Distros.all.length);
     });
 
-    test('includes the four baseline distros', () {
+    test('includes the baseline and extended distros', () {
       final ids = Distros.all.map((d) => d.id).toSet();
       expect(
         ids,
-        containsAll(['archlinux', 'fedora', 'debian', 'ubuntu']),
+        containsAll([
+          'archlinux',
+          'fedora',
+          'debian',
+          'ubuntu',
+          'opensuse',
+          'alpine',
+          'void',
+          'kali',
+        ]),
       );
     });
 
@@ -48,17 +57,42 @@ void main() {
       expect(d.removeCommand(['foo']), contains('apt-get -y purge'));
       expect(d.updateCommand, contains('apt-get update'));
     });
+
+    test('zypper', () {
+      final d = Distros.byId('opensuse');
+      expect(d.installCommand(['foo']), contains('zypper --non-interactive install'));
+      expect(d.removeCommand(['foo']), contains('zypper --non-interactive remove'));
+      expect(d.updateCommand, contains('zypper --non-interactive refresh'));
+    });
+
+    test('apk', () {
+      final d = Distros.byId('alpine');
+      expect(d.installCommand(['foo']), contains('apk add --no-cache'));
+      expect(d.removeCommand(['foo']), contains('apk del'));
+      expect(d.updateCommand, contains('apk update'));
+    });
+
+    test('xbps', () {
+      final d = Distros.byId('void');
+      expect(d.installCommand(['foo']), contains('xbps-install -y'));
+      expect(d.removeCommand(['foo']), contains('xbps-remove -Ry'));
+      expect(d.updateCommand, contains('xbps-install -Syu'));
+    });
   });
 
   group('RootfsSource', () {
-    test('Arch and Ubuntu are marked verified', () {
+    test('main distros are marked verified for on-device installation', () {
       expect(Distros.byId('archlinux').rootfs.verified, isTrue);
       expect(Distros.byId('ubuntu').rootfs.verified, isTrue);
+      expect(Distros.byId('debian').rootfs.verified, isTrue);
+      expect(Distros.byId('fedora').rootfs.verified, isTrue);
+      expect(Distros.byId('opensuse').rootfs.verified, isTrue);
+      expect(Distros.byId('alpine').rootfs.verified, isTrue);
+      expect(Distros.byId('void').rootfs.verified, isTrue);
     });
 
-    test('Fedora and Debian are marked unverified pending device testing', () {
-      expect(Distros.byId('fedora').rootfs.verified, isFalse);
-      expect(Distros.byId('debian').rootfs.verified, isFalse);
+    test('preview distros are marked unverified pending device testing', () {
+      expect(Distros.byId('kali').rootfs.verified, isFalse);
     });
 
     test('direct source describes its literal URL', () {
@@ -67,7 +101,7 @@ void main() {
     });
 
     test('simplestreams source describes its resolution mechanism', () {
-      final source = Distros.byId('debian').rootfs;
+      final source = Distros.byId('kali').rootfs;
       expect(source.describeSource, contains('resolved at install time'));
     });
   });

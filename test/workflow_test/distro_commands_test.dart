@@ -17,6 +17,10 @@ void main() {
         'openSUSE Leap 15.6': 'zypper',
         'Ubuntu 24.04': 'apt',
         'Debian Trixie': 'apt',
+        'Kali Linux': 'apt',
+        'Alpine Linux': 'apk',
+        'Alpine 3.21': 'apk',
+        'Void Linux': 'xbps',
       };
       expected.forEach((name, pm) {
         expect(ContainerInfo.packageManagerForDistro(name), pm, reason: name);

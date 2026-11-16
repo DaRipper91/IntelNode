@@ -868,7 +868,8 @@ class D {
     } else if (lowerPM.contains('apt') ||
         lowerPM.contains('debian') ||
         lowerPM.contains('ubuntu') ||
-        lowerPM.contains('trixie')) {
+        lowerPM.contains('trixie') ||
+        lowerPM.contains('kali')) {
       return _commandsForApt;
     } else if (lowerPM.contains('dnf') || lowerPM.contains('fedora')) {
       return _commandsForDnf;
@@ -877,6 +878,10 @@ class D {
         lowerPM.contains('leap') ||
         lowerPM.contains('tumbleweed')) {
       return _commandsForZypper;
+    } else if (lowerPM.contains('apk') || lowerPM.contains('alpine')) {
+      return _commandsForApk;
+    } else if (lowerPM.contains('xbps') || lowerPM.contains('void')) {
+      return _commandsForXbps;
     }
     // Default to pacman (Arch Linux)
     return _commands4Pacman;
@@ -1216,6 +1221,44 @@ rm /tmp/wps.deb""",
     },
     {"name": "安装gvfs", "command": "sudo zypper --non-interactive install gvfs"},
     {"name": "清理包管理器缓存", "command": "sudo zypper clean -a"},
+  ];
+
+  /// APK-based commands (Alpine Linux)
+  static final List<Map<String, dynamic>> _commandsForApk = [
+    {
+      "name": "更新和升级",
+      "command": "sudo apk update && sudo apk upgrade",
+    },
+    {"name": "查看系统信息", "command": "uname -a"},
+    {"name": "清屏", "command": "clear"},
+    {"name": "中断任务", "command": "\x03"},
+    {
+      "name": "安装Neofetch",
+      "command": "sudo apk add --no-cache neofetch",
+    },
+    {
+      "name": "清理缓存",
+      "command": "sudo rm -rf /var/cache/apk/*",
+    },
+  ];
+
+  /// XBPS-based commands (Void Linux)
+  static final List<Map<String, dynamic>> _commandsForXbps = [
+    {
+      "name": "更新和升级",
+      "command": "sudo xbps-install -Syu",
+    },
+    {"name": "查看系统信息", "command": "uname -a"},
+    {"name": "清屏", "command": "clear"},
+    {"name": "中断任务", "command": "\x03"},
+    {
+      "name": "安装Neofetch",
+      "command": "sudo xbps-install -y neofetch",
+    },
+    {
+      "name": "清理缓存",
+      "command": "sudo xbps-remove -O && sudo xbps-remove -o",
+    },
   ];
 
   static const wineCommands = [
