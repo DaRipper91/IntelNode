@@ -458,9 +458,13 @@ chmod +x /home/$username/.xinitrc
   /// pacman-key and pacman leave a gpg-agent (and dirmngr) daemon behind, and
   /// proot does not return until every process in its tree has exited, so an
   /// install step would hang forever and report a stale exit status. Kill them
-  /// when the guest script ends, however it ends.
+  /// when the guest script ends, however it ends. `set +e` first: the scripts
+  /// run under `set -e`, which also applies inside the trap, so the first
+  /// failing cleanup command would abort it and become the exit status (seen on
+  /// a phone: every script returned 1). Verified there that success, `exit 3` and
+  /// a failing command keep their real exit codes.
   static const String _gpgCleanupTrap =
-      "trap 'gpgconf --homedir /etc/pacman.d/gnupg --kill all >/dev/null 2>&1; "
+      "trap 'set +e; gpgconf --homedir /etc/pacman.d/gnupg --kill all >/dev/null 2>&1; "
       "pkill -x gpg-agent >/dev/null 2>&1; pkill -x dirmngr >/dev/null 2>&1; true' EXIT\n";
 
   @visibleForTesting

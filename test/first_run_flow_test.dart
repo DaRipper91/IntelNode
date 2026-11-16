@@ -247,6 +247,7 @@ void prootRunTests() {
     expect(script, contains('pkill -x gpg-agent'));
     expect(script, contains('pkill -x dirmngr'));
     expect(script, contains("trap "));
+    expect(script, contains('set +e;'), reason: 'set -e would otherwise leak into the trap and change the exit status');
   });
 
   test('user setup deletes the old uid-1000 user without relying on userdel -r', () {
