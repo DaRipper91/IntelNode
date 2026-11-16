@@ -13,6 +13,8 @@ void main() {
   checksumTests();
   markerToleranceTests();
   busyboxScriptTests();
+  extractScriptTests();
+  rmrfTests();
   group('desktop manifest kinds', () {
     test('has both desktop environments and window managers', () {
       final kinds = DesktopEnvironments.all.map((d) => d.kind).toSet();
@@ -180,5 +182,60 @@ void busyboxScriptTests() {
       expect(File('${dir.path}/containers/0/marker').existsSync(), isTrue);
       expect(tar.existsSync(), isFalse);
     });
+  });
+}
+
+void extractScriptTests() {
+  group('extractScript', () {
+    // The 0555-directory failure only reproduces under proot on the phone (verified
+    // there with the real Arch tarball: without the flag 8 files and Permission
+    // denied, with it 130 files); host GNU tar extracts fine either way.
+    test('passes --delay-directory-restore', () {
+      final script = ContainerInstaller.extractScript('/s', '/t.tar', 'z');
+      expect(script, contains('--delay-directory-restore'));
+    });
+
+    test('script runs end to end against a fake proot and extracts read-only dirs', () {
+      final work = Directory.systemTemp.createTempSync('ex_');
+      addTearDown(() {
+        Process.runSync('chmod', ['-R', 'u+rwX', work.path]);
+        work.deleteSync(recursive: true);
+      });
+      final src = Directory('${work.path}/src/etc/cadir')..createSync(recursive: true);
+      File('${src.path}/a.pem').writeAsStringSync('x');
+      Link('${src.path}/hash.0').createSync('a.pem');
+      Process.runSync('chmod', ['555', src.path]); // read-only, like Arch's cadir
+      final tar = '${work.path}/rootfs.tar.gz';
+      expect(Process.runSync('tar', ['-C', '${work.path}/src', '-czf', tar, '.']).exitCode, 0);
+      Process.runSync('chmod', ['-R', 'u+rwX', '${work.path}/src']);
+
+      // Fake proot (drops --link2symlink) and the host tar, in the layout the script expects.
+      Directory('${work.path}/bin').createSync();
+      File('${work.path}/bin/proot').writeAsStringSync('#!/bin/sh\nshift\nexec "\$@"\n');
+      Process.runSync('chmod', ['+x', '${work.path}/bin/proot']);
+      Link('${work.path}/bin/tar').createSync(Process.runSync('which', ['tar']).stdout.toString().trim());
+      final staging = '${work.path}/staging';
+      final script = ContainerInstaller.extractScript(staging, tar, 'z')
+          .replaceAll(RegExp(r'export DATA_DIR=.*'), 'export DATA_DIR=${work.path}');
+      final r = Process.runSync('sh', ['-c', script]);
+      expect(r.exitCode, 0, reason: '${r.stderr}');
+      expect(File('$staging/etc/cadir/a.pem').existsSync(), isTrue);
+      expect(Link('$staging/etc/cadir/hash.0').existsSync(), isTrue);
+    });
+  });
+}
+
+void rmrfTests() {
+  test('rmrf removes a tree containing read-only directories as a normal user', () {
+    final work = Directory.systemTemp.createTempSync('rm_');
+    addTearDown(() {
+      Process.runSync('chmod', ['-R', 'u+rwX', work.path]);
+      if (work.existsSync()) work.deleteSync(recursive: true);
+    });
+    final ro = Directory('${work.path}/t/etc/cadir')..createSync(recursive: true);
+    File('${ro.path}/a.pem').writeAsStringSync('x');
+    Process.runSync('chmod', ['555', ro.path]);
+    expect(Process.runSync('sh', ['-c', ContainerInstaller.rmrf('${work.path}/t')]).exitCode, 0);
+    expect(Directory('${work.path}/t').existsSync(), isFalse);
   });
 }

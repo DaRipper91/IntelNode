@@ -145,7 +145,7 @@ class ContainerInstaller {
       onProgress("Extracting rootfs...");
       Util.createDirFromString(stagingDir);
       int exitCode = await Util.execute(
-        _extractScript(stagingDir, tarballPath, compressLetter),
+        extractScript(stagingDir, tarballPath, compressLetter),
       );
       if (exitCode != 0) {
         throw Exception("Rootfs extraction failed with exit code $exitCode");
@@ -202,7 +202,7 @@ chmod +x /home/$username/.xinitrc
 set -e
 export DATA_DIR=${G.dataPath}
 export LD_LIBRARY_PATH=\$DATA_DIR/lib
-\$DATA_DIR/bin/busybox rm -rf ${Util.escapeShellArgument(containerDir)}
+${rmrf(containerDir)}
 mv ${Util.escapeShellArgument(stagingDir)} ${Util.escapeShellArgument(containerDir)}
 rm -f ${Util.escapeShellArgument(tarballPath)}
 """);
@@ -215,13 +215,26 @@ rm -f ${Util.escapeShellArgument(tarballPath)}
     } catch (_) {
       // Don't leave a ~1 GB tarball or a half-extracted staging dir behind.
       await Util.execute(
-        "rm -rf ${Util.escapeShellArgument(stagingDir)} ${Util.escapeShellArgument(tarballPath)}",
+        "${rmrf(stagingDir)}\nrm -f ${Util.escapeShellArgument(tarballPath)}",
       );
       rethrow;
     }
   }
 
-  static String _extractScript(
+  /// rm -rf that also works on a half-extracted rootfs: Arch ships read-only
+  /// (0555) directories, and a non-root rm cannot empty them until they are
+  /// made writable again.
+  static String rmrf(String path) {
+    final q = Util.escapeShellArgument(path);
+    return "chmod -R u+rwX $q 2>/dev/null || true\nrm -rf $q";
+  }
+
+  /// Extracts as the app user, not root. Arch's tarball has read-only (0555)
+  /// directories such as etc/ca-certificates/extracted/cadir; without
+  /// --delay-directory-restore tar applies that mode first and then cannot
+  /// write the entries inside ("Cannot create symlink ... Permission denied").
+  @visibleForTesting
+  static String extractScript(
     String stagingDir,
     String tarballPath,
     String compressLetter,
@@ -234,9 +247,9 @@ export LD_LIBRARY_PATH=\$DATA_DIR/lib
 export PROOT_TMP_DIR=\$DATA_DIR/proot_tmp
 export PROOT_LOADER=\$DATA_DIR/applib/libproot-loader.so
 export PROOT_LOADER_32=\$DATA_DIR/applib/libproot-loader32.so
-rm -rf ${Util.escapeShellArgument(stagingDir)}
+${rmrf(stagingDir)}
 mkdir -p ${Util.escapeShellArgument(stagingDir)}
-\$DATA_DIR/bin/proot --link2symlink sh -c "\$DATA_DIR/bin/tar -x${compressLetter}f ${Util.escapeShellArgument(tarballPath)} -C ${Util.escapeShellArgument(stagingDir)}"
+\$DATA_DIR/bin/proot --link2symlink sh -c "\$DATA_DIR/bin/tar -x${compressLetter}pf ${Util.escapeShellArgument(tarballPath)} --delay-directory-restore -C ${Util.escapeShellArgument(stagingDir)}"
 """;
 
   @visibleForTesting
@@ -249,7 +262,7 @@ mkdir -p ${Util.escapeShellArgument(stagingDir)}
 set -e
 export DATA_DIR=${G.dataPath}
 export LD_LIBRARY_PATH=\$DATA_DIR/lib
-\$DATA_DIR/bin/busybox rm -rf ${Util.escapeShellArgument(containerDir)}
+${rmrf(containerDir)}
 mv ${Util.escapeShellArgument(stagingDir)} ${Util.escapeShellArgument(containerDir)}
 rm -f ${Util.escapeShellArgument(tarballPath)}
 """;
@@ -366,7 +379,7 @@ echo "checksum ok: \$calc"
         }
       }
 
-      await step("Extracting rootfs", _extractScript(stagingDir, tarballPath, letter));
+      await step("Extracting rootfs", extractScript(stagingDir, tarballPath, letter));
       await step(
         "Provisioning base system (keys, user, sudo, locale)",
         _prootRun(rootfs: stagingDir, script: distro.firstBootScript(username)),
@@ -381,7 +394,7 @@ echo "checksum ok: \$calc"
       log("\r\n== Base system installed and verified");
     } catch (_) {
       // Keep the tarball: a retry resumes the download instead of starting over.
-      await run("rm -rf ${Util.escapeShellArgument(stagingDir)}");
+      await run(rmrf(stagingDir));
       rethrow;
     }
   }
