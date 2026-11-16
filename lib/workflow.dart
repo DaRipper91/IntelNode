@@ -199,10 +199,13 @@ class Util {
   static final List<Process> _backgroundProcesses = [];
 
   // Fire-and-forget background process (for long-running daemons like
-  // virgl_test_server and getifaddrs_bridge_server).
+  // virgl_test_server and getifaddrs_bridge_server). Drains stdout and stderr
+  // so background daemons never deadlock on a full pipe buffer.
   static void executeBackground(String str) {
     Process.start("/system/bin/sh", ["-c", str]).then((process) {
       _backgroundProcesses.add(process);
+      process.stdout.drain<void>().catchError((_) {});
+      process.stderr.drain<void>().catchError((_) {});
       process.exitCode.then((_) => _backgroundProcesses.remove(process));
     });
   }

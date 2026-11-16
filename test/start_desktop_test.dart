@@ -29,11 +29,15 @@ function [() {
       'startxfce4': r'''#!/bin/sh
 printf 'SESSION_DRIVER=%s\n' "$GALLIUM_DRIVER"
 printf 'SESSION_GL_VERSION=%s\n' "$MESA_GL_VERSION_OVERRIDE"
+printf 'SESSION_LP_NUM_THREADS=%s\n' "$LP_NUM_THREADS"
+printf 'SESSION_MESA_NO_ERROR=%s\n' "$MESA_NO_ERROR"
 exit "${TEST_SESSION_EXIT:-0}"
 ''',
       'mkdir': '#!/bin/sh\nexec /bin/mkdir "\$@"\n',
       'chmod': '#!/bin/sh\nexec /bin/chmod "\$@"\n',
       'cat': '#!/bin/sh\nexec /bin/cat "\$@"\n',
+      'sed': '#!/bin/sh\nexec /bin/sed "\$@"\n',
+      'grep': '#!/bin/sh\nexec /bin/grep "\$@"\n',
       'xset': '#!/bin/sh\nprintf "XSET: %s\\n" "\$*" >> "\$HOME/xset.log"\n',
     };
     for (final entry in commands.entries) {
@@ -160,5 +164,101 @@ exit "${TEST_SESSION_EXIT:-0}"
     expect(sessionXml.existsSync(), isTrue);
     final sessionContent = sessionXml.readAsStringSync();
     expect(sessionContent, contains('name="LockCommand" type="string" value="/bin/true"'));
+  });
+
+  test('tunes Mesa LLVMpipe multi-threading and disables error checks on software fallback', () {
+    final result = run();
+    expect(result.exitCode, 0, reason: '${result.stderr}');
+    expect(result.stdout, contains('SESSION_LP_NUM_THREADS=4\n'));
+    expect(result.stdout, contains('SESSION_MESA_NO_ERROR=1\n'));
+  });
+
+  test('creates pm-is-supported stub to avoid process execution errors', () {
+    final result = run();
+    expect(result.exitCode, 0, reason: '${result.stderr}');
+
+    final pmStub = File('${fixture.path}/.local/bin/pm-is-supported');
+    expect(pmStub.existsSync(), isTrue);
+    expect(pmStub.readAsStringSync(), contains('exit 1'));
+  });
+
+  test('provisions XFCE window manager and UI performance tuning configs', () {
+    final result = run();
+    expect(result.exitCode, 0, reason: '${result.stderr}');
+
+    final xfwm4Xml = File(
+      '${fixture.path}/.config/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml',
+    );
+    expect(xfwm4Xml.existsSync(), isTrue);
+    final xfwm4Content = xfwm4Xml.readAsStringSync();
+    expect(xfwm4Content, contains('name="use_compositing" type="bool" value="false"'));
+    expect(xfwm4Content, contains('name="vblank_mode" type="string" value="off"'));
+    expect(xfwm4Content, contains('name="box_move" type="bool" value="true"'));
+    expect(xfwm4Content, contains('name="box_resize" type="bool" value="true"'));
+    expect(xfwm4Content, contains('name="show_dock_shadow" type="bool" value="false"'));
+
+    final xsettingsXml = File(
+      '${fixture.path}/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml',
+    );
+    expect(xsettingsXml.existsSync(), isTrue);
+    final xsettingsContent = xsettingsXml.readAsStringSync();
+    expect(xsettingsContent, contains('name="EnableAnimations" type="bool" value="false"'));
+    expect(xsettingsContent, contains('name="CursorBlink" type="bool" value="false"'));
+
+    final thunarXml = File(
+      '${fixture.path}/.config/xfce4/xfconf/xfce-perchannel-xml/thunar.xml',
+    );
+    expect(thunarXml.existsSync(), isTrue);
+    final thunarContent = thunarXml.readAsStringSync();
+    expect(thunarContent, contains('name="misc-thumbnail-mode" type="string" value="THUNAR_THUMBNAIL_MODE_NEVER"'));
+
+    final gtk3Settings = File('${fixture.path}/.config/gtk-3.0/settings.ini');
+    expect(gtk3Settings.existsSync(), isTrue);
+    final gtk3Content = gtk3Settings.readAsStringSync();
+    expect(gtk3Content, contains('gtk-enable-animations = false'));
+    expect(gtk3Content, contains('gtk-cursor-blink = false'));
+
+    final gtk2Settings = File('${fixture.path}/.gtkrc-2.0');
+    expect(gtk2Settings.existsSync(), isTrue);
+    final gtk2Content = gtk2Settings.readAsStringSync();
+    expect(gtk2Content, contains('gtk-enable-animations = 0'));
+    expect(gtk2Content, contains('gtk-cursor-blink = 0'));
+  });
+
+  test('upgrades existing xfwm4 and thunar XML configs with performance properties', () {
+    // Pre-create existing xfwm4.xml and thunar.xml as would be produced by default package install
+    final xfceConfDir = Directory(
+      '${fixture.path}/.config/xfce4/xfconf/xfce-perchannel-xml',
+    );
+    xfceConfDir.createSync(recursive: true);
+
+    File('${xfceConfDir.path}/xfwm4.xml').writeAsStringSync('''<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xfwm4" version="1.0">
+  <property name="general" type="empty">
+    <property name="use_compositing" type="bool" value="true"/>
+    <property name="vblank_mode" type="string" value="auto"/>
+    <property name="show_dock_shadow" type="bool" value="true"/>
+    <property name="box_move" type="bool" value="false"/>
+    <property name="box_resize" type="bool" value="false"/>
+  </property>
+</channel>''');
+
+    File('${xfceConfDir.path}/thunar.xml').writeAsStringSync('''<?xml version="1.0" encoding="UTF-8"?>
+<channel name="thunar" version="1.0">
+  <property name="misc-thumbnail-mode" type="string" value="THUNAR_THUMBNAIL_MODE_ALWAYS"/>
+</channel>''');
+
+    final result = run();
+    expect(result.exitCode, 0, reason: '${result.stderr}');
+
+    final xfwm4Content = File('${xfceConfDir.path}/xfwm4.xml').readAsStringSync();
+    expect(xfwm4Content, contains('name="use_compositing" type="bool" value="false"'));
+    expect(xfwm4Content, contains('name="vblank_mode" type="string" value="off"'));
+    expect(xfwm4Content, contains('name="show_dock_shadow" type="bool" value="false"'));
+    expect(xfwm4Content, contains('name="box_move" type="bool" value="true"'));
+    expect(xfwm4Content, contains('name="box_resize" type="bool" value="true"'));
+
+    final thunarContent = File('${xfceConfDir.path}/thunar.xml').readAsStringSync();
+    expect(thunarContent, contains('name="misc-thumbnail-mode" type="string" value="THUNAR_THUMBNAIL_MODE_NEVER"'));
   });
 }

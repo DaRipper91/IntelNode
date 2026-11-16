@@ -48,6 +48,13 @@ else
     export GALLIUM_DRIVER=llvmpipe
 fi
 
+# Multi-threaded software rasterization and driver tuning
+if [ "$GALLIUM_DRIVER" = "llvmpipe" ] || [ -z "$GALLIUM_DRIVER" ]; then
+    # Tensor G5 has 8 cores; 4 threads accelerates 2D/3D rendering without saturating all cores
+    export LP_NUM_THREADS="${LP_NUM_THREADS:-4}"
+fi
+export MESA_NO_ERROR="${MESA_NO_ERROR:-1}"
+
 # --- 3. HiDPI & Mobile UX Scaling ---
 # Target: 2.0x Scaling for usable touch targets on high-density displays (e.g. Pixel 10 Pro)
 echo "[Log] Applying HiDPI Scaling: 2.0x Factor."
@@ -75,6 +82,14 @@ if command -v mkdir >/dev/null 2>&1; then
         fi
     done
 
+    # Stub pm-is-supported to prevent xfce4-session from repeatedly failing child process lookups
+    if [ ! -f "$HOME/.local/bin/pm-is-supported" ]; then
+        printf '#!/bin/sh\nexit 1\n' > "$HOME/.local/bin/pm-is-supported"
+        if command -v chmod >/dev/null 2>&1; then
+            chmod +x "$HOME/.local/bin/pm-is-supported"
+        fi
+    fi
+
     # Intercept system-level xflock4 if passwordless sudo is available
     if command -v sudo >/dev/null 2>&1; then
         sudo -n ln -sf /bin/true /usr/local/bin/xflock4 2>/dev/null || true
@@ -87,7 +102,21 @@ if command -v mkdir >/dev/null 2>&1; then
         printf '[Desktop Entry]\nType=Application\nHidden=true\n' > "$HOME/.config/autostart/$desktop"
     done
 
-    # XFCE Power Manager & Screensaver XML configuration
+    # GTK settings: disable animations and cursor blink for instantaneous menu rendering
+    mkdir -p "$HOME/.config/gtk-3.0"
+    cat > "$HOME/.config/gtk-3.0/settings.ini" << 'EOF'
+[Settings]
+gtk-enable-animations = false
+gtk-cursor-blink = false
+gtk-xft-rgba = none
+EOF
+
+    cat > "$HOME/.gtkrc-2.0" << 'EOF'
+gtk-enable-animations = 0
+gtk-cursor-blink = 0
+EOF
+
+    # XFCE Power Manager, Screensaver, and Performance XML configuration
     mkdir -p "$HOME/.config/xfce4/xfconf/xfce-perchannel-xml"
 
     # Disable DPMS, blanking, sleep, and lock-screen in xfce4-power-manager
@@ -151,7 +180,75 @@ EOF
 </channel>
 EOF
 
-    # Background reinforcement to ensure live xfconfd daemon retains no-lock properties
+    # XFCE Window Manager performance tuning:
+    # Disable compositing and vblank stalls (causes input capture freezes under synthetic X servers),
+    # disable drop shadows, and enable wireframe move/resize.
+    XFWM4_XML="$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml"
+    if [ -f "$XFWM4_XML" ] && command -v sed >/dev/null 2>&1; then
+        sed -i 's/name="use_compositing" type="bool" value="true"/name="use_compositing" type="bool" value="false"/g' "$XFWM4_XML" 2>/dev/null || true
+        sed -i 's/name="vblank_mode" type="string" value="auto"/name="vblank_mode" type="string" value="off"/g' "$XFWM4_XML" 2>/dev/null || true
+        sed -i 's/name="show_dock_shadow" type="bool" value="true"/name="show_dock_shadow" type="bool" value="false"/g' "$XFWM4_XML" 2>/dev/null || true
+        sed -i 's/name="show_frame_shadow" type="bool" value="true"/name="show_frame_shadow" type="bool" value="false"/g' "$XFWM4_XML" 2>/dev/null || true
+        sed -i 's/name="show_popup_shadow" type="bool" value="true"/name="show_popup_shadow" type="bool" value="false"/g' "$XFWM4_XML" 2>/dev/null || true
+        sed -i 's/name="box_move" type="bool" value="false"/name="box_move" type="bool" value="true"/g' "$XFWM4_XML" 2>/dev/null || true
+        sed -i 's/name="box_resize" type="bool" value="false"/name="box_resize" type="bool" value="true"/g' "$XFWM4_XML" 2>/dev/null || true
+    elif [ ! -f "$XFWM4_XML" ]; then
+        cat > "$XFWM4_XML" << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xfwm4" version="1.0">
+  <property name="general" type="empty">
+    <property name="use_compositing" type="bool" value="false"/>
+    <property name="vblank_mode" type="string" value="off"/>
+    <property name="show_dock_shadow" type="bool" value="false"/>
+    <property name="show_frame_shadow" type="bool" value="false"/>
+    <property name="show_popup_shadow" type="bool" value="false"/>
+    <property name="box_move" type="bool" value="true"/>
+    <property name="box_resize" type="bool" value="true"/>
+    <property name="unredirect_overlays" type="bool" value="true"/>
+  </property>
+</channel>
+EOF
+    fi
+
+    # XSettings configuration: disable GTK animations and cursor blink
+    XSETTINGS_XML="$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/xsettings.xml"
+    if [ ! -f "$XSETTINGS_XML" ]; then
+        cat > "$XSETTINGS_XML" << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="xsettings" version="1.0">
+  <property name="Net" type="empty">
+    <property name="CursorBlink" type="bool" value="false"/>
+  </property>
+  <property name="Xft" type="empty">
+    <property name="RGBA" type="string" value="none"/>
+  </property>
+  <property name="Gtk" type="empty">
+    <property name="EnableAnimations" type="bool" value="false"/>
+    <property name="CursorBlink" type="bool" value="false"/>
+    <property name="DecorationLayout" type="string" value="icon,menu:minimize,maximize,close"/>
+  </property>
+</channel>
+EOF
+    fi
+
+    # Thunar configuration: disable automatic thumbnail generation to stop CPU storms
+    THUNAR_XML="$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/thunar.xml"
+    if [ -f "$THUNAR_XML" ] && command -v sed >/dev/null 2>&1; then
+        if grep -q 'name="misc-thumbnail-mode"' "$THUNAR_XML" 2>/dev/null; then
+            sed -i 's/name="misc-thumbnail-mode" type="string" value="[^"]*"/name="misc-thumbnail-mode" type="string" value="THUNAR_THUMBNAIL_MODE_NEVER"/g' "$THUNAR_XML" 2>/dev/null || true
+        fi
+    elif [ ! -f "$THUNAR_XML" ]; then
+        cat > "$THUNAR_XML" << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<channel name="thunar" version="1.0">
+  <property name="last-view" type="string" value="ThunarIconView"/>
+  <property name="misc-thumbnail-mode" type="string" value="THUNAR_THUMBNAIL_MODE_NEVER"/>
+  <property name="misc-thumbnail-draw-frames" type="bool" value="false"/>
+</channel>
+EOF
+    fi
+
+    # Background reinforcement to ensure live xfconfd daemon retains no-lock and performance properties
     (
         for _ in 1 2 3 4 5 6 7 8 9 10; do
             if command -v xfconf-query >/dev/null 2>&1; then
@@ -162,6 +259,7 @@ EOF
             sleep 1
         done
         if command -v xfconf-query >/dev/null 2>&1; then
+            # Power manager & screensaver
             xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/lock-screen-suspend-hibernate -s false --create -t bool 2>/dev/null || true
             xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/dpms-enabled -s false --create -t bool 2>/dev/null || true
             xfconf-query -c xfce4-power-manager -p /xfce4-power-manager/presentation-mode -s true --create -t bool 2>/dev/null || true
@@ -176,6 +274,22 @@ EOF
             xfconf-query -c xfce4-screensaver -p /lock/enabled -s false --create -t bool 2>/dev/null || true
             xfconf-query -c xfce4-screensaver -p /lock/saver-activation/enabled -s false --create -t bool 2>/dev/null || true
             xfconf-query -c xfce4-session -p /general/LockCommand -s "/bin/true" --create -t string 2>/dev/null || true
+            # Window manager performance (eliminate compositing overhead and vblank blocking)
+            xfconf-query -c xfwm4 -p /general/use_compositing -s false --create -t bool 2>/dev/null || true
+            xfconf-query -c xfwm4 -p /general/vblank_mode -s off --create -t string 2>/dev/null || true
+            xfconf-query -c xfwm4 -p /general/show_dock_shadow -s false --create -t bool 2>/dev/null || true
+            xfconf-query -c xfwm4 -p /general/show_frame_shadow -s false --create -t bool 2>/dev/null || true
+            xfconf-query -c xfwm4 -p /general/show_popup_shadow -s false --create -t bool 2>/dev/null || true
+            xfconf-query -c xfwm4 -p /general/box_move -s true --create -t bool 2>/dev/null || true
+            xfconf-query -c xfwm4 -p /general/box_resize -s true --create -t bool 2>/dev/null || true
+            # Instant UI rendering & disable glyph subpixel overhead
+            xfconf-query -c xsettings -p /Gtk/EnableAnimations -s false --create -t bool 2>/dev/null || true
+            xfconf-query -c xsettings -p /Gtk/CursorBlink -s false --create -t bool 2>/dev/null || true
+            xfconf-query -c xsettings -p /Net/CursorBlink -s false --create -t bool 2>/dev/null || true
+            xfconf-query -c xsettings -p /Xft/RGBA -s none --create -t string 2>/dev/null || true
+            # File manager thumbnail storm suppression
+            xfconf-query -c thunar -p /misc-thumbnail-mode -s "THUNAR_THUMBNAIL_MODE_NEVER" --create -t string 2>/dev/null || true
+            xfconf-query -c thunar -p /misc-thumbnail-draw-frames -s false --create -t bool 2>/dev/null || true
         fi
     ) >/dev/null 2>&1 &
 fi
