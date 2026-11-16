@@ -25,7 +25,8 @@ Use the **debug APK** from CI or a pre-release: `run-as` only works on debuggabl
 
 ## Known facts
 
-- Android 17 DP11 on the Pixel 10 Pro: the app writes almost nothing to logcat. Use `-b all` and `run-as`.
+- Android 17 DP11 on the Pixel 10 Pro: older builds write almost nothing to logcat. Use `-b all` and `run-as`.
+- Builds containing `BootLog` (commit `ad49a08`, hardened in `ab6e2d9`) mirror the container terminal's output, shell exit codes and the X server launch/wait events to logcat with the prefix `IntelNode` and to `files/boot.log`: `adb logcat -d | grep IntelNode`, or `adb shell run-as com.daripper91.daripped cat files/boot.log` on a debuggable build. **Not yet verified on a device.** Logcat goes through the throttled `debugPrint`, so it can lag and the last lines may be lost if the process dies; `boot.log` is written synchronously. `capture.sh` records the full logcat but does not pull `boot.log`.
 - Android may freeze the app when it is backgrounded during extraction. The `tar` child kept running in a captured session; keep the app open anyway.
 - Arch ships `usr/share/X11/xkb` as an absolute symlink (`/usr/share/xkeyboard-config-2`) that dangles outside proot. Fixed in `3e661ca`.
 - Arch's stock user `alarm` is uid 1000, so `tiny` is remapped to 1000 at extraction.
