@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:da_ripped_tiny_computer/container_installer.dart';
@@ -5,10 +7,12 @@ import 'package:da_ripped_tiny_computer/desktop_environments.dart';
 import 'package:da_ripped_tiny_computer/desktop_picker.dart';
 import 'package:da_ripped_tiny_computer/distros.dart';
 import 'package:da_ripped_tiny_computer/setup_session.dart';
+import 'package:da_ripped_tiny_computer/workflow.dart';
 
 void main() {
   checksumTests();
   markerToleranceTests();
+  busyboxScriptTests();
   group('desktop manifest kinds', () {
     test('has both desktop environments and window managers', () {
       final kinds = DesktopEnvironments.all.map((d) => d.kind).toSet();
@@ -113,5 +117,68 @@ void markerToleranceTests() {
   test('marker tolerates extra whitespace between token and code', () {
     expect(SetupSession.parseExitMarker('@@INTELNODE-3@@   0', '@@INTELNODE-3@@'), 0);
     expect(SetupSession.parseExitMarker('@@INTELNODE-3@@\t5', '@@INTELNODE-3@@'), 5);
+  });
+}
+
+void busyboxScriptTests() {
+  group('busybox scripts', () {
+    // G.dataPath is a late field that can be assigned once per process.
+    late Directory dir;
+    setUpAll(() {
+      dir = Directory.systemTemp.createTempSync('bb_');
+      G.dataPath = dir.path;
+    });
+    tearDownAll(() => dir.deleteSync(recursive: true));
+    setUp(() {
+      for (final e in dir.listSync()) {
+        e.deleteSync(recursive: true);
+      }
+      Directory('${dir.path}/bin').createSync();
+    });
+
+    // Fake busybox that, like the real dynamic one, refuses to start without
+    // LD_LIBRARY_PATH pointing at $DATA_DIR/lib.
+    void fakeBusybox() {
+      File('${dir.path}/bin/busybox').writeAsStringSync(
+        '#!/bin/sh\n[ "\$LD_LIBRARY_PATH" = "${dir.path}/lib" ] || '
+        '{ echo "CANNOT LINK EXECUTABLE" >&2; exit 1; }\n"\$@"\n',
+      );
+      Process.runSync('chmod', ['+x', '${dir.path}/bin/busybox']);
+    }
+
+    int run(String script) => Process.runSync('sh', ['-c', script]).exitCode;
+
+    test('checksum script exports LD_LIBRARY_PATH so busybox can start', () {
+      fakeBusybox();
+      final f = File('${dir.path}/t.tar')..writeAsStringSync('hello');
+      final sum = Process.runSync('md5sum', [f.path]).stdout.toString().split(' ').first;
+      expect(run(ContainerInstaller.checksumScript(sum, f.path, 'md5sum')), 0);
+    });
+
+    test('mismatch is exit 3, a broken tool is exit 2 (download kept)', () {
+      final f = File('${dir.path}/t.tar')..writeAsStringSync('hello');
+      File('${dir.path}/bin/busybox').writeAsStringSync('#!/bin/sh\nexit 1\n');
+      Process.runSync('chmod', ['+x', '${dir.path}/bin/busybox']);
+      expect(run(ContainerInstaller.checksumScript('0' * 32, f.path, 'md5sum')), 2);
+      fakeBusybox();
+      expect(run(ContainerInstaller.checksumScript('0' * 32, f.path, 'md5sum')), 3);
+    });
+
+    test('finalize script can run busybox and swaps staging into place', () {
+      fakeBusybox();
+      Directory('${dir.path}/containers/0_staging').createSync(recursive: true);
+      File('${dir.path}/containers/0_staging/marker').writeAsStringSync('x');
+      final tar = File('${dir.path}/t.tar')..writeAsStringSync('x');
+      expect(
+        run(ContainerInstaller.finalizeScript(
+          '${dir.path}/containers/0_staging',
+          '${dir.path}/containers/0',
+          tar.path,
+        )),
+        0,
+      );
+      expect(File('${dir.path}/containers/0/marker').existsSync(), isTrue);
+      expect(tar.existsSync(), isFalse);
+    });
   });
 }

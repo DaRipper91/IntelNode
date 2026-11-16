@@ -13,6 +13,7 @@
 // provision work and reports progress through onProgress.
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:http/http.dart' as http;
 
 import 'package:da_ripped_tiny_computer/desktop_environments.dart';
@@ -200,6 +201,7 @@ chmod +x /home/$username/.xinitrc
       exitCode = await Util.execute("""
 set -e
 export DATA_DIR=${G.dataPath}
+export LD_LIBRARY_PATH=\$DATA_DIR/lib
 \$DATA_DIR/bin/busybox rm -rf ${Util.escapeShellArgument(containerDir)}
 mv ${Util.escapeShellArgument(stagingDir)} ${Util.escapeShellArgument(containerDir)}
 rm -f ${Util.escapeShellArgument(tarballPath)}
@@ -237,7 +239,8 @@ mkdir -p ${Util.escapeShellArgument(stagingDir)}
 \$DATA_DIR/bin/proot --link2symlink sh -c "\$DATA_DIR/bin/tar -x${compressLetter}f ${Util.escapeShellArgument(tarballPath)} -C ${Util.escapeShellArgument(stagingDir)}"
 """;
 
-  static String _finalizeScript(
+  @visibleForTesting
+  static String finalizeScript(
     String stagingDir,
     String containerDir,
     String tarballPath,
@@ -245,6 +248,7 @@ mkdir -p ${Util.escapeShellArgument(stagingDir)}
       """
 set -e
 export DATA_DIR=${G.dataPath}
+export LD_LIBRARY_PATH=\$DATA_DIR/lib
 \$DATA_DIR/bin/busybox rm -rf ${Util.escapeShellArgument(containerDir)}
 mv ${Util.escapeShellArgument(stagingDir)} ${Util.escapeShellArgument(containerDir)}
 rm -f ${Util.escapeShellArgument(tarballPath)}
@@ -274,11 +278,26 @@ rm -f ${Util.escapeShellArgument(tarballPath)}
     if (hash == null) {
       throw Exception("No checksum for $fileName in $sumsUrl");
     }
-    return """
-export DATA_DIR=${G.dataPath}
-echo "$hash  ${tarballPath}" | \$DATA_DIR/bin/busybox $tool -c -
-""";
+    return checksumScript(hash, tarballPath, tool);
   }
+
+  /// Compares [tarballPath] with [hash] using the bundled busybox. Exit codes
+  /// let the caller tell a corrupt download from a broken tool: 0 matches,
+  /// 3 mismatch, 2 the checksum tool itself failed (the download is kept).
+  /// busybox is a dynamic executable, so it needs LD_LIBRARY_PATH to start.
+  @visibleForTesting
+  static String checksumScript(String hash, String tarballPath, String tool) => """
+export DATA_DIR=${G.dataPath}
+export LD_LIBRARY_PATH=\$DATA_DIR/lib
+out=\$(\$DATA_DIR/bin/busybox $tool ${Util.escapeShellArgument(tarballPath)}) || exit 2
+calc=\${out%% *}
+[ -n "\$calc" ] || exit 2
+if [ "\$calc" != "$hash" ]; then
+  echo "checksum mismatch: expected $hash, got \$calc" >&2
+  exit 3
+fi
+echo "checksum ok: \$calc"
+""";
 
   /// Finds [fileName]'s hash in a checksum listing. Handles a bare `<hash>`
   /// line (Arch's .md5 holds a single entry), `<hash>  <name>` and
@@ -335,12 +354,15 @@ echo "$hash  ${tarballPath}" | \$DATA_DIR/bin/busybox $tool -c -
 
       final checksum = await _checksumScript(url, tarballPath);
       if (checksum != null) {
-        try {
-          await step("Verifying checksum", checksum);
-        } catch (_) {
-          // A bad or stale partial download must not be resumed next time.
+        log("\r\n== Verifying checksum");
+        final code = await run(checksum);
+        if (code == 3) {
+          // Genuinely corrupt (or a stale partial): do not resume it next time.
           await run("rm -f ${Util.escapeShellArgument(tarballPath)}");
-          rethrow;
+          throw Exception("Checksum mismatch: the download is corrupt and will be fetched again on retry");
+        }
+        if (code != 0) {
+          throw Exception("Checksum tool failed (exit code $code); the download was kept");
         }
       }
 
@@ -350,7 +372,7 @@ echo "$hash  ${tarballPath}" | \$DATA_DIR/bin/busybox $tool -c -
         _prootRun(rootfs: stagingDir, script: distro.firstBootScript(username)),
         failure: "Base provisioning",
       );
-      await step("Finalizing", _finalizeScript(stagingDir, containerDir, tarballPath));
+      await step("Finalizing", finalizeScript(stagingDir, containerDir, tarballPath));
       await step(
         "Verifying the base system boots",
         _prootRun(rootfs: containerDir, script: _verifyScript(distro)),
