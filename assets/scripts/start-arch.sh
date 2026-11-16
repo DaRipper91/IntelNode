@@ -12,7 +12,8 @@ echo "nameserver ${ANDROID_DNS2:-8.8.8.8}" >> /etc/resolv.conf
 
 # --- 2. Inner Payload (D-Bus & Cleanup) ---
 rm -f /var/run/dbus/pid
-rm -rf /tmp/.X11-unix/*
+# Do not clear /tmp/.X11-unix here: the in-app X server creates its socket in the
+# container's /tmp before this script runs, and deleting it breaks the display.
 if [ ! -d /var/run/dbus ]; then
     mkdir -p /var/run/dbus
 fi

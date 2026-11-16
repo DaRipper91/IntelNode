@@ -44,10 +44,9 @@ export QT_SCALE_FACTOR=2
 export ELM_SCALE=1.5 # Elementary/Enlightenment scale fallback
 
 # --- 4. Session D-Bus & Desktop Bootstrap ---
-# Detect which DE is actually installed rather than assuming XFCE: first-run setup
-# uninstalls the non-chosen DE's packages, so whichever launcher is still on PATH
-# reflects the user's real choice (fixes LXQt selections crashing on this launch path).
-# Order matches DesktopEnvironments.all's stable tier in lib/desktop_environments.dart.
+# The session chosen at install time (~/.intelnode-session) wins. If it is missing
+# or not installed, fall back to whichever launcher is on PATH, in the order of
+# DesktopEnvironments.all's stable tier in lib/desktop_environments.dart.
 SESSION_FILE="$HOME/.intelnode-session"
 SESSION_CMD=""
 if [ -s "$SESSION_FILE" ]; then

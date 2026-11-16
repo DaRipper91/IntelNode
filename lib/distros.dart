@@ -226,7 +226,8 @@ String _debianFirstBoot(String username) =>
 set -e
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get -y install sudo locales policykit-1
+# polkitd on current Debian/Ubuntu; policykit-1 is only a transitional name
+apt-get -y install sudo locales polkitd || apt-get -y install sudo locales policykit-1
 ${_commonUserSetup(username)}
 sed -i 's/# en_US.UTF-8/en_US.UTF-8/' /etc/locale.gen
 locale-gen""";
@@ -261,7 +262,7 @@ class Distros {
       packageManager: PackageManagerFamily.dnf,
       rootfs: const RootfsSource.simplestreams(
         base: "https://images.linuxcontainers.org",
-        product: "fedora:41:arm64:default",
+        product: "fedora:43:arm64:default",
         verified: false,
         notes:
             "Fedora's own Container Base images (dl.fedoraproject.org) ship "
