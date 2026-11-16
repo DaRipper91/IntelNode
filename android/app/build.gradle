@@ -82,7 +82,8 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
         debug {
-            signingConfig signingConfigs.debug
+            // Sign with the stable key when available so debug builds upgrade in place.
+            signingConfig (keystorePropertiesFile.exists() ? signingConfigs.release : signingConfigs.debug)
             minifyEnabled true
             shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
