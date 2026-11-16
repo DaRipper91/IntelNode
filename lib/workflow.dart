@@ -1455,8 +1455,12 @@ class Workflow {
     String cmd = builder.build();
     if (extraMount.isNotEmpty) cmd += " $extraMount";
 
+    // GLYCIN_DISABLE_SANDBOX: gdk-pixbuf2 2.44 decodes images through glycin, which runs its
+    // loaders inside bubblewrap; namespaces do not work under proot, so every image load
+    // failed, libwnck could not load its default icon and aborted the XFCE session
+    // ("Wnck:ERROR ... default_icon_at_size: assertion failed: (base)", signal 6).
     cmd +=
-        " /usr/bin/env -i HOME=/home/tiny USER=tiny LANG=en_US.UTF-8 TERM=xterm-256color PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin PULSE_SERVER=tcp:127.0.0.1:4718 DISPLAY=:4 $extraOpt /bin/bash /usr/local/bin/start-arch.sh";
+        " /usr/bin/env -i HOME=/home/tiny USER=tiny LANG=en_US.UTF-8 TERM=xterm-256color PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin PULSE_SERVER=tcp:127.0.0.1:4718 DISPLAY=:4 GLYCIN_DISABLE_SANDBOX=1 $extraOpt /bin/bash /usr/local/bin/start-arch.sh";
 
     return cmd;
   }

@@ -57,4 +57,8 @@ void main() {
       }
     });
   });
+
+  test('disables the glycin sandbox (bubblewrap cannot run under proot)', () {
+    expect(Workflow.getBootCommand(), contains('GLYCIN_DISABLE_SANDBOX=1'));
+  });
 }
