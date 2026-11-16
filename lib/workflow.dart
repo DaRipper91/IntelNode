@@ -1384,7 +1384,10 @@ class G {
 class Workflow {
   static String getBootCommand({String extraMount = "", String extraOpt = ""}) {
     final builder = ProotCommandBuilder();
-    builder.addEnv("PROOT_NO_SECCOMP", "1");
+    // No PROOT_NO_SECCOMP=1: with it proot ptrace-traces every syscall, and on a
+    // real Android 17 phone every chdir/getcwd inside the container then failed with
+    // ENOSYS ("cd: /: Function not implemented"), so dbus-daemon and the desktop could
+    // not start. The provisioning proot runs never set it and worked on the same device.
     builder.addFlag("-H");
     builder.addFlag("--change-id=1000:1000");
     builder.setPwd("/home/tiny");
