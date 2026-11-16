@@ -226,7 +226,7 @@ sed -i 's/^CheckSpace/#CheckSpace/' /etc/pacman.conf
 grep -q '^DisableSandbox' /etc/pacman.conf || sed -i '/^\\[options\\]/a DisableSandbox' /etc/pacman.conf
 pacman-key --init
 pacman-key --populate archlinuxarm
-pacman -Syu --noconfirm --needed sudo dbus xorg-xauth xorg-xkbcomp xkeyboard-config ttf-dejavu
+pacman -Syu --noconfirm --needed sudo dbus xorg-xauth xorg-xkbcomp xkeyboard-config ttf-dejavu adwaita-icon-theme librsvg
 ${_commonUserSetup(username)}
 sed -i 's/#en_US.UTF-8/en_US.UTF-8/' /etc/locale.gen
 locale-gen""";

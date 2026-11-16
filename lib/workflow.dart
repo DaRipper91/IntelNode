@@ -1615,6 +1615,12 @@ fi
   static Future<void> initForFirstTime() async {
     // Clear log lines before starting so the log view shows only current session.
     G.logLines.value = [];
+    // A full pacman install is thousands of lines: give it its own file and bigger caps,
+    // restored once the first run is done (workflow() re-attaches boot.log).
+    BootLog.maxLines = 40000;
+    BootLog.maxFileBytes = 8 * 1024 * 1024;
+    BootLog.attachFile("${G.dataPath}/install.log");
+    BootLog.event('first run: installing the base system');
     // Initialize bootstrap binaries and scripts
     G.updateText.value = AppLocalizations.of(
       G.homePageStateContext,
@@ -1684,6 +1690,9 @@ fi
         .installationComplete;
     G.setupSession.value = null;
     session.dispose();
+    BootLog.event('first run finished');
+    BootLog.maxLines = 3000;
+    BootLog.maxFileBytes = 512 * 1024;
   }
 
   static Future<void> initData() async {

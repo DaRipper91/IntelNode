@@ -10,6 +10,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_pty/flutter_pty.dart';
 import 'package:xterm/xterm.dart';
 
+import 'package:da_ripped_tiny_computer/boot_log.dart';
+
 class SetupSession {
   SetupSession(this.dataPath) {
     pty = Pty.start(
@@ -53,6 +55,8 @@ class SetupSession {
 
   void _onOutput(String chunk) {
     terminal.write(chunk);
+    // Mirror to install.log / logcat so the whole install can be read remotely.
+    BootLog.feed('setup', chunk);
     final token = _pendingToken;
     if (token == null) return;
     // A marker can be split across chunks; keep a short tail to rejoin it.
@@ -68,7 +72,10 @@ class SetupSession {
   }
 
   /// Writes a line to the terminal without involving the shell.
-  void log(String line) => terminal.write("$line\r\n");
+  void log(String line) {
+    terminal.write("$line\r\n");
+    BootLog.event(line.trim());
+  }
 
   /// Runs [script] in the visible shell and returns its exit code.
   Future<int> run(String script) async {
@@ -88,7 +95,10 @@ class SetupSession {
           "/system/bin/sh ${file.path}; echo \"$token \$?\"\n",
         ),
       );
-      return await pending.future;
+      final code = await pending.future;
+      BootLog.flush('setup');
+      BootLog.event('setup step $n finished with exit code $code');
+      return code;
     } finally {
       // Reset even when the write throws so later runs (e.g. cleanup) can go.
       _pending = null;

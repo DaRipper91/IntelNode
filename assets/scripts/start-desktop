@@ -50,8 +50,10 @@ export ELM_SCALE=1.5 # Elementary/Enlightenment scale fallback
 SESSION_FILE="$HOME/.intelnode-session"
 SESSION_CMD=""
 if [ -s "$SESSION_FILE" ]; then
-    # First word of the first line, tolerant of CRLF and stray spaces.
-    SESSION_CMD="$(head -n 1 "$SESSION_FILE" | tr -d '\r' | awk '{print $1}')"
+    # First word of the first line, tolerant of CRLF and stray spaces. No awk: the
+    # base image does not ship it.
+    read -r SESSION_CMD _ < "$SESSION_FILE" || true
+    SESSION_CMD="${SESSION_CMD%$'\r'}"
 fi
 if [ -n "$SESSION_CMD" ] && ! command -v "$SESSION_CMD" >/dev/null 2>&1; then
     echo "[Warn] session '$SESSION_CMD' from $SESSION_FILE is not installed; autodetecting."

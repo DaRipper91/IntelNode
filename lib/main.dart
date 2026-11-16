@@ -32,6 +32,7 @@ import 'package:xterm/xterm.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:da_ripped_tiny_computer/l10n/app_localizations.dart';
 
+import 'package:da_ripped_tiny_computer/boot_log.dart';
 import 'package:da_ripped_tiny_computer/setup_session.dart';
 import 'package:da_ripped_tiny_computer/setup_terminal.dart';
 import 'package:da_ripped_tiny_computer/workflow.dart';
@@ -2383,6 +2384,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
       await Workflow.workflow();
     } catch (e, st) {
       debugPrint('Workflow error: $e\n$st');
+      BootLog.event('startup failed: $e');
       G.updateText.value = 'Error initializing app:\n$e';
       G.retryStartup = _initializeWorkflow;
       G.startupFailed.value = true;
