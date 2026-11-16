@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 430" width="900" height="430" role="img" aria-labelledby="t d">
+<title id="t">IntelNode status board</title>
+<desc id="d">Honest status of each stage: the old bundled flow was observed up to the in-app X server; the new two-stage flow is implemented but unverified on a device; the XFCE desktop on screen has not been observed.</desc>
+<defs></defs>
+<style>
+text{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;}
+
+text{font-size:14px}
+@media (prefers-reduced-motion: no-preference){
+.pl{animation:pl 1.8s ease-in-out infinite}
+@keyframes pl{50%{opacity:.3}}
+.sw{animation:sw 6s linear infinite}
+@keyframes sw{from{transform:translateY(0)}to{transform:translateY(300px)}}
+.cur{animation:bl 1s steps(1,end) infinite}
+@keyframes bl{50%{opacity:0}}
+}
+@media (prefers-reduced-motion: reduce){*{animation:none !important}}
+</style>
+<rect width="900" height="430" rx="12" fill="#1e1e2e"/>
+<text x="32" y="44" fill="#cba6f7" font-size="18" font-weight="700">status board</text>
+<text x="32" y="68" fill="#a6adc8" font-size="13">last device: Pixel 10 Pro, Android 17 developer preview<tspan class="cur" fill="#cdd6f4"> _</tspan></text>
+<rect class="sw" x="32" y="80" width="836" height="6" fill="#74c7ec" opacity=".10"/>
+<rect x="32" y="94" width="836" height="44" rx="6" fill="#181825"/><circle class="" cx="58" cy="116" r="7" fill="#a6e3a1"/><text x="84" y="111" fill="#cdd6f4" font-weight="700">Old bundled-rootfs flow</text><text x="84" y="129" fill="#a6adc8" font-size="12.5">Install, extraction, boot up to the in-app X server (Pixel 10 Pro)</text><text x="848" y="120" text-anchor="end" fill="#a6e3a1" font-size="12.5" font-weight="700">OBSERVED</text><rect x="32" y="144" width="836" height="44" rx="6" fill="#181825"/><circle class="pl" cx="58" cy="166" r="7" fill="#f9e2af"/><text x="84" y="161" fill="#cdd6f4" font-weight="700">Stage 1: base install</text><text x="84" y="179" fill="#a6adc8" font-size="12.5">Implemented in e7e05f9. Not run on a device yet</text><text x="848" y="170" text-anchor="end" fill="#f9e2af" font-size="12.5" font-weight="700">UNVERIFIED</text><rect x="32" y="194" width="836" height="44" rx="6" fill="#181825"/><circle class="pl" cx="58" cy="216" r="7" fill="#f9e2af"/><text x="84" y="211" fill="#cdd6f4" font-weight="700">Stage 2: session picker</text><text x="84" y="229" fill="#a6adc8" font-size="12.5">Implemented in e7e05f9. Not run on a device yet</text><text x="848" y="220" text-anchor="end" fill="#f9e2af" font-size="12.5" font-weight="700">UNVERIFIED</text><rect x="32" y="244" width="836" height="44" rx="6" fill="#181825"/><circle class="" cx="58" cy="266" r="7" fill="#f38ba8"/><text x="84" y="261" fill="#cdd6f4" font-weight="700">XFCE desktop on screen</text><text x="84" y="279" fill="#a6adc8" font-size="12.5">Not observed yet</text><text x="848" y="270" text-anchor="end" fill="#f38ba8" font-size="12.5" font-weight="700">NOT YET</text><rect x="32" y="294" width="836" height="44" rx="6" fill="#181825"/><circle class="" cx="58" cy="316" r="7" fill="#f38ba8"/><text x="84" y="311" fill="#cdd6f4" font-weight="700">Browser noVNC / AVNC display</text><text x="84" y="329" fill="#a6adc8" font-size="12.5">Not wired for the Arch container</text><text x="848" y="320" text-anchor="end" fill="#f38ba8" font-size="12.5" font-weight="700">NOT YET</text><rect x="32" y="344" width="836" height="44" rx="6" fill="#181825"/><circle class="pl" cx="58" cy="366" r="7" fill="#fab387"/><text x="84" y="361" fill="#cdd6f4" font-weight="700">Stable CI signing key</text><text x="84" y="379" fill="#a6adc8" font-size="12.5">From the next build on; older debug builds need uninstall first</text><text x="848" y="370" text-anchor="end" fill="#fab387" font-size="12.5" font-weight="700">PENDING</text>
+<rect x=".5" y=".5" width="899" height="429" rx="12" fill="none" stroke="#45475a"/>
+</svg>

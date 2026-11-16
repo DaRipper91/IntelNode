@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 470" width="900" height="470" role="img" aria-labelledby="t d">
+<title id="t">neofetch for the IntelNode Arch container</title>
+<desc id="d">A terminal window that types out neofetch-style system facts for the Arch Linux ARM container in IntelNode and ends on a blinking cursor. Status line says unverified on device.</desc>
+<defs></defs>
+<style>
+text{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;}
+
+text{font-size:14px;white-space:pre}
+.cv{opacity:0}.cur{fill:#cdd6f4}
+@media (prefers-reduced-motion: no-preference){
+.cv{opacity:1}
+@keyframes c0{0%,3.75%{transform:translateX(0)}8.75%,97%{transform:translateX(77px)}97.1%,100%{transform:translateX(0)}}
+.k0{animation:c0 16s steps(8,end) infinite}
+@keyframes c1{0%,11.25%{transform:translateX(0)}13.44%,97%{transform:translateX(128px)}97.1%,100%{transform:translateX(0)}}
+.k1{animation:c1 16s steps(14,end) infinite}
+@keyframes c2{0%,14.06%{transform:translateX(0)}16.25%,97%{transform:translateX(128px)}97.1%,100%{transform:translateX(0)}}
+.k2{animation:c2 16s steps(14,end) infinite}
+@keyframes c3{0%,16.88%{transform:translateX(0)}19.06%,97%{transform:translateX(228px)}97.1%,100%{transform:translateX(0)}}
+.k3{animation:c3 16s steps(26,end) infinite}
+@keyframes c4{0%,19.69%{transform:translateX(0)}21.88%,97%{transform:translateX(254px)}97.1%,100%{transform:translateX(0)}}
+.k4{animation:c4 16s steps(29,end) infinite}
+@keyframes c5{0%,22.50%{transform:translateX(0)}24.69%,97%{transform:translateX(212px)}97.1%,100%{transform:translateX(0)}}
+.k5{animation:c5 16s steps(24,end) infinite}
+@keyframes c6{0%,25.31%{transform:translateX(0)}27.50%,97%{transform:translateX(212px)}97.1%,100%{transform:translateX(0)}}
+.k6{animation:c6 16s steps(24,end) infinite}
+@keyframes c7{0%,28.12%{transform:translateX(0)}30.31%,97%{transform:translateX(329px)}97.1%,100%{transform:translateX(0)}}
+.k7{animation:c7 16s steps(38,end) infinite}
+@keyframes c8{0%,30.94%{transform:translateX(0)}33.12%,97%{transform:translateX(245px)}97.1%,100%{transform:translateX(0)}}
+.k8{animation:c8 16s steps(28,end) infinite}
+@keyframes c9{0%,33.75%{transform:translateX(0)}35.94%,97%{transform:translateX(254px)}97.1%,100%{transform:translateX(0)}}
+.k9{animation:c9 16s steps(29,end) infinite}
+@keyframes c10{0%,36.56%{transform:translateX(0)}38.75%,97%{transform:translateX(170px)}97.1%,100%{transform:translateX(0)}}
+.k10{animation:c10 16s steps(19,end) infinite}
+@keyframes c11{0%,39.38%{transform:translateX(0)}41.56%,97%{transform:translateX(245px)}97.1%,100%{transform:translateX(0)}}
+.k11{animation:c11 16s steps(28,end) infinite}
+@keyframes c12{0%,42.19%{transform:translateX(0)}44.38%,97%{transform:translateX(245px)}97.1%,100%{transform:translateX(0)}}
+.k12{animation:c12 16s steps(28,end) infinite}
+.art{animation:art 16s ease-out infinite}
+@keyframes art{0%,8%{opacity:0}16%,96%{opacity:1}98%,100%{opacity:0}}
+.pal{animation:pal 16s steps(8,end) infinite}
+@keyframes pal{0%,45.0%{opacity:0}48.1%,96%{opacity:1}98%,100%{opacity:0}}
+.cur{animation:bl 1s steps(1,end) infinite}
+@keyframes bl{50%{opacity:0}}
+.p2{animation:p2 16s steps(1,end) infinite}
+@keyframes p2{0%,48.8%{opacity:0}48.8%,96%{opacity:1}97%,100%{opacity:0}}
+}
+@media (prefers-reduced-motion: reduce){*{animation:none !important}}
+</style>
+<rect width="900" height="470" rx="12" fill="#1e1e2e"/>
+<path d="M0 12a12 12 0 0 1 12-12h876a12 12 0 0 1 12 12v22H0z" fill="#181825"/>
+<circle cx="24" cy="17" r="6" fill="#f38ba8"/><circle cx="44" cy="17" r="6" fill="#f9e2af"/><circle cx="64" cy="17" r="6" fill="#a6e3a1"/>
+<text x="450.0" y="22" text-anchor="middle" fill="#a6adc8">tiny@intelnode: ~</text>
+<text x="40" y="60"><tspan fill="#a6e3a1">tiny@intelnode</tspan> <tspan fill="#89b4fa">~</tspan> <tspan fill="#cba6f7">$</tspan> <tspan fill="#cdd6f4">neofetch</tspan></text>
+<g class="art"><text x="40" y="100" fill="#74c7ec" xml:space="preserve" font-weight="700">      /\      </text><text x="40" y="124" fill="#74c7ec" xml:space="preserve" font-weight="700">     /  \     </text><text x="40" y="148" fill="#74c7ec" xml:space="preserve" font-weight="700">    /\   \    </text><text x="40" y="172" fill="#74c7ec" xml:space="preserve" font-weight="700">   /  __  \   </text><text x="40" y="196" fill="#74c7ec" xml:space="preserve" font-weight="700">  /  (  )  \  </text><text x="40" y="220" fill="#74c7ec" xml:space="preserve" font-weight="700"> / __|  |__\ </text><text x="40" y="244" fill="#74c7ec" xml:space="preserve" font-weight="700">/_-''    ''-_\</text></g>
+<text x="300" y="100"><tspan fill="#cba6f7" font-weight="700">tiny</tspan><tspan fill="#cdd6f4">@</tspan><tspan fill="#cba6f7" font-weight="700">intelnode</tspan></text><text x="300" y="124" fill="#a6adc8">--------------</text><text x="300" y="148"><tspan fill="#89b4fa" font-weight="700">OS</tspan><tspan fill="#a6adc8">: </tspan><tspan fill="#cdd6f4">Arch Linux ARM aarch64</tspan></text><text x="300" y="172"><tspan fill="#89b4fa" font-weight="700">Host</tspan><tspan fill="#a6adc8">: </tspan><tspan fill="#cdd6f4">Android, ARM64, no root</tspan></text><text x="300" y="196"><tspan fill="#89b4fa" font-weight="700">Runtime</tspan><tspan fill="#a6adc8">: </tspan><tspan fill="#cdd6f4">proot + busybox</tspan></text><text x="300" y="220"><tspan fill="#89b4fa" font-weight="700">App</tspan><tspan fill="#a6adc8">: </tspan><tspan fill="#cdd6f4">Flutter, single APK</tspan></text><text x="300" y="244"><tspan fill="#89b4fa" font-weight="700">Display</tspan><tspan fill="#a6adc8">: </tspan><tspan fill="#cdd6f4">in-app X server (x11_flutter)</tspan></text><text x="300" y="268"><tspan fill="#89b4fa" font-weight="700">User</tspan><tspan fill="#a6adc8">: </tspan><tspan fill="#cdd6f4">tiny (uid 1000, wheel)</tspan></text><text x="300" y="292"><tspan fill="#89b4fa" font-weight="700">Session</tspan><tspan fill="#a6adc8">: </tspan><tspan fill="#cdd6f4">~/.intelnode-session</tspan></text><text x="300" y="316"><tspan fill="#89b4fa" font-weight="700">DE</tspan><tspan fill="#a6adc8">: </tspan><tspan fill="#cdd6f4">XFCE4 LXQt MATE</tspan></text><text x="300" y="340"><tspan fill="#89b4fa" font-weight="700">WM</tspan><tspan fill="#a6adc8">: </tspan><tspan fill="#cdd6f4">i3 Openbox Fluxbox IceWM</tspan></text><text x="300" y="364"><tspan fill="#89b4fa" font-weight="700">Status</tspan><tspan fill="#a6adc8">: </tspan><tspan fill="#f9e2af">unverified on device</tspan></text>
+<g class="pal"><rect x="300" y="380" width="34" height="18" fill="#f38ba8"/><rect x="334" y="380" width="34" height="18" fill="#fab387"/><rect x="368" y="380" width="34" height="18" fill="#f9e2af"/><rect x="402" y="380" width="34" height="18" fill="#a6e3a1"/><rect x="436" y="380" width="34" height="18" fill="#74c7ec"/><rect x="470" y="380" width="34" height="18" fill="#89b4fa"/><rect x="504" y="380" width="34" height="18" fill="#cba6f7"/><rect x="538" y="380" width="34" height="18" fill="#cdd6f4"/></g>
+<rect class="cv k0" x="199.6" y="60" width="77.2" height="26" fill="#1e1e2e"/><rect class="cv k1" x="300.0" y="84" width="127.6" height="26" fill="#1e1e2e"/><rect class="cv k2" x="300.0" y="108" width="127.6" height="26" fill="#1e1e2e"/><rect class="cv k3" x="300.0" y="132" width="228.4" height="26" fill="#1e1e2e"/><rect class="cv k4" x="300.0" y="156" width="253.6" height="26" fill="#1e1e2e"/><rect class="cv k5" x="300.0" y="180" width="211.6" height="26" fill="#1e1e2e"/><rect class="cv k6" x="300.0" y="204" width="211.6" height="26" fill="#1e1e2e"/><rect class="cv k7" x="300.0" y="228" width="329.2" height="26" fill="#1e1e2e"/><rect class="cv k8" x="300.0" y="252" width="245.2" height="26" fill="#1e1e2e"/><rect class="cv k9" x="300.0" y="276" width="253.6" height="26" fill="#1e1e2e"/><rect class="cv k10" x="300.0" y="300" width="169.6" height="26" fill="#1e1e2e"/><rect class="cv k11" x="300.0" y="324" width="245.2" height="26" fill="#1e1e2e"/><rect class="cv k12" x="300.0" y="348" width="245.2" height="26" fill="#1e1e2e"/>
+<g class="p2"><text x="40" y="432"><tspan fill="#a6e3a1">tiny@intelnode</tspan> <tspan fill="#89b4fa">~</tspan> <tspan fill="#cba6f7">$</tspan> </text><rect class="cur" x="199.6" y="419" width="8" height="17"/></g>
+<rect x=".5" y=".5" width="899" height="469" rx="12" fill="none" stroke="#45475a"/>
+</svg>
