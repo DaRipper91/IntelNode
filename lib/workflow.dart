@@ -40,6 +40,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 
+import 'package:da_ripped_tiny_computer/boot_log.dart';
 import 'package:da_ripped_tiny_computer/container_installer.dart';
 import 'package:da_ripped_tiny_computer/desktop_picker.dart';
 import 'package:da_ripped_tiny_computer/distros.dart';
@@ -114,7 +115,9 @@ class Util {
       }
     });
     try {
-      return await pty.exitCode;
+      final code = await pty.exitCode;
+      BootLog.event('shell finished with exit code $code');
+      return code;
     } catch (e) {
       debugPrint("Error waiting for shell exit: $e");
       return -1;
@@ -144,6 +147,7 @@ class Util {
     });
     try {
       final exitCode = await pty.exitCode;
+      BootLog.event('shell finished with exit code $exitCode');
       return (exitCode, output.toString().trim());
     } catch (e) {
       return (-1, "Error waiting for shell exit: $e");
@@ -400,13 +404,20 @@ class Util {
     const host = '127.0.0.1';
     const port = 7897;
     final deadline = DateTime.now().add(Duration(seconds: timeoutSeconds));
+    final waited = Stopwatch()..start();
+    BootLog.event('waiting for X server on $host:$port (timeout ${timeoutSeconds}s)');
 
     while (DateTime.now().isBefore(deadline)) {
       if (await isReadyCheck(host, port)) {
+        BootLog.event('X server ready after ${waited.elapsed.inSeconds}s');
         return;
       }
       await Future.delayed(const Duration(seconds: 1));
     }
+    BootLog.event(
+      'X server not ready after ${timeoutSeconds}s'
+      '${xServerLaunchError == null ? '' : ' (launch failed: $xServerLaunchError)'}',
+    );
     throw TimeoutException(
       'X server did not start within $timeoutSeconds seconds'
       '${xServerLaunchError == null ? '' : ' (launch failed: $xServerLaunchError)'}',
@@ -553,11 +564,13 @@ class TermPty {
       columns: terminal.viewWidth,
       rows: terminal.viewHeight,
     );
-    pty.output
-        .cast<List<int>>()
-        .transform(const Utf8Decoder())
-        .listen(terminal.write);
+    pty.output.cast<List<int>>().transform(const Utf8Decoder()).listen((text) {
+      terminal.write(text);
+      BootLog.feed('term', text);
+    });
     pty.exitCode.then((code) {
+      BootLog.flush('term');
+      BootLog.event('terminal pty exited with exit code $code');
       terminal.write('the process exited with exit code $code');
       if (code == 0) {
         SystemChannels.platform.invokeMethod("SystemNavigator.pop");
@@ -1885,11 +1898,13 @@ clear""");
             FileSystemEntityType.notFound) {
       Util.createDirFromString(xkb);
     }
+    BootLog.event('launching X server (xkb root: $xkb)');
     try {
       await X11Flutter.launchXServer("$container/tmp", xkb, [":4", "-extension", "MIT-SHM"]);
     } catch (e) {
       // launchXServer is fired without await; keep the reason for waitForXServer.
       Util.xServerLaunchError = e.toString();
+      BootLog.event('X server launch failed: $e');
       rethrow;
     }
   }
@@ -1900,6 +1915,8 @@ clear""");
 
   static Future<void> workflow() async {
     await initData();
+    BootLog.attachFile('${G.dataPath}/boot.log');
+    BootLog.event('workflow started');
     final hasPermission = await grantPermissions();
     if (!hasPermission) {
       throw Exception("Storage permission is required to initialize the container system.");
@@ -1909,6 +1926,7 @@ clear""");
     // when the daemon exits. Awaiting it here froze startup before the container
     // ever launched; upstream deliberately fires it and moves on.
     unawaited(setupAudio());
+    BootLog.event('launching container ${G.currentContainer}');
     await launchCurrentContainer();
     if (Util.getGlobal("autoLaunchVnc") as bool) {
       if (G.wasX11Enabled) {
