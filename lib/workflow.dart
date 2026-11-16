@@ -45,6 +45,7 @@ import 'package:da_ripped_tiny_computer/container_installer.dart';
 import 'package:da_ripped_tiny_computer/desktop_picker.dart';
 import 'package:da_ripped_tiny_computer/distros.dart';
 import 'package:da_ripped_tiny_computer/fake_proc.dart';
+import 'package:da_ripped_tiny_computer/guest_shims.dart';
 import 'package:da_ripped_tiny_computer/setup_session.dart';
 import 'package:da_ripped_tiny_computer/l10n/app_localizations.dart';
 
@@ -1417,6 +1418,9 @@ class Workflow {
     builder.addMount("/dev/null", target: "/dev/tty0");
 
     // Android denies apps several /proc files; mirror upstream's placeholders.
+    // bubblewrap cannot run under proot; see lib/guest_shims.dart.
+    builder.addMount("\$DATA_DIR/${GuestShims.dirName}/bwrap",
+        target: GuestShims.bwrapMountTarget);
     builder.addMount(FakeProc.capLastCapSource, target: FakeProc.capLastCapTarget);
     for (final name in FakeProc.names) {
       builder.addMount("\$DATA_DIR/${FakeProc.dirName}/$name", target: "/proc/$name");
@@ -1455,12 +1459,8 @@ class Workflow {
     String cmd = builder.build();
     if (extraMount.isNotEmpty) cmd += " $extraMount";
 
-    // GLYCIN_DISABLE_SANDBOX: gdk-pixbuf2 2.44 decodes images through glycin, which runs its
-    // loaders inside bubblewrap; namespaces do not work under proot, so every image load
-    // failed, libwnck could not load its default icon and aborted the XFCE session
-    // ("Wnck:ERROR ... default_icon_at_size: assertion failed: (base)", signal 6).
     cmd +=
-        " /usr/bin/env -i HOME=/home/tiny USER=tiny LANG=en_US.UTF-8 TERM=xterm-256color PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin PULSE_SERVER=tcp:127.0.0.1:4718 DISPLAY=:4 GLYCIN_DISABLE_SANDBOX=1 $extraOpt /bin/bash /usr/local/bin/start-arch.sh";
+        " /usr/bin/env -i HOME=/home/tiny USER=tiny LANG=en_US.UTF-8 TERM=xterm-256color PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin PULSE_SERVER=tcp:127.0.0.1:4718 DISPLAY=:4 $extraOpt /bin/bash /usr/local/bin/start-arch.sh";
 
     return cmd;
   }
@@ -1735,6 +1735,7 @@ fi
     // Mount sources for getBootCommand; rewritten every launch so containers
     // installed by an older build gain them without a reinstall.
     FakeProc.writeTo(G.dataPath);
+    GuestShims.writeTo(G.dataPath);
 
     // Perform first-time setup if needed
     if (!G.prefs.containsKey("defaultContainer")) {

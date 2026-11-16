@@ -58,7 +58,8 @@ void main() {
     });
   });
 
-  test('disables the glycin sandbox (bubblewrap cannot run under proot)', () {
-    expect(Workflow.getBootCommand(), contains('GLYCIN_DISABLE_SANDBOX=1'));
+  test('mounts the bwrap stand-in over /usr/local/bin/bwrap (namespaces do not work in proot)', () {
+    final cmd = Workflow.getBootCommand();
+    expect(cmd, contains('--mount=\$DATA_DIR/guestshims/bwrap:/usr/local/bin/bwrap'));
   });
 }
