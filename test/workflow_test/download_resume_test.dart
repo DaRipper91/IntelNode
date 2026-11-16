@@ -29,6 +29,10 @@ class FakeServer extends http.BaseClient {
     final range = request.headers['Range'];
     if (range != null && !ignoreRange) {
       start = int.parse(RegExp(r'bytes=(\d+)-').firstMatch(range)!.group(1)!);
+      if (start >= body.length) {
+        return http.StreamedResponse(const Stream.empty(), 416,
+            headers: {'content-range': 'bytes */${body.length}'});
+      }
       code = 206;
     }
     final slice = body.sublist(start);
@@ -82,6 +86,22 @@ void main() {
     final s = FakeServer(body, dropFirstAfter: 3000, ignoreRange: true);
     await run(s);
     expect(File(dest).readAsBytesSync(), body);
+  });
+
+  test('an already complete file on disk is accepted via 416, not re-downloaded', () async {
+    File(dest).writeAsBytesSync(body);
+    final s = FakeServer(body);
+    await run(s);
+    expect(s.calls, 1);
+    expect(File(dest).readAsBytesSync(), body);
+  });
+
+  test('a stale file longer than the server copy is discarded and re-downloaded', () async {
+    File(dest).writeAsBytesSync([...body, ...body]);
+    final s = FakeServer(body);
+    await run(s);
+    expect(File(dest).readAsBytesSync(), body);
+    expect(s.calls, 2);
   });
 
   test('does not retry a 404', () async {

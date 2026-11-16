@@ -474,7 +474,19 @@ class Util {
           final req = http.Request('GET', Uri.parse(url));
           if (have > 0) req.headers['Range'] = 'bytes=$have-';
           final resp = await c.send(req).timeout(stallTimeout);
-          if (resp.statusCode == 416 && total != null && have >= total) return;
+          if (resp.statusCode == 416 && have > 0) {
+            // Range Not Satisfiable: the file on disk is already complete (a
+            // retry after a failure past the download) or longer than the
+            // server's copy (stale). Content-Range: bytes */TOTAL says which.
+            final m = RegExp(r'bytes \*/(\d+)')
+                .firstMatch(resp.headers['content-range'] ?? '');
+            final serverTotal = m == null ? null : int.parse(m.group(1)!);
+            if (serverTotal == null || serverTotal == have) {
+              return; // complete; the checksum step catches a bad file
+            }
+            file.deleteSync();
+            continue;
+          }
           if (resp.statusCode != 200 && resp.statusCode != 206) {
             throw DownloadHttpException(resp.statusCode, url);
           }
