@@ -3,6 +3,8 @@ package com.daripper91.daripped
 import android.system.Os.setenv
 
 import android.content.Intent
+import android.os.Looper
+import com.termux.x11.CmdEntryPoint
 import androidx.annotation.NonNull
 import androidx.annotation.Keep
 import androidx.appcompat.app.AppCompatDelegate
@@ -26,6 +28,32 @@ class MainActivity: FlutterActivity() {
                 }
                 "getNativeLibraryPath" -> {
                     result.success(getApplicationInfo().nativeLibraryDir)
+                }
+                "launchXServer" -> {
+                    val tmpdir = call.argument<String>("tmpdir")
+                    val xkb = call.argument<String>("xkb")
+                    val xserverArgs = call.argument<List<String>>("xserverArgs")
+                    if (tmpdir == null || xkb == null || xserverArgs == null) {
+                        result.error("INVALID_ARGUMENTS", "tmpdir, xkb and xserverArgs are required", null)
+                    } else {
+                        try {
+                            setenv("TMPDIR", tmpdir, true)
+                            setenv("XKB_CONFIG_ROOT", xkb, true)
+                            setenv("TERMUX_X11_DEBUG", "1", true)
+                            setenv("TERMUX_X11_OVERRIDE_PACKAGE", packageName, true)
+                            // CmdEntryPoint.main() posts the server start to a Handler bound to the
+                            // calling thread's looper and then runs Looper.loop(). x11_flutter calls it
+                            // on the UI thread, where that is a nested loop that never returns and
+                            // Android 17 reports an ANR and kills the app. Give it its own looper thread.
+                            Thread({
+                                Looper.prepare()
+                                CmdEntryPoint.main(xserverArgs.toTypedArray())
+                            }, "x11-server").start()
+                            result.success(0)
+                        } catch (e: Exception) {
+                            result.error("LAUNCH_XSERVER_FAILED", e.message, e.stackTraceToString())
+                        }
+                    }
                 }
                 "startStreaming" -> {
                     AudioStream.startStreaming(call.argument("path")!!)

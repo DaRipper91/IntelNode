@@ -1781,7 +1781,13 @@ exit
     String extraOpt = "";
 
     // Configure Network Bridge
-    if (Util.getGlobal("getifaddrsBridge")) {
+    // The preload library is not shipped in every build; a missing LD_PRELOAD target
+    // makes Android's own binaries (getprop) fail to link, so only enable the bridge
+    // when the library is really there.
+    final bool bridgeLibPresent = File(
+      "${G.dataPath}/tiny/extra/getifaddrs_bridge_client_lib.so",
+    ).existsSync();
+    if (Util.getGlobal("getifaddrsBridge") && bridgeLibPresent) {
       Util.executeBackground(
         "${Util.escapeShellArgument('${G.dataPath}/bin/getifaddrs_bridge_server')} ${Util.escapeShellArgument('${G.dataPath}/containers/${G.currentContainer}/tmp/.getifaddrs-bridge')}",
       );
@@ -1928,7 +1934,13 @@ clear""");
       Util.createDirFromString(xkb);
     }
     try {
-      await X11Flutter.launchXServer("$container/tmp", xkb, [":4", "-extension", "MIT-SHM"]);
+      // Not X11Flutter.launchXServer: that runs CmdEntryPoint.main on the UI thread
+      // and blocks it forever (see MainActivity.kt).
+      await D.androidChannel.invokeMethod("launchXServer", {
+        "tmpdir": "$container/tmp",
+        "xkb": xkb,
+        "xserverArgs": [":4", "-extension", "MIT-SHM"],
+      });
     } catch (e) {
       // launchXServer is fired without await; keep the reason for waitForXServer.
       Util.xServerLaunchError = e.toString();
