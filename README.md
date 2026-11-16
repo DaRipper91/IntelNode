@@ -13,7 +13,7 @@
 IntelNode is a fork of [Cateners/tiny_computer](https://github.com/Cateners/tiny_computer). It is a Flutter app that runs Arch Linux ARM in proot on Android. No root, one APK, no Termux. The desktop is shown through an X server built into the app (x11_flutter, termux-x11 core).
 
 > [!WARNING]
-> The new two-stage first run (commit `e7e05f9` on `main`) has **not been verified on a device**. The XFCE desktop appearing on screen has not been observed yet. See [Status](#status).
+> The two-stage first run ran end to end on a Pixel 10 Pro (build `6133f9c`) and the XFCE session processes were seen running. A **screenshot of the desktop has not been taken yet**, and the X server ANR fix has only been checked by process state, not visually. See [Status](#status).
 
 <div align="center">
 <img src="images/neofetch-boot.svg" alt="neofetch-style facts for the IntelNode Arch container" width="85%">
@@ -94,7 +94,7 @@ What the cross-section is built from, all observed over adb on a Pixel 10 Pro (A
 | The extracted Arch rootfs is about 2.8 GiB from a 791 MiB tar | `du` and file size on the device |
 | The X server is a TCP listener on `127.0.0.1:7897` (`1ED9` in `/proc/net/tcp`) | `Util.waitForXServer` in `lib/workflow.dart` |
 
-The top layer is dashed on purpose: the XFCE session has not been seen on screen yet.
+The top layer is dashed on purpose: the XFCE session processes have been seen running (`ps`), but the desktop has not been seen on screen yet.
 
 <img src="images/divider-prompt.svg" alt="" width="100%">
 
@@ -113,7 +113,7 @@ Grab a build from [Releases](https://github.com/DaRipper91/IntelNode/releases). 
 
 <br>
 
-1. Uninstall any older IntelNode first. Signing keys differed per CI build; from the next build on, CI signs with a stable key so upgrades work.
+1. Builds from commit `3f70dbf` on are signed with a stable key from repo secrets, so they upgrade in place (`adb install -r`). Uninstall first only if you have an older build, which was signed with a different key each time.
 2. Allow installs from unknown sources.
 3. Install the APK.
 4. Grant the storage permission.
@@ -129,12 +129,12 @@ Extra containers: Settings -> New Container builds other distro/desktop combinat
 <img src="images/status-board.svg" alt="Status board: what was observed, what is unverified, what is not wired" width="100%">
 </div>
 
-- The previous bundled-rootfs flow got through install, extraction and boot up to the in-app X server on the Pixel 10 Pro.
-- The new two-stage flow has not yet run on hardware.
-- The XFCE desktop appearing on screen has not been observed.
+- The two-stage flow (download with resume, md5, extract, provision, picker, XFCE4 install, session file) ran end to end on a Pixel 10 Pro, build `6133f9c`, CI run 43879730575.
+- On that build `xfce4-session`, `xfwm4`, `xfce4-panel`, `xfsettingsd`, Thunar and a session dbus were running, with no ANR and no `Function not implemented` errors in `boot.log`. This comes from the on-device debugging session's report; I have not re-checked it on the phone.
+- Not yet seen: a screenshot of the XFCE desktop. Known follow-ups: an icon theme package looks missing, and `am start` on a running app re-runs the workflow and starts the X server twice.
 - The browser noVNC / AVNC display path is not wired for the Arch container.
 
-One real first run, reconstructed from adb timestamps. The build on the phone was the bundled-rootfs flow, not the new two-stage one, and the stage names are inferred from timing:
+One earlier first run, reconstructed from adb timestamps. The build on the phone then was the old bundled-rootfs flow, not the two-stage one, and the stage names are inferred from timing:
 
 <div align="center">
 <img src="images/first-run-timeline.svg" alt="Timeline: install at 19:08, reinstall at 21:27, rootfs tar written at 21:29, an 8.6 minute proot run, seven short proot runs at 21:39:44, then no proot child" width="100%">
@@ -146,7 +146,15 @@ If a boot fails, [`debug/`](debug/) has `capture.sh` and a README for diagnosing
 
 ## Reading a failed boot
 
-The known failure is the last visible stage: the app polls the in-app X server for 60 seconds and gives up.
+Three boot failures have been found on a real device so far. Each one looks different in the log:
+
+| Failure | Signature | Cause and fix |
+|---|---|---|
+| X server never answers | `X server not ready after 60s`, after the probe below | The xkb symlink bug (`3e661ca`): the X server was pointed at a missing xkb directory. Fixed. |
+| App killed ~25 s after the X11 page opens | logcat `am_anr` "Input dispatching timed out", then `bg anr`; the ANR trace shows the UI thread in `com.termux.x11.CmdEntryPoint.main` -> `Looper.loop()` | x11_flutter ran the X server's looper on the main thread. `MainActivity` now starts it on its own thread by reflection and reports failures back as `xServerLaunchFailed`. Fixed in `6133f9c`'s tree; only process state was checked afterwards. |
+| Desktop never starts, dbus dies | `cd: /: Function not implemented`, `dbus-daemon: Could not chdir() to root directory`, `EOF reading PID from bus daemon` | `PROOT_NO_SECCOMP=1` in the boot command made every `chdir`/`getcwd` return ENOSYS. Removing it fixed it. |
+
+The probe behind the first row is a 60 second poll of the in-app X server's TCP port:
 
 <div align="center">
 <img src="images/wait-for-x-server.svg" alt="Sixty ticks, one per second, filling while the app probes 127.0.0.1 port 7897, then the timeout message" width="100%">
@@ -164,7 +172,7 @@ debug/capture.sh <serial>                                     # full logcat + pr
 <img src="images/logcat-card.svg" alt="Illustrative logcat output: workflow started, container launch, X server launch and wait, then the timeout" width="100%">
 </div>
 
-The card above is **illustrative**: the line formats are the real ones from `lib/boot_log.dart`, but this output has not been captured from a device yet, because no build containing the logging has been installed. Logcat lines go through Flutter's throttled `debugPrint`, so they can lag and the last ones may be lost if the process dies; `boot.log` is written synchronously and is the reliable record.
+The card above is **illustrative**: the line formats are the real ones from `lib/boot_log.dart`, and the timeout it ends on is the first failure in the table, not the current one. A real `boot.log` from the Pixel exists on the phone and showed the failure-3 lines quoted in the table (`Function not implemented`, `Could not chdir() to root directory`); I have not pulled it myself, so no full capture is reproduced here. Logcat lines go through Flutter's throttled `debugPrint`, so they can lag and the last ones may be lost if the process dies; `boot.log` is written synchronously and is the reliable record.
 
 | Line | Means |
 |---|---|
