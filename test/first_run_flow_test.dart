@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:da_ripped_tiny_computer/container_installer.dart';
 import 'package:da_ripped_tiny_computer/desktop_environments.dart';
 import 'package:da_ripped_tiny_computer/desktop_picker.dart';
@@ -16,6 +18,7 @@ void main() {
   extractScriptTests();
   rmrfTests();
   prootRunTests();
+  pickReachableTests();
   group('desktop manifest kinds', () {
     test('has both desktop environments and window managers', () {
       final kinds = DesktopEnvironments.all.map((d) => d.kind).toSet();
@@ -256,5 +259,46 @@ void prootRunTests() {
     expect(script, contains('getent passwd 1000 >/dev/null'));
     expect(script, contains('groupadd -g 1000 tiny'));
     expect(script, contains('useradd -m -s /bin/bash -u 1000 -g 1000'));
+  });
+}
+
+void pickReachableTests() {
+  group('ContainerInstaller.pickReachable', () {
+    http.Client client(Map<String, int?> status) => MockClient((req) async {
+          final code = status[req.url.host];
+          if (code == null) throw const SocketException('unreachable');
+          return http.Response('', code);
+        });
+
+    test('skips an unreachable mirror and picks the next that answers', () async {
+      final url = await ContainerInstaller.pickReachable(
+        ['https://a.test/x', 'https://b.test/x', 'https://c.test/x'],
+        client: client({'a.test': null, 'b.test': 200, 'c.test': 200}),
+      );
+      expect(url, 'https://b.test/x');
+    });
+
+    test('skips a mirror that answers with an error', () async {
+      final url = await ContainerInstaller.pickReachable(
+        ['https://a.test/x', 'https://b.test/x'],
+        client: client({'a.test': 503, 'b.test': 200}),
+      );
+      expect(url, 'https://b.test/x');
+    });
+
+    test('returns the first URL when none answer', () async {
+      final url = await ContainerInstaller.pickReachable(
+        ['https://a.test/x', 'https://b.test/x'],
+        client: client({'a.test': null, 'b.test': null}),
+      );
+      expect(url, 'https://a.test/x');
+    });
+  });
+
+  test('the Arch source lists fallback mirrors for the same file', () async {
+    final c = await Distros.byId('archlinux').rootfs.candidates();
+    expect(c.length, greaterThan(1));
+    expect(c.toSet().length, c.length);
+    expect(c.every((u) => u.endsWith('/os/ArchLinuxARM-aarch64-latest.tar.gz')), isTrue);
   });
 }

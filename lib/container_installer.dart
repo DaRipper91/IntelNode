@@ -294,6 +294,32 @@ rm -f ${Util.escapeShellArgument(tarballPath)}
     return checksumScript(hash, tarballPath, tool);
   }
 
+  /// Returns the first of [urls] that answers a HEAD request quickly, so a mirror that
+  /// is unreachable from the current network does not cost the whole retry budget.
+  /// Falls back to the first URL when none answers (the download then reports why).
+  static Future<String> pickReachable(
+    List<String> urls, {
+    http.Client? client,
+    Duration timeout = const Duration(seconds: 8),
+    void Function(String line)? log,
+  }) async {
+    final c = client ?? http.Client();
+    try {
+      for (final url in urls) {
+        try {
+          final r = await c.head(Uri.parse(url)).timeout(timeout);
+          if (r.statusCode >= 200 && r.statusCode < 400) return url;
+          log?.call("mirror answered HTTP ${r.statusCode}: $url");
+        } catch (e) {
+          log?.call("mirror unreachable ($e): $url");
+        }
+      }
+    } finally {
+      if (client == null) c.close();
+    }
+    return urls.first;
+  }
+
   /// Compares [tarballPath] with [hash] using the bundled busybox. Exit codes
   /// let the caller tell a corrupt download from a broken tool: 0 matches,
   /// 3 mismatch, 2 the checksum tool itself failed (the download is kept).
@@ -358,7 +384,7 @@ echo "checksum ok: \$calc"
 
     try {
       log("== Resolving ${distro.displayName} rootfs");
-      final url = await distro.rootfs.resolve();
+      final url = await pickReachable(await distro.rootfs.candidates(), log: log);
       log(url);
       final letter = url.endsWith('.xz') ? 'J' : url.endsWith('.bz2') ? 'j' : 'z';
 

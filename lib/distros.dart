@@ -40,8 +40,13 @@ class RootfsSource {
   final bool verified;
   final String notes;
 
+  // Other hosts serving the same file, tried when the primary is unreachable from the
+  // current network (seen on a real phone: one mirror timed out on a shop wifi).
+  final List<String> fallbackUrls;
+
   const RootfsSource.direct({
     required String url,
+    this.fallbackUrls = const [],
     required this.verified,
     this.notes = "",
   }) : kind = RootfsSourceKind.direct,
@@ -54,7 +59,8 @@ class RootfsSource {
     required String product,
     required this.verified,
     this.notes = "",
-  }) : kind = RootfsSourceKind.simplestreams,
+  }) : fallbackUrls = const [],
+       kind = RootfsSourceKind.simplestreams,
        directUrl = null,
        simplestreamsBase = base,
        simplestreamsProduct = product;
@@ -70,6 +76,9 @@ class RootfsSource {
   // sources this makes two small JSON requests to find the current build;
   // throws a descriptive Exception (never fails silently) if the product or
   // a rootfs.tar.xz item can't be found.
+  /// The primary URL followed by the fallbacks, in the order to try them.
+  Future<List<String>> candidates() async => [await resolve(), ...fallbackUrls];
+
   Future<String> resolve() async {
     if (kind == RootfsSourceKind.direct) return directUrl!;
 
@@ -260,6 +269,10 @@ class Distros {
       packageManager: PackageManagerFamily.pacman,
       rootfs: const RootfsSource.direct(
         url: "https://de3.mirror.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz",
+        fallbackUrls: [
+          "https://fl.us.mirror.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz",
+          "https://ca.us.mirror.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz",
+        ],
         verified: true,
         notes: "Stable, long-standing ArchLinuxARM release path.",
       ),

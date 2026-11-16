@@ -1343,7 +1343,9 @@ WINEDLLOVERRIDES="d3d8=b,d3d9=b,d3d10core=b,d3d11=b,dxgi=b" wine reg add 'HKEY_C
 
 // Global variables
 class G {
-  static late final String dataPath;
+  // Not `late final`: initData() runs again when the Retry button restarts startup, and a
+  // second assignment to a late final field throws LateInitializationError.
+  static String dataPath = "";
   static Pty? audioPty;
   static late WebViewController controller;
   static late BuildContext homePageStateContext;
