@@ -287,10 +287,14 @@ exit "${TEST_SESSION_EXIT:-0}"
     final obRc = File('${fixture.path}/.config/openbox/rc.xml');
     expect(obRc.existsSync(), isTrue);
     expect(obRc.readAsStringSync(), contains('<sync>no</sync>'));
+    expect(obRc.readAsStringSync(), contains('<application class="*" type="normal">'));
+    expect(obRc.readAsStringSync(), contains('<maximized>true</maximized>'));
 
     final lxqtRc = File('${fixture.path}/.config/openbox/lxqt-rc.xml');
     expect(lxqtRc.existsSync(), isTrue);
     expect(lxqtRc.readAsStringSync(), contains('<sync>no</sync>'));
+    expect(lxqtRc.readAsStringSync(), contains('<application class="*" type="normal">'));
+    expect(lxqtRc.readAsStringSync(), contains('<maximized>true</maximized>'));
   });
 
   test('masks LXQt power management and screensaver stubs and autostart', () {
@@ -314,13 +318,18 @@ exit "${TEST_SESSION_EXIT:-0}"
     expect(ssAutostart.readAsStringSync(), contains('Hidden=true'));
   });
 
-  test('provisions LXQt session.conf and lxqt.conf', () {
+  test('provisions LXQt session.conf, lxqt.conf, and panel.conf', () {
     final result = run();
     expect(result.exitCode, 0, reason: '${result.stderr}');
 
     final sessionConf = File('${fixture.path}/.config/lxqt/session.conf');
     expect(sessionConf.existsSync(), isTrue);
     expect(sessionConf.readAsStringSync(), contains('window_manager=openbox'));
+
+    final panelConf = File('${fixture.path}/.config/lxqt/panel.conf');
+    expect(panelConf.existsSync(), isTrue);
+    expect(panelConf.readAsStringSync(), contains('position=Bottom'));
+    expect(panelConf.readAsStringSync(), contains('panelSize=38'));
 
     final lxqtConf = File('${fixture.path}/.config/lxqt/lxqt.conf');
     expect(lxqtConf.existsSync(), isTrue);

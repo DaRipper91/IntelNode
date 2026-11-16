@@ -139,9 +139,11 @@ EOF
     # Openbox window manager tuning (used by LXQt, LXDE, and Openbox standalone):
     # Disable synchronous XSync calls (<sync>no</sync>) to prevent input stalls on Termux:X11,
     # eliminate window resistance delay, and ensure click-to-focus without focus-stealing hangs.
+    # Mobile Portrait Window Management: normal windows automatically open maximized to fit
+    # the portrait viewport without spilling off-screen; dialogs and popups remain centered.
     mkdir -p "$HOME/.config/openbox"
     for ob_file in "$HOME/.config/openbox/rc.xml" "$HOME/.config/openbox/lxqt-rc.xml"; do
-        if [ ! -f "$ob_file" ]; then
+        if [ ! -f "$ob_file" ] || ! grep -q '<application class=' "$ob_file" 2>/dev/null; then
             cat > "$ob_file" << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <openbox_config xmlns="http://openbox.org/3.4/rc">
@@ -164,12 +166,13 @@ EOF
   </placement>
   <theme>
     <sync>no</sync>
-    <font place="ActiveWindowTitle"><name>sans</name><size>10</size><weight>bold</weight><slant>normal</slant></font>
+    <font place="ActiveWindowTitle"><name>sans</name><size>11</size><weight>bold</weight><slant>normal</slant></font>
     <font place="InactiveWindowTitle"><name>sans</name><size>10</size><weight>normal</weight><slant>normal</slant></font>
-    <font place="MenuHeader"><name>sans</name><size>10</size><weight>bold</weight><slant>normal</slant></font>
-    <font place="MenuItem"><name>sans</name><size>10</size><weight>normal</weight><slant>normal</slant></font>
-    <font place="ActiveOnScreenDisplay"><name>sans</name><size>10</size><weight>bold</weight><slant>normal</slant></font>
+    <font place="MenuHeader"><name>sans</name><size>11</size><weight>bold</weight><slant>normal</slant></font>
+    <font place="MenuItem"><name>sans</name><size>11</size><weight>normal</weight><slant>normal</slant></font>
+    <font place="ActiveOnScreenDisplay"><name>sans</name><size>11</size><weight>bold</weight><slant>normal</slant></font>
     <font place="InactiveOnScreenDisplay"><name>sans</name><size>10</size><weight>normal</weight><slant>normal</slant></font>
+    <titleLayout>NLIMC</titleLayout>
   </theme>
   <margins>
     <top>0</top>
@@ -177,12 +180,49 @@ EOF
     <left>0</left>
     <right>0</right>
   </margins>
+  <applications>
+    <!-- Portrait Mobile Optimization: normal windows open maximized to fit portrait screen -->
+    <application class="*" type="normal">
+      <maximized>true</maximized>
+    </application>
+    <!-- Fallback for unspecified window types: maximize vertically and center horizontally -->
+    <application class="*">
+      <maximized>vertical</maximized>
+      <position force="no">
+        <x>center</x>
+        <y>0</y>
+      </position>
+    </application>
+    <!-- Dialogs and popups stay centered on the portrait screen -->
+    <application type="dialog">
+      <maximized>no</maximized>
+      <position force="yes">
+        <x>center</x>
+        <y>center</y>
+      </position>
+    </application>
+    <application type="splash">
+      <maximized>no</maximized>
+      <position force="yes">
+        <x>center</x>
+        <y>center</y>
+      </position>
+    </application>
+  </applications>
 </openbox_config>
 EOF
         elif command -v sed >/dev/null 2>&1; then
             sed -i 's/<sync>yes<\/sync>/<sync>no<\/sync>/g' "$ob_file" 2>/dev/null || true
         fi
     done
+
+    # Reconfigure Openbox if already active
+    (
+        sleep 2
+        if command -v openbox >/dev/null 2>&1; then
+            openbox --reconfigure 2>/dev/null || true
+        fi
+    ) >/dev/null 2>&1 &
 
     # LXQt session performance & power settings
     mkdir -p "$HOME/.config/lxqt"
@@ -195,6 +235,22 @@ window_manager=openbox
 
 [Environment]
 TERM=xterm-256color
+EOF
+    fi
+
+    LXQT_PANEL_CONF="$HOME/.config/lxqt/panel.conf"
+    if [ ! -f "$LXQT_PANEL_CONF" ]; then
+        cat > "$LXQT_PANEL_CONF" << 'EOF'
+[General]
+panels=panel1
+
+[panel1]
+position=Bottom
+alignment=Center
+panelSize=38
+lineCount=1
+width=100%
+desktop=0
 EOF
     fi
 
@@ -289,9 +345,9 @@ EOF
 </channel>
 EOF
 
-    # XFCE Window Manager performance tuning:
+    # XFCE Window Manager performance and portrait mobile tuning:
     # Disable compositing and vblank stalls (causes input capture freezes under synthetic X servers),
-    # disable drop shadows, and enable wireframe move/resize.
+    # center windows with 100% placement ratio, snap to borders, and enable wireframe move/resize.
     XFWM4_XML="$HOME/.config/xfce4/xfconf/xfce-perchannel-xml/xfwm4.xml"
     if [ -f "$XFWM4_XML" ] && command -v sed >/dev/null 2>&1; then
         sed -i 's/name="use_compositing" type="bool" value="true"/name="use_compositing" type="bool" value="false"/g' "$XFWM4_XML" 2>/dev/null || true
@@ -314,6 +370,12 @@ EOF
     <property name="box_move" type="bool" value="true"/>
     <property name="box_resize" type="bool" value="true"/>
     <property name="unredirect_overlays" type="bool" value="true"/>
+    <property name="placement_ratio" type="int" value="100"/>
+    <property name="placement_mode" type="string" value="center"/>
+    <property name="snap_to_border" type="bool" value="true"/>
+    <property name="borderless_maximize" type="bool" value="false"/>
+    <property name="title_alignment" type="string" value="center"/>
+    <property name="title_font" type="string" value="Sans Bold 11"/>
   </property>
 </channel>
 EOF

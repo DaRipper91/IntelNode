@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.Application
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.os.Bundle
 import android.view.View
 import com.google.android.material.color.DynamicColors
@@ -48,13 +49,16 @@ class MainApplication : FlutterApplication() {
     }
 
     private fun applyX11Preferences(activity: Activity) {
-        // 1. Force touch mode and disable pointer capture in SharedPreferences
+        // 1. Force touch mode, portrait orientation, and resolution scaling in SharedPreferences
         try {
             val sp = activity.getSharedPreferences("${activity.packageName}_preferences", Context.MODE_PRIVATE)
             sp.edit()
                 .putBoolean("pointerCapture", false)
                 .putBoolean("keepScreenOn", true)
                 .putString("touchMode", "1")
+                .putString("forceOrientation", "portrait")
+                .putBoolean("adjustResolution", true)
+                .putBoolean("displayStretch", true)
                 .apply()
         } catch (_: Throwable) {}
 
@@ -65,11 +69,19 @@ class MainApplication : FlutterApplication() {
                 putExtra("pointerCapture", "false")
                 putExtra("keepScreenOn", "true")
                 putExtra("touchMode", "1")
+                putExtra("forceOrientation", "portrait")
+                putExtra("adjustResolution", "true")
+                putExtra("displayStretch", "true")
             }
             activity.sendBroadcast(intent)
         } catch (_: Throwable) {}
 
-        // 3. Immediately release pointer capture if requested by LorieView
+        // 3. Explicitly lock activity window to portrait orientation
+        try {
+            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        } catch (_: Throwable) {}
+
+        // 4. Immediately release pointer capture if requested by LorieView
         try {
             activity.window?.decorView?.releasePointerCapture()
             val lorieViewMethod = activity.javaClass.getMethod("getLorieView")
