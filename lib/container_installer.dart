@@ -334,7 +334,15 @@ echo "$hash  ${tarballPath}" | \$DATA_DIR/bin/busybox $tool -c -
       await Util.downloadFile(url, tarballPath, onProgress: onProgress);
 
       final checksum = await _checksumScript(url, tarballPath);
-      if (checksum != null) await step("Verifying checksum", checksum);
+      if (checksum != null) {
+        try {
+          await step("Verifying checksum", checksum);
+        } catch (_) {
+          // A bad or stale partial download must not be resumed next time.
+          await run("rm -f ${Util.escapeShellArgument(tarballPath)}");
+          rethrow;
+        }
+      }
 
       await step("Extracting rootfs", _extractScript(stagingDir, tarballPath, letter));
       await step(
@@ -350,9 +358,8 @@ echo "$hash  ${tarballPath}" | \$DATA_DIR/bin/busybox $tool -c -
       );
       log("\r\n== Base system installed and verified");
     } catch (_) {
-      await run(
-        "rm -rf ${Util.escapeShellArgument(stagingDir)} ${Util.escapeShellArgument(tarballPath)}",
-      );
+      // Keep the tarball: a retry resumes the download instead of starting over.
+      await run("rm -rf ${Util.escapeShellArgument(stagingDir)}");
       rethrow;
     }
   }

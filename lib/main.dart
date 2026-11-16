@@ -1864,6 +1864,19 @@ class _LoadingPageState extends State<LoadingPage> {
               ),
             ),
             const FakeLoadingStatus(),
+            ValueListenableBuilder<bool>(
+              valueListenable: G.startupFailed,
+              builder: (context, failed, _) => failed
+                  ? Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: FilledButton.icon(
+                        icon: const Icon(Icons.refresh),
+                        label: const Text("Retry"),
+                        onPressed: () => G.retryStartup?.call(),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(8),
@@ -2365,11 +2378,14 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   }
 
   Future<void> _initializeWorkflow() async {
+    G.startupFailed.value = false;
     try {
       await Workflow.workflow();
     } catch (e, st) {
       debugPrint('Workflow error: $e\n$st');
       G.updateText.value = 'Error initializing app:\n$e';
+      G.retryStartup = _initializeWorkflow;
+      G.startupFailed.value = true;
       return; // Do not set isLoadingComplete to true so we stay on the LoadingPage
     }
     if (mounted) {

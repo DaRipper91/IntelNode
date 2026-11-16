@@ -53,6 +53,14 @@ import 'package:x11_flutter/x11_flutter.dart';
 import 'models.dart';
 import 'settings.dart';
 
+class DownloadHttpException implements Exception {
+  final int status;
+  final String url;
+  DownloadHttpException(this.status, this.url);
+  @override
+  String toString() => "Download failed: HTTP $status for $url";
+}
+
 class Util {
   static Future<void> copyAsset(String src, String dst) async {
     await File(
@@ -442,38 +450,70 @@ class Util {
   // Streams [url] to [destPath], reporting whole-percent progress through
   // onProgress when the response declares a content length. Used by
   // ContainerInstaller to fetch on-device distro rootfs tarballs.
+  /// Downloads [url] to [destPath], surviving dropped connections: a failed or
+  /// truncated attempt is retried with backoff and continues from the bytes
+  /// already on disk using an HTTP Range request (restarting from zero when the
+  /// server ignores Range). 4xx responses are not retried.
   static Future<void> downloadFile(
     String url,
     String destPath, {
     required void Function(String) onProgress,
+    http.Client? client,
+    int maxAttempts = 8,
+    Duration retryDelay = const Duration(seconds: 2),
+    Duration stallTimeout = const Duration(seconds: 30),
   }) async {
-    final client = http.Client();
+    final c = client ?? http.Client();
+    final file = File(destPath);
+    int? total;
+    int lastPct = -1;
     try {
-      final response = await client.send(http.Request('GET', Uri.parse(url)));
-      if (response.statusCode != 200) {
-        throw Exception("Download failed: HTTP ${response.statusCode} for $url");
-      }
-      final sink = File(destPath).openWrite();
-      int received = 0;
-      int lastPct = -1;
-      final total = response.contentLength ?? 0;
-      try {
-        await for (final chunk in response.stream) {
-          sink.add(chunk);
-          received += chunk.length;
-          if (total > 0) {
-            final pct = (received / total * 100).floor();
-            if (pct != lastPct) {
-              lastPct = pct;
-              onProgress("Downloading... $pct%");
-            }
+      for (int attempt = 1;; attempt++) {
+        final have = file.existsSync() ? file.lengthSync() : 0;
+        try {
+          final req = http.Request('GET', Uri.parse(url));
+          if (have > 0) req.headers['Range'] = 'bytes=$have-';
+          final resp = await c.send(req).timeout(stallTimeout);
+          if (resp.statusCode == 416 && total != null && have >= total) return;
+          if (resp.statusCode != 200 && resp.statusCode != 206) {
+            throw DownloadHttpException(resp.statusCode, url);
           }
+          final resumed = resp.statusCode == 206 && have > 0;
+          final base = resumed ? have : 0;
+          final len = resp.contentLength;
+          if (len != null) total = base + len;
+          final sink = file.openWrite(mode: resumed ? FileMode.append : FileMode.write);
+          int received = base;
+          try {
+            await for (final chunk in resp.stream.timeout(stallTimeout)) {
+              sink.add(chunk);
+              received += chunk.length;
+              if (total != null && total > 0) {
+                final pct = (received / total * 100).floor();
+                if (pct != lastPct) {
+                  lastPct = pct;
+                  onProgress(
+                    "Downloading... $pct% (${received ~/ 1048576}/${total ~/ 1048576} MB)",
+                  );
+                }
+              }
+            }
+          } finally {
+            await sink.close();
+          }
+          if (total != null && received < total) {
+            throw HttpException("connection closed at $received of $total bytes");
+          }
+          return;
+        } catch (e) {
+          final fatal = e is DownloadHttpException && e.status >= 400 && e.status < 500;
+          if (fatal || attempt >= maxAttempts) rethrow;
+          onProgress("Connection lost ($e); retrying in ${(retryDelay * attempt).inSeconds}s (attempt $attempt/$maxAttempts)...");
+          await Future.delayed(retryDelay * attempt);
         }
-      } finally {
-        await sink.close();
       }
     } finally {
-      client.close();
+      if (client == null) c.close();
     }
   }
 }
@@ -1305,6 +1345,9 @@ class G {
       ValueNotifier([]); // Captured PTY output lines
   // Visible install terminal; non-null from the start of first-run setup until it completes.
   static ValueNotifier<SetupSession?> setupSession = ValueNotifier(null);
+  // Set when startup fails; the loading screen then offers a Retry button.
+  static ValueNotifier<bool> startupFailed = ValueNotifier(false);
+  static Future<void> Function()? retryStartup;
   static String postCommand = ""; //第一次进入容器时额外运行的命令
 
   static bool wasAvncEnabled = false;
@@ -1555,6 +1598,7 @@ fi
     // Stage 1: bare Arch base, downloaded and verified. Stage 2 (the desktop) is
     // picked by the user once the base is known to work. Everything runs in the
     // visible setup terminal so failures can be read and copied.
+    G.setupSession.value?.dispose();
     final session = SetupSession(G.dataPath);
     G.setupSession.value = session;
     final distro = Distros.byId("archlinux");
@@ -1565,7 +1609,9 @@ fi
       containerIndex: 0,
       run: session.run,
       log: session.log,
-      onProgress: (m) => session.terminal.write("\r$m"),
+      onProgress: (m) => session.terminal.write(
+        m.startsWith("Connection lost") ? "\r\n$m\r\n" : "\x1b[2K\r$m",
+      ),
     );
 
     G.updateText.value = "Base system ready";

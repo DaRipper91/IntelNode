@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128"><title>IntelNode: N made of linked nodes</title><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1e1e2e"/><stop offset="1" stop-color="#11111b"/></linearGradient><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cba6f7"/><stop offset="1" stop-color="#74c7ec"/></linearGradient></defs><rect x="4" y="4" width="120" height="120" rx="28" fill="url(#bg)"/><rect x="5" y="5" width="118" height="118" rx="27" fill="none" stroke="#cba6f7" stroke-width="2"/>
+<path d="M40 90 V38 L88 90 V38" fill="none" stroke="url(#g)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+<g fill="#cdd6f4"><circle cx="40" cy="90" r="9"/><circle cx="40" cy="38" r="9"/><circle cx="88" cy="90" r="9"/></g>
+<circle cx="88" cy="38" r="9" fill="#a6e3a1"/></svg>
