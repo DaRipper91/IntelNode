@@ -26,7 +26,7 @@ void main() {
     });
 
     test('i3 and the new stable WMs are window managers', () {
-      for (final id in ['i3', 'openbox', 'fluxbox', 'icewm']) {
+      for (final id in ['i3', 'openbox', 'fluxbox', 'icewm', 'awesome', 'bspwm']) {
         expect(DesktopEnvironments.all.firstWhere((d) => d.id == id).kind,
             DesktopKind.windowManager);
       }
@@ -49,8 +49,10 @@ void main() {
         ),
       ));
       expect(find.text('Desktop Environments'), findsOneWidget);
-      expect(find.text('Window Managers'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('desktop-xfce4')));
+      expect(picked?.id, 'xfce4');
+      await tester.scrollUntilVisible(find.text('Window Managers'), 200);
+      expect(find.text('Window Managers'), findsOneWidget);
       expect(picked?.id, 'xfce4');
     });
 

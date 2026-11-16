@@ -144,9 +144,10 @@ class X11FloatingOverlay private constructor(private val activity: Activity) {
             returnToHub()
         }
 
-        val scaleBtn = createActionButton("📐 Scale", "Toggle 1.5x / 2.0x") {
+        val scaleView = createActionButton("📐 150%", "Cycle Display Scale (100%-200%)") {
             toggleScaleFactor()
         }
+        scaleBtn = scaleView
 
         val hideBtn = createActionButton("✕", "Collapse Tab") {
             collapseToPill()
@@ -154,7 +155,7 @@ class X11FloatingOverlay private constructor(private val activity: Activity) {
 
         expandedBar.addView(kbdBtn)
         expandedBar.addView(prefsBtn)
-        expandedBar.addView(scaleBtn)
+        expandedBar.addView(scaleView)
         expandedBar.addView(hubBtn)
         expandedBar.addView(hideBtn)
 
@@ -270,12 +271,16 @@ class X11FloatingOverlay private constructor(private val activity: Activity) {
         }
     }
 
-    private var currentScaleIsDouble = true
+    private val scaleLevels = intArrayOf(100, 125, 150, 175, 200)
+    private var scaleIndex = 2
+    private var scaleBtn: TextView? = null
+
     private fun toggleScaleFactor() {
-        currentScaleIsDouble = !currentScaleIsDouble
-        val scaleVal = if (currentScaleIsDouble) "2.0" else "1.5"
+        scaleIndex = (scaleIndex + 1) % scaleLevels.size
+        val nextScale = scaleLevels[scaleIndex]
+        scaleBtn?.text = "📐 ${nextScale}%"
         val intent = Intent("com.termux.x11.CHANGE_PREFERENCE").apply {
-            putExtra("tc_displayScale", scaleVal)
+            putExtra("displayScale", nextScale.toString())
             setPackage(activity.packageName)
         }
         activity.sendBroadcast(intent)
