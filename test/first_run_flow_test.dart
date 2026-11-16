@@ -15,6 +15,7 @@ void main() {
   busyboxScriptTests();
   extractScriptTests();
   rmrfTests();
+  prootRunTests();
   group('desktop manifest kinds', () {
     test('has both desktop environments and window managers', () {
       final kinds = DesktopEnvironments.all.map((d) => d.kind).toSet();
@@ -237,5 +238,22 @@ void rmrfTests() {
     Process.runSync('chmod', ['555', ro.path]);
     expect(Process.runSync('sh', ['-c', ContainerInstaller.rmrf('${work.path}/t')]).exitCode, 0);
     expect(Directory('${work.path}/t').existsSync(), isFalse);
+  });
+}
+
+void prootRunTests() {
+  test('every proot script kills gpg-agent/dirmngr on exit so proot can return', () {
+    final script = ContainerInstaller.prootRun(rootfs: '/r', script: 'echo hi');
+    expect(script, contains('pkill -x gpg-agent'));
+    expect(script, contains('pkill -x dirmngr'));
+    expect(script, contains("trap "));
+  });
+
+  test('user setup deletes the old uid-1000 user without relying on userdel -r', () {
+    final script = Distros.byId('archlinux').firstBootScript('tiny');
+    expect(script, isNot(contains('userdel -r "')));
+    expect(script, contains('getent passwd 1000 >/dev/null'));
+    expect(script, contains('groupadd -g 1000 tiny'));
+    expect(script, contains('useradd -m -s /bin/bash -u 1000 -g 1000'));
   });
 }

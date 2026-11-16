@@ -153,7 +153,7 @@ class ContainerInstaller {
 
       onProgress("Running first-boot provisioning...");
       exitCode = await Util.execute(
-        _prootRun(rootfs: stagingDir, script: distro.firstBootScript(username)),
+        prootRun(rootfs: stagingDir, script: distro.firstBootScript(username)),
       );
       if (exitCode != 0) {
         throw Exception(
@@ -164,7 +164,7 @@ class ContainerInstaller {
       onProgress("Installing ${desktop.displayName}...");
       final packages = desktop.packagesFor(distro);
       exitCode = await Util.execute(
-        _prootRun(
+        prootRun(
           rootfs: stagingDir,
           script: "${distro.updateCommand}\n${distro.installCommand(packages)}",
         ),
@@ -177,7 +177,7 @@ class ContainerInstaller {
 
       onProgress("Writing session startup files...");
       exitCode = await Util.execute(
-        _prootRun(
+        prootRun(
           rootfs: stagingDir,
           script: """
 cat > /home/$username/.xinitrc << 'XINITRC'
@@ -332,7 +332,7 @@ echo "checksum ok: \$calc"
       PackageManagerFamily.dnf => "dnf",
       PackageManagerFamily.apt => "apt-get",
     };
-    return "set -e\nid $username\ncommand -v $pm\nsudo -n true";
+    return "set -e\nid $username\n[ \"\$(id -u $username)\" = 1000 ]\n[ \"\$(id -g $username)\" = 1000 ]\ncommand -v $pm\nsudo -n true";
   }
 
   /// Stage 1 of the guided first run: download, verify, extract and provision
@@ -382,13 +382,13 @@ echo "checksum ok: \$calc"
       await step("Extracting rootfs", extractScript(stagingDir, tarballPath, letter));
       await step(
         "Provisioning base system (keys, user, sudo, locale)",
-        _prootRun(rootfs: stagingDir, script: distro.firstBootScript(username)),
+        prootRun(rootfs: stagingDir, script: distro.firstBootScript(username)),
         failure: "Base provisioning",
       );
       await step("Finalizing", finalizeScript(stagingDir, containerDir, tarballPath));
       await step(
         "Verifying the base system boots",
-        _prootRun(rootfs: containerDir, script: _verifyScript(distro)),
+        prootRun(rootfs: containerDir, script: _verifyScript(distro)),
         failure: "Base verification",
       );
       log("\r\n== Base system installed and verified");
@@ -418,7 +418,7 @@ echo "checksum ok: \$calc"
     final packages = desktop.packagesFor(distro);
     log("\r\n== Installing ${desktop.displayName}: ${packages.join(' ')}");
     var code = await run(
-      _prootRun(
+      prootRun(
         rootfs: containerDir,
         script: "set -e\n${distro.updateCommand}\n${distro.installCommand(packages)}",
       ),
@@ -427,7 +427,7 @@ echo "checksum ok: \$calc"
       throw Exception("${desktop.displayName} install failed (exit code $code)");
     }
     log("\r\n== Writing session files");
-    code = await run(_prootRun(rootfs: containerDir, script: sessionFilesScript(desktop)));
+    code = await run(prootRun(rootfs: containerDir, script: sessionFilesScript(desktop)));
     if (code != 0) {
       throw Exception("Writing session files failed (exit code $code)");
     }
@@ -455,7 +455,16 @@ chmod +x /home/$username/.xinitrc
   // guest's package manager and useradd/locale-gen wouldn't be found without
   // this (mirrors the /usr/bin/env -i ... idiom Workflow.getBootCommand()
   // already uses to launch the bundled Arch container).
-  static String _prootRun({required String rootfs, required String script}) =>
+  /// pacman-key and pacman leave a gpg-agent (and dirmngr) daemon behind, and
+  /// proot does not return until every process in its tree has exited, so an
+  /// install step would hang forever and report a stale exit status. Kill them
+  /// when the guest script ends, however it ends.
+  static const String _gpgCleanupTrap =
+      "trap 'gpgconf --homedir /etc/pacman.d/gnupg --kill all >/dev/null 2>&1; "
+      "pkill -x gpg-agent >/dev/null 2>&1; pkill -x dirmngr >/dev/null 2>&1; true' EXIT\n";
+
+  @visibleForTesting
+  static String prootRun({required String rootfs, required String script}) =>
       """
 set -e
 export DATA_DIR=${G.dataPath}
@@ -463,7 +472,7 @@ export LD_LIBRARY_PATH=\$DATA_DIR/lib
 export PROOT_TMP_DIR=\$DATA_DIR/proot_tmp
 export PROOT_LOADER=\$DATA_DIR/applib/libproot-loader.so
 export PROOT_LOADER_32=\$DATA_DIR/applib/libproot-loader32.so
-\$DATA_DIR/bin/proot -0 -r ${Util.escapeShellArgument(rootfs)} --link2symlink -b /proc -b /sys -b /dev /usr/bin/env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/root LANG=C /bin/sh -c ${Util.escapeShellArgument(script)}
+\$DATA_DIR/bin/proot -0 -r ${Util.escapeShellArgument(rootfs)} --link2symlink -b /proc -b /sys -b /dev /usr/bin/env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/root LANG=C /bin/sh -c ${Util.escapeShellArgument("$_gpgCleanupTrap$script")}
 """;
 
   static Future<void> _registerContainer(

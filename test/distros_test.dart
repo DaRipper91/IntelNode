@@ -76,7 +76,7 @@ void main() {
     test('create the expected user and remove Termux profile scripts', () {
       for (final distro in Distros.all) {
         final script = distro.firstBootScript('tiny');
-        expect(script, contains('useradd -m -s /bin/bash -u 1000 -G'));
+        expect(script, contains('useradd -m -s /bin/bash -u 1000 -g 1000 -G'));
         expect(script, contains('sudoers.d/tiny'));
         expect(script, contains('polkit-1/rules.d'));
         expect(script, contains('termux'));

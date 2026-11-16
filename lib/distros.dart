@@ -187,12 +187,22 @@ const String _removeTermuxProfileScripts =
 
 String _commonUserSetup(String username) =>
     """
+# Free uid/gid 1000 (Arch ARM ships `alarm` there). No `userdel -r`: files made
+# by the app look root-owned under proot, so userdel refuses to remove the home
+# and returns non-zero even though the account is gone. Check the database.
 existing=\$(getent passwd 1000 | cut -d: -f1 || true)
-if [ -n "\$existing" ] && [ "\$existing" != "$username" ]; then userdel -r "\$existing" || { echo "could not remove uid-1000 user \$existing" >&2; exit 1; }; fi
+if [ -n "\$existing" ] && [ "\$existing" != "$username" ]; then
+  userdel "\$existing" || true
+  if getent passwd 1000 >/dev/null; then echo "could not free uid 1000 (held by \$existing)" >&2; exit 1; fi
+  rm -rf "/home/\$existing"
+fi
+gexisting=\$(getent group 1000 | cut -d: -f1 || true)
+if [ -n "\$gexisting" ] && [ "\$gexisting" != "$username" ]; then groupdel "\$gexisting" || true; fi
+getent group $username >/dev/null || groupadd -g 1000 $username
 grp=wheel
 if getent group sudo >/dev/null; then grp=sudo; fi
 getent group "\$grp" >/dev/null || groupadd "\$grp"
-id -u $username >/dev/null 2>&1 || useradd -m -s /bin/bash -u 1000 -G "\$grp" $username
+id -u $username >/dev/null 2>&1 || useradd -m -s /bin/bash -u 1000 -g 1000 -G "\$grp" $username
 echo "$username ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/$username
 chmod 0440 /etc/sudoers.d/$username
 mkdir -p /etc/polkit-1/rules.d
