@@ -100,13 +100,16 @@ class ContainerInstaller {
     );
   }
 
-  // Executes [installPlan] for real: downloads the rootfs, extracts it,
-  // provisions the distro, installs the desktop, and registers a new
-  // container entry. Throws StateError immediately (no partial work) if the
-  // plan is blocked. Reports each step through onProgress as it starts.
-  static Future<void> execute(
+  /// Installs [installPlan] as a new container the same way the first run does:
+  /// base (download, checksum, extract, provision, boot check), then the desktop,
+  /// then registers it. Every step goes through [run] and [log] so the caller can
+  /// show them in a visible terminal. Throws StateError (no partial work) if the
+  /// plan is blocked.
+  static Future<void> install(
     InstallPlan installPlan, {
-    required void Function(String) onProgress,
+    required Future<int> Function(String script) run,
+    required void Function(String line) log,
+    required void Function(String progress) onProgress,
   }) async {
     if (installPlan.blocked) {
       throw StateError(
@@ -115,110 +118,42 @@ class ContainerInstaller {
       );
     }
 
-    final distro = installPlan.distro;
-    final desktop = installPlan.desktop;
-
     final existing = List<String>.from(
       Util.getGlobal("containersInfo") ?? <String>[],
     );
     final int containerIndex = existing.length;
-    final String containerDir = "${G.dataPath}/containers/$containerIndex";
-    final String stagingDir = "${containerDir}_staging";
-
-    onProgress("Resolving rootfs download location...");
-    final String rootfsUrl = await distro.rootfs.resolve();
-    // busybox tar's compression auto-detection is inconsistent across
-    // builds, so pick the flag explicitly from the resolved URL rather than
-    // relying on it (Arch ships .tar.gz; Ubuntu and the linuxcontainers.org
-    // mirror both serve .tar.xz).
-    final String compressLetter = rootfsUrl.endsWith('.xz')
-        ? 'J'
-        : rootfsUrl.endsWith('.bz2')
-            ? 'j'
-            : 'z';
-    final String tarballPath = "${G.dataPath}/new_rootfs_$containerIndex.tar";
 
     try {
-      onProgress("Downloading ${distro.displayName} rootfs...");
-      await Util.downloadFile(rootfsUrl, tarballPath, onProgress: onProgress);
-
-      onProgress("Extracting rootfs...");
-      Util.createDirFromString(stagingDir);
-      int exitCode = await Util.execute(
-        extractScript(stagingDir, tarballPath, compressLetter),
+      await installBase(
+        distro: installPlan.distro,
+        containerIndex: containerIndex,
+        run: run,
+        log: log,
+        onProgress: onProgress,
       );
-      if (exitCode != 0) {
-        throw Exception("Rootfs extraction failed with exit code $exitCode");
-      }
-
-      onProgress("Running first-boot provisioning...");
-      exitCode = await Util.execute(
-        prootRun(rootfs: stagingDir, script: distro.firstBootScript(username)),
+      await installDesktop(
+        distro: installPlan.distro,
+        desktop: installPlan.desktop,
+        containerIndex: containerIndex,
+        run: run,
+        log: log,
       );
-      if (exitCode != 0) {
-        throw Exception(
-          "First-boot provisioning failed with exit code $exitCode",
-        );
-      }
-
-      onProgress("Installing ${desktop.displayName}...");
-      final packages = desktop.packagesFor(distro);
-      exitCode = await Util.execute(
-        prootRun(
-          rootfs: stagingDir,
-          script: "${distro.updateCommand}\n${distro.installCommand(packages)}",
-        ),
-      );
-      if (exitCode != 0) {
-        throw Exception(
-          "${desktop.displayName} package install failed with exit code $exitCode",
-        );
-      }
-
-      onProgress("Writing session startup files...");
-      exitCode = await Util.execute(
-        prootRun(
-          rootfs: stagingDir,
-          script: """
-cat > /home/$username/.xinitrc << 'XINITRC'
-#!/bin/bash
-export XDG_SESSION_TYPE=x11
-export XDG_CURRENT_DESKTOP=${desktop.xdgDesktopName}
-exec ${desktop.xinitrcExec}
-XINITRC
-chown $username:$username /home/$username/.xinitrc
-chmod +x /home/$username/.xinitrc
-""",
-        ),
-      );
-      if (exitCode != 0) {
-        throw Exception(
-          "Writing session startup files failed with exit code $exitCode",
-        );
-      }
-
-      onProgress("Finalizing container...");
-      exitCode = await Util.execute("""
-set -e
-export DATA_DIR=${G.dataPath}
-export LD_LIBRARY_PATH=\$DATA_DIR/lib
-${rmrf(containerDir)}
-mv ${Util.escapeShellArgument(stagingDir)} ${Util.escapeShellArgument(containerDir)}
-rm -f ${Util.escapeShellArgument(tarballPath)}
-""");
-      if (exitCode != 0) {
-        throw Exception("Finalizing container failed with exit code $exitCode");
-      }
-
-      await _registerContainer(installPlan, existing);
-      onProgress("Done.");
     } catch (_) {
-      // Don't leave a ~1 GB tarball or a half-extracted staging dir behind.
-      await Util.execute(
-        "${rmrf(stagingDir)}\nrm -f ${Util.escapeShellArgument(tarballPath)}",
-      );
+      // The base is finalized before the desktop goes on, so a desktop failure
+      // leaves an unregistered rootfs behind.
+      await run(rmrf("${G.dataPath}/containers/$containerIndex"));
       rethrow;
     }
+    await _registerContainer(installPlan, existing);
+  }
+
+  /// Fails unless the desktop's session command is in the rootfs. dnf runs with
+  /// --skip-broken, which can drop packages without failing, so the install is
+  /// only trusted once the command that .xinitrc execs actually exists.
+  @visibleForTesting
+  static String sessionCheckScript(String xinitrcExec) {
+    final command = Util.escapeShellArgument(xinitrcExec.split(' ').first);
+    return "command -v $command >/dev/null 2>&1";
   }
 
   /// rm -rf that also works on a half-extracted rootfs: Arch ships read-only
@@ -227,6 +162,33 @@ rm -f ${Util.escapeShellArgument(tarballPath)}
   static String rmrf(String path) {
     final q = Util.escapeShellArgument(path);
     return "chmod -R u+rwX $q 2>/dev/null || true\nrm -rf $q";
+  }
+
+  /// proot-distro tarballs (Fedora, Debian, openSUSE, Alpine, Void) wrap the whole
+  /// rootfs in one directory such as fedora-aarch64/. Extracted as-is, proot starts
+  /// at a root with no /usr/bin/env, so first-boot provisioning fails with exit 1
+  /// whatever desktop was chosen. When the extracted tree is exactly one directory
+  /// that is not itself a root directory, move it up to become the rootfs. Flat
+  /// tarballs (Arch, the Ubuntu cloud image) are left untouched.
+  @visibleForTesting
+  static String hoistWrapperDir(String stagingDir) {
+    final q = Util.escapeShellArgument(stagingDir);
+    return """
+S=$q
+if [ "\$(ls -A "\$S" | wc -l)" = 1 ]; then
+  W=\$(ls -A "\$S")
+  case "\$W" in
+    usr|bin|sbin|lib|etc|var|root|opt) ;;
+    *)
+      if [ -d "\$S/\$W" ] && [ ! -L "\$S/\$W" ]; then
+        ${rmrf("$stagingDir.wrap")}
+        mv "\$S/\$W" "\$S.wrap"
+        rmdir "\$S"
+        mv "\$S.wrap" "\$S"
+      fi
+      ;;
+  esac
+fi""";
   }
 
   /// Extracts as the app user, not root. Arch's tarball has read-only (0555)
@@ -249,7 +211,8 @@ export PROOT_LOADER=\$DATA_DIR/applib/libproot-loader.so
 export PROOT_LOADER_32=\$DATA_DIR/applib/libproot-loader32.so
 ${rmrf(stagingDir)}
 mkdir -p ${Util.escapeShellArgument(stagingDir)}
-\$DATA_DIR/bin/proot --link2symlink sh -c "\$DATA_DIR/bin/tar -x${compressLetter}pf ${Util.escapeShellArgument(tarballPath)} --delay-directory-restore -C ${Util.escapeShellArgument(stagingDir)}"
+\$DATA_DIR/bin/proot --link2symlink sh -c "\$DATA_DIR/bin/tar -x${compressLetter}pf ${Util.escapeShellArgument(tarballPath)} --exclude='dev/*' --delay-directory-restore -C ${Util.escapeShellArgument(stagingDir)}"
+${hoistWrapperDir(stagingDir)}
 """;
 
   @visibleForTesting
@@ -455,6 +418,23 @@ echo "checksum ok: \$calc"
     if (code != 0) {
       throw Exception("${desktop.displayName} install failed (exit code $code)");
     }
+    // Only dnf installs with --skip-broken, the one way a desktop can be installed
+    // with parts of it silently dropped.
+    if (distro.packageManager == PackageManagerFamily.dnf) {
+      log("\r\n== Checking the ${desktop.displayName} session");
+      code = await run(
+        prootRun(
+          rootfs: containerDir,
+          script: sessionCheckScript(desktop.xinitrcExec),
+        ),
+      );
+      if (code != 0) {
+        throw Exception(
+          "${desktop.displayName} installed without its session command "
+          "(${desktop.xinitrcExec.split(' ').first}); some packages were skipped",
+        );
+      }
+    }
     log("\r\n== Writing session files");
     code = await run(prootRun(rootfs: containerDir, script: sessionFilesScript(desktop)));
     if (code != 0) {
@@ -505,7 +485,7 @@ export LD_LIBRARY_PATH=\$DATA_DIR/lib
 export PROOT_TMP_DIR=\$DATA_DIR/proot_tmp
 export PROOT_LOADER=\$DATA_DIR/applib/libproot-loader.so
 export PROOT_LOADER_32=\$DATA_DIR/applib/libproot-loader32.so
-\$DATA_DIR/bin/proot -0 -r ${Util.escapeShellArgument(rootfs)} --link2symlink -b /proc -b /sys -b /dev /usr/bin/env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/root LANG=C /bin/sh -c ${Util.escapeShellArgument("$_gpgCleanupTrap$script")}
+\$DATA_DIR/bin/proot -0 -r ${Util.escapeShellArgument(rootfs)} -b /proc -b /sys -b /dev /usr/bin/env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/root LANG=C /bin/sh -c ${Util.escapeShellArgument("$_gpgCleanupTrap$script")}
 """;
 
   static Future<void> _registerContainer(

@@ -14,6 +14,7 @@ class GlobalSettings {
   // Define properties with default values directly from the code
   int get defaultContainer =>
       prefs.getInt("defaultContainer") ?? _setInt("defaultContainer", 0);
+  set defaultContainer(int value) => prefs.setInt("defaultContainer", value);
   int get defaultAudioPort =>
       prefs.getInt("defaultAudioPort") ?? _setInt("defaultAudioPort", 4718);
   bool get autoLaunchVnc =>

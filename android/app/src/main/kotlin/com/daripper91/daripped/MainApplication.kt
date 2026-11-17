@@ -13,6 +13,8 @@ import me.weishu.reflection.Reflection
 
 class MainApplication : FlutterApplication() {
 
+    private var lastMultiWindowMode: Boolean? = null
+
     override fun onCreate() {
         super.onCreate()
         DynamicColors.applyToActivitiesIfAvailable(this@MainApplication)
@@ -24,6 +26,11 @@ class MainApplication : FlutterApplication() {
                 override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
                     if (activity.javaClass.name == "com.termux.x11.MainActivity") {
                         applyX11Preferences(activity)
+                        activity.window?.decorView?.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+                            if (activity.isInMultiWindowMode != lastMultiWindowMode) {
+                                applyX11Preferences(activity)
+                            }
+                        }
                     }
                 }
                 override fun onActivityStarted(activity: Activity) {
@@ -49,14 +56,18 @@ class MainApplication : FlutterApplication() {
     }
 
     private fun applyX11Preferences(activity: Activity) {
-        // 1. Force touch mode, portrait orientation, and resolution scaling in SharedPreferences
+        val inMultiWindow = activity.isInMultiWindowMode
+        lastMultiWindowMode = inMultiWindow
+        val orientationPref = if (inMultiWindow) "auto" else "portrait"
+
+        // 1. Force touch mode, dynamic orientation, and resolution scaling in SharedPreferences
         try {
             val sp = activity.getSharedPreferences("${activity.packageName}_preferences", Context.MODE_PRIVATE)
             sp.edit()
                 .putBoolean("pointerCapture", false)
                 .putBoolean("keepScreenOn", true)
                 .putString("touchMode", "1")
-                .putString("forceOrientation", "portrait")
+                .putString("forceOrientation", orientationPref)
                 .putBoolean("adjustResolution", true)
                 .putBoolean("displayStretch", true)
                 .apply()
@@ -69,16 +80,25 @@ class MainApplication : FlutterApplication() {
                 putExtra("pointerCapture", "false")
                 putExtra("keepScreenOn", "true")
                 putExtra("touchMode", "1")
-                putExtra("forceOrientation", "portrait")
+                putExtra("forceOrientation", orientationPref)
                 putExtra("adjustResolution", "true")
                 putExtra("displayStretch", "true")
             }
             activity.sendBroadcast(intent)
         } catch (_: Throwable) {}
 
-        // 3. Explicitly lock activity window to portrait orientation
+        // 3. Update activity window orientation request:
+        // In multi-window / split-screen, never lock orientation to portrait so the window can adapt freely.
         try {
-            activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            if (inMultiWindow) {
+                if (activity.requestedOrientation != ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED) {
+                    activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                }
+            } else {
+                if (activity.requestedOrientation != ActivityInfo.SCREEN_ORIENTATION_PORTRAIT) {
+                    activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                }
+            }
         } catch (_: Throwable) {}
 
         // 4. Immediately release pointer capture if requested by LorieView

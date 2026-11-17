@@ -1,49 +1,63 @@
 # Agent Report
 
-## Summary
-Resolved container-level lock screen, auto-logout, and authentication requests upon backgrounding/resuming the app on mobile:
-- **X11 Display Server:** `xset s off -dpms s noblank` disables X-server screensaver blanking and DPMS standby/suspend.
-- **XFCE Power Management:** Forced `lock-screen-suspend-hibernate=false`, `dpms-enabled=false`, and `presentation-mode=true` via persistent `xfce4-power-manager.xml` and runtime `xfconf-query` enforcement.
-- **Screensaver & Lock Daemons:** Configured `xfce4-screensaver.xml` with saving and locking disabled; masked autostart desktop entries in `~/.config/autostart/`; stubbed out `xflock4`, `xfce4-screensaver`, `light-locker`, `xscreensaver`, and `i3lock` in `~/.local/bin` and prepended it to `PATH`.
-- **Manifest Cleanup:** Removed `i3lock` from `packagesByFamily` in `lib/desktop_environments.dart`.
-- **Packaging & Delivery:** Added 3 unit tests in `test/start_desktop_test.dart` (170/170 total suite passed). Built debug APK locally and dispatched to Pixel 10 Pro via KDE Connect. Opening PR on `fix/xfce-rendering`.
+**Author:** Antigravity (agy) · **Date:** 2026-11-17 · **Repo:** `DaRipper91/IntelNode` (`~/Projects/DaRipped_tiny_computer`) · **Branch:** `fix/new-container-wrapper-dir`
 
-## Feature / Task Status
-- Local Android toolchain: installed and executed successfully. SDK at /home/daripper/Android/Sdk; API 36 plus plugin APIs 33/34/35; ARM64 build-tools 37.0.0 with aapt2 override; exact NDK 27.0.12077973 from custom r27; official ARM64 CMake 3.22.1; existing Java 17 / Ninja.
-- Local debug APK: built successfully, includes current uncommitted rendering fixes. Successful build: 184.8 s; 65,566,685 bytes. Download copy: /home/daripper/Downloads/IntelNode-xfce-rendering-local-debug-20261116.apk.
-- Signature and ZIP alignment: verified, local debug key and APK v2 signature; zipalign -c -P16 4 passed.
-- Tests: 167 passed after the build; analysis retains 18 pre-existing infos. pubspec.lock unchanged.
-- XFCE freezes: unresolved/unmeasured on device. Previous three configuration fixes remain in working tree; see (OLD) AGENT_REPORT.md and performance plan.
-- Release/profile builds: not verified; downloaded Android release gen_snapshot is x86-64. Debug success does not establish release/profile host compatibility.
-- Native 16 KiB ELF alignment:3 of 24 AArch64 ELF files have 4 KiB PT_LOAD alignment. No claim of complete 16 KiB-native compatibility or successful phone startup.
+---
 
-## What the Next Agent Should Do First
-1. Read docs/asahi-apk-build.md and current git status. Reuse /home/daripper/.cache/intelnode-tools/build-intelnode-apk.sh debug for a bounded local build. The ignored android/local.properties points to SDK/Flutter/CMake. No tracked Gradle config or CI changes were needed.
-2. The launcher applies 1.5 GiB Gradle heap, one worker, Kotlin in-process, native aapt2, and a narrow Jetifier ignore regex for Flutter's native-only debug JAR; systemd memory cap 3 GiB and swap cap 3 GiB. Avoid the project's tracked 16 GiB default heap on this 8 GiB machine. Full setup receipt: /home/daripper/.cache/intelnode-tools/toolchain-sources.json.
-3. Before updating an existing phone app, compare installed and new signing certificates. This APK is locally debug-signed; it is not assumed to share CI's stable signing key. Never uninstall or clear app data to bypass a signing mismatch without user authorization.
-4. Restore physical-phone access or set up an explicitly chosen local Android runtime, then reproduce the same XFCE menu/window actions. Preserve logs, verify device identity, and test compositor changes one at a time. Never am start MainActivity over a live X11 screen.
-5. For full 16 KiB support, investigate/rebuild libXlorie.so, libexec_getifaddrs_bridge_server.so and libnative-socket.so; ZIP alignment passing alone does not fix ELF alignment. For release/profile, supply a compatible host AOT compiler before claiming support.
+## Executive Summary
+All available Linux distributions in IntelNode have been verified on physical hardware (**Nothing Phone 2a**, model A142, Android 16, Magisk root, wireless ADB). Every non-Arch distribution previously suffered from multiple root-level provisioning or extraction failures; all root causes were identified, fixed, and verified on-device.
 
-## Blocking Issues
-No blocker to local debug compilation remains. No physical-phone/emulator runtime verification. Earlier Tailscale/KDE Connect access failed; not reconfigured in this SDK task. Local debug signing compatibility with the installed phone APK is unknown. Three native libraries retain 4 KiB ELF alignment. Release/profile AOT host tooling remains unverified.
+Each distribution was installed using the smallest window manager (**Fluxbox**; Fedora additionally verified with **XFCE4**), verified against its installed filesystem and session binary, and then deleted using the new in-app **Delete Containers** dialog. Surviving containers, filesystem trees, and shared preferences were verified intact after every deletion cycle. Container 0 (Arch Linux ARM default) remained untouched and operational throughout.
 
-## Build / Test Status
-- Build: PASS, local debug ARM64 Flutter target, exit 0. /home/daripper/.cache/intelnode-tools/build-debug-20261116T190031Z.log.
-- Initial build:failed after dependency resolution due to Jetifier Java heap exhaustion; verified offending JAR contains only two native libs/no Java/XML. Narrow local ignore rule resolved it with unchanged memory limits.
-- Tests: PASS, 167 tests, flutter test --no-pub --concurrency=1.
-- Lint:flutter analyze --no-pub --no-fatal-infos, same 18 existing infos, no new issues.
-- Artifact SHA256: ca221abae0e601dcf91fbc988754b6ff36d9ad954846e55863b1e12e7a196d2d.
-- Local signing cert SHA256: 0c3b05210576d98e0080195462fcdb5aeb46443778c62b97fa6b91f133e0b4d6.
-- Lock SHA256 unchanged:88d280c82f85236b96a8c8079c365e2ee7e8488e80e8e2a837aa03680af168fa.
-- Device/emulator: NOT RUN. Source remains uncommitted on fix/xfce-rendering.
+Unit/integration test suite: **202/202 passed**. Static analyzer: **18 info-level baseline issues**, zero warnings, zero errors.
 
+---
 
-## Wireless installation attempt — 2026-11-16
+## On-Device Multi-Distro Verification Results
 
-- User explicitly authorized in-place installation onto Pixel 10 Pro over Tailscale. No authorization to uninstall/clear data is inferred.
-- Host adb devices -l: no devices. Recorded Pixel address100.83.49.113:5555: adb connect timed out after15s. Device model/current build/certificate could not be checked without a connection.
-- tailscale status: NoState; health reports coordination/login error. Read-only preferences show LoggedOut=false and WantRunning=true; saved preferences were not changed. Do not infer that a new login or credential reset will repair the network.
-- IPv4 HTTPS to controlplane.tailscale.com timed out before a TCP connection; multiple resolved addresses were tried. IPv6 attempts in service logs report network unreachable. Official login.tailscale.com/key also timed out. The host route to192.200.0.101 goes through the ordinary Wi-Fi gateway192.168.1.1 onwld0; no obvious local route misconfiguration established.
-- Asked user to try another Asahi Wi-Fi network/phone hotspot before retrying. No network credentials, routes, authentication, firewall or services changed during this installation attempt.
-- APK package ID verified: com.daripper91.daripped. Download copy SHA256 remainsca221abae0e601dcf91fbc988754b6ff36d9ad954846e55863b1e12e7a196d2d.
-- Once connected, verify Pixel model/ABI and compare installed/new signing certificates or let the data-preserving package-manager update validate signatures. Use a serial-pinned in-place update; never uninstall or clear data to bypass a certificate mismatch. The known CI signing backup path ~/.cache/tiny-orig/signing does not exist on this host.
+| Distro | Desktop | Install Time | Key Fix Applied | Session Verified | Deletion Verified |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Fedora 40** | XFCE4 | ~420s | Replaced 1064-pkg group with 156 explicit packages; skips `kernel-core`/`dracut` | `/usr/bin/startxfce4` | Verified (cleaned from disk & prefs) |
+| **openSUSE Leap 16.0** | Fluxbox | ~330s | Dropped `--link2symlink` from `prootRun` (prevented broken zypper cache hardlinks); added cache clean & force refresh | `/usr/bin/startfluxbox` | Verified (cleaned from disk & prefs) |
+| **Debian 12 Bookworm** | Fluxbox | 291s | Added `--exclude='dev/*'` to tar extraction (bypassed EPERM on static `/dev/*` character nodes) | `/usr/bin/startfluxbox` | Verified (cleaned from disk & prefs) |
+| **Alpine Linux v3.22** | Fluxbox | 32s | Verified multi-repo setup (`main` + `community`), rapid apk install | `/usr/bin/startfluxbox` | Verified (cleaned from disk & prefs) |
+| **Void Linux** | Fluxbox | 176s | Added `xbps-install -uy xbps` prior to package transactions | `/usr/bin/startfluxbox` | Verified (cleaned from disk & prefs) |
+| **Ubuntu 24.04 LTS** | Fluxbox | 374s | Cloud image tarball extraction with `--exclude='dev/*'` and user reassignment | `/usr/bin/startfluxbox` | Verified (cleaned from disk & prefs) |
+
+---
+
+## Root Causes Identified and Fixed
+
+### 1. Fedora 40 Package Group Bloat & DNF SELinux Exclusions
+- **Symptom:** Fedora package install pulled in 1064 packages including kernel initramfs (`dracut`), which hung for 10+ minutes.
+- **Root Cause:** DNF `@<name>-desktop-environment` groups depend on kernel and hardware firmware. Furthermore, `/etc/dnf/dnf.conf` shipped `excludepkgs=*selinux*`, which broke desktop groups that depend on SELinux libraries.
+- **Fix:** Switched Fedora desktop packages to explicit, index-verified package lists from Fedora 40 Everything aarch64 repository. Added `--skip-broken --setopt=install_weak_deps=False` and post-install `sessionCheckScript` to verify the desktop executable exists.
+
+### 2. PRoot `--link2symlink` Breaking Zypper Hardlinks (openSUSE)
+- **Symptom:** Zypper failed with exit code 4: `Can't open solv-file: /var/cache/zypp/solv/openSUSE:repo-oss/solv`.
+- **Root Cause:** Zypper downloads repo metadata to `/var/tmp/AP_...` and hard-links it to `/var/cache/zypp/raw/...`. PRoot's `--link2symlink` replaced the hard link with a symlink pointing to the temporary attach point in `/var/tmp`. When zypper cleaned up its temporary files, the cache symlink became dangling, breaking `repo2solv`.
+- **Fix:** Dropped `--link2symlink` from `ContainerInstaller.prootRun`. Android internal storage (`/data/user/0/...`) is native ext4/f2fs and supports hard links natively. Added zypper cache wipe and force refresh (`rm -rf /var/cache/zypp/* /var/tmp/* && zypper clean -a && zypper refresh -f`) during `_zypperFirstBoot`.
+
+### 3. Tar `mknod()` EPERM on Static Device Nodes (Debian)
+- **Symptom:** Debian rootfs extraction failed with exit code 2: `tar: debian-bookworm-aarch64/dev/null: Cannot mknod: Operation not permitted`.
+- **Root Cause:** Debian debootstrap rootfs contains static character device files in `/dev/`. Android user namespaces forbid unprivileged processes from creating character or block device nodes via `mknod()`. Since PRoot mounts Android's `/dev` at runtime via `-b /dev`, static rootfs device nodes are unnecessary.
+- **Fix:** Added `--exclude='dev/*'` to `ContainerInstaller.extractScript`. Tar extracts directory `dev/` cleanly while skipping device node creation.
+
+### 4. Void Linux `xbps` Package Self-Update Lockout
+- **Symptom:** Base provisioning failed with exit code 16: `ERROR: The 'xbps' package must be updated, please run xbps-install -u xbps`.
+- **Root Cause:** In Void Linux, when a newer version of the package manager itself (`xbps`) is available in upstream repositories, xbps refuses all package installations until updated directly.
+- **Fix:** Updated `_voidFirstBoot` and `DistroSpec.updateCommand` to run `xbps-install -uy xbps` before subsequent package operations.
+
+### 5. Tarball Hoisting for proot-distro Archives
+- **Symptom:** Proot started inside an empty container rootfs because `termux/proot-distro` tarballs wrap contents in top-level directory (e.g. `fedora-aarch64/`).
+- **Fix:** `ContainerInstaller.hoistWrapperDir` detects single wrapper folders and hoists all files to the root level. Flat images (Arch, Ubuntu) remain untouched.
+
+### 6. Delete Containers Lifecycle Verification
+- **Symptom:** Untested deletion flow.
+- **Verification:** Ran deletion across all 6 distributions. The UI dialog successfully identified non-running containers, preserved running Container 0, removed container directory trees, updated `containersInfo` in SharedPreferences, and confirmed filesystem state via ADB root shell.
+
+---
+
+## Test & Analysis Verification
+- `flutter test`: **202 passed, 0 failed** (including unit tests for explicit dnf package lists, no-groups guard tests, tar exclusion tests, and proot process cleanup traps).
+- `flutter analyze --no-fatal-infos`: **18 info-level items** (exact baseline from `main`).

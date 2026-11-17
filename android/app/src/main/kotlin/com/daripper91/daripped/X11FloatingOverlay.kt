@@ -178,6 +178,18 @@ class X11FloatingOverlay private constructor(private val activity: Activity) {
         }
 
         rootGroup.addView(container)
+
+        // Keep overlay inside visible bounds when activity resizes into split-screen
+        rootGroup.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            val rw = rootGroup.width
+            val rh = rootGroup.height
+            if (rw > 0 && rh > 0) {
+                val maxX = (rw - container.width).toFloat().coerceAtLeast(0f)
+                val maxY = (rh - container.height).toFloat().coerceAtLeast(0f)
+                if (container.x > maxX) container.x = maxX
+                if (container.y > maxY) container.y = maxY
+            }
+        }
     }
 
     private fun handleDragTouch(

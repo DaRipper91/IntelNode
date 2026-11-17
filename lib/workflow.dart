@@ -46,6 +46,7 @@ import 'package:da_ripped_tiny_computer/desktop_picker.dart';
 import 'package:da_ripped_tiny_computer/distros.dart';
 import 'package:da_ripped_tiny_computer/fake_proc.dart';
 import 'package:da_ripped_tiny_computer/guest_shims.dart';
+import 'package:da_ripped_tiny_computer/pty_shell.dart';
 import 'package:da_ripped_tiny_computer/setup_session.dart';
 import 'package:da_ripped_tiny_computer/l10n/app_localizations.dart';
 
@@ -98,7 +99,7 @@ class Util {
   static Future<int> execute(String str) async {
     Pty pty;
     try {
-      pty = Pty.start("/system/bin/sh");
+      pty = startShell();
     } catch (e) {
       debugPrint("Failed to start shell: $e");
       return -1;
@@ -140,7 +141,7 @@ class Util {
   static Future<(int, String)> executeCapture(String str) async {
     Pty pty;
     try {
-      pty = Pty.start("/system/bin/sh");
+      pty = startShell();
     } catch (e) {
       return (-1, "Failed to start shell: $e");
     }
@@ -615,8 +616,7 @@ class TermPty {
       inputHandler: G.keyboard,
       maxLines: Util.getGlobal("termMaxLines") as int,
     );
-    pty = Pty.start(
-      "/system/bin/sh",
+    pty = startShell(
       workingDirectory: G.dataPath,
       columns: terminal.viewWidth,
       rows: terminal.viewHeight,
@@ -1843,7 +1843,7 @@ fi
 
   static Future<void> setupAudio() async {
     G.audioPty?.kill();
-    G.audioPty = Pty.start("/system/bin/sh");
+    G.audioPty = startShell();
     G.audioPty!.write(
       const Utf8Encoder().convert("""
 export DATA_DIR=${G.dataPath}

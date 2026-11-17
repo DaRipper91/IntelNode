@@ -65,17 +65,27 @@ void main() {
     });
   });
 
-  group('ContainerInstaller.execute', () {
+  group('ContainerInstaller.install', () {
     test('throws StateError instead of running a blocked plan', () async {
       final plan = ContainerInstaller.plan(
         distro: Distros.byId('archlinux'),
         desktop: DesktopEnvironments.byId('niri'),
         containerName: 'test',
       );
+      final ran = <String>[];
       await expectLater(
-        ContainerInstaller.execute(plan, onProgress: (_) {}),
+        ContainerInstaller.install(
+          plan,
+          run: (script) async {
+            ran.add(script);
+            return 0;
+          },
+          log: (_) {},
+          onProgress: (_) {},
+        ),
         throwsA(isA<StateError>()),
       );
+      expect(ran, isEmpty, reason: 'a blocked plan must not touch the device');
     });
   });
 }

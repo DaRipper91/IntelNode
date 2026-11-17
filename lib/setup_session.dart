@@ -11,11 +11,11 @@ import 'package:flutter_pty/flutter_pty.dart';
 import 'package:xterm/xterm.dart';
 
 import 'package:da_ripped_tiny_computer/boot_log.dart';
+import 'package:da_ripped_tiny_computer/pty_shell.dart';
 
 class SetupSession {
   SetupSession(this.dataPath) {
-    pty = Pty.start(
-      "/system/bin/sh",
+    pty = startShell(
       workingDirectory: dataPath,
       columns: terminal.viewWidth,
       rows: terminal.viewHeight,

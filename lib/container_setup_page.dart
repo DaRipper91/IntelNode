@@ -4,6 +4,7 @@
 // selectable here; no page logic needs to change.
 import 'package:flutter/material.dart';
 
+import 'package:da_ripped_tiny_computer/container_install_page.dart';
 import 'package:da_ripped_tiny_computer/container_installer.dart';
 import 'package:da_ripped_tiny_computer/desktop_environments.dart';
 import 'package:da_ripped_tiny_computer/distros.dart';
@@ -198,57 +199,10 @@ class _ContainerSetupPageState extends State<ContainerSetupPage> {
   }
 
   Future<void> _runInstall(BuildContext context, InstallPlan plan) async {
-    final l10n = AppLocalizations.of(context)!;
-    final ValueNotifier<List<String>> progress = ValueNotifier([]);
-
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.installProgressTitle),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 200,
-          child: ValueListenableBuilder<List<String>>(
-            valueListenable: progress,
-            builder: (context, lines, child) =>
-                ListView(children: lines.map((l) => Text(l)).toList()),
-          ),
-        ),
-      ),
+    final installed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => ContainerInstallPage(plan: plan)),
     );
-
-    Object? error;
-    try {
-      await ContainerInstaller.execute(
-        plan,
-        onProgress: (line) => progress.value = [...progress.value, line],
-      );
-    } catch (e) {
-      error = e;
-    }
-
-    if (!context.mounted) return;
-    Navigator.of(context).pop(); // dismiss progress dialog
-
-    final bool succeeded = error == null;
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(
-          succeeded ? l10n.installCompleteTitle : l10n.installFailedTitle,
-        ),
-        content: Text(succeeded ? plan.containerName : error.toString()),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(l10n.close),
-          ),
-        ],
-      ),
-    );
-
-    if (succeeded && context.mounted) {
+    if (installed == true && context.mounted) {
       Navigator.of(context).pop(); // leave the setup page, back to Settings
     }
   }

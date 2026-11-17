@@ -36,6 +36,7 @@ import 'package:da_ripped_tiny_computer/boot_log.dart';
 import 'package:da_ripped_tiny_computer/setup_session.dart';
 import 'package:da_ripped_tiny_computer/setup_terminal.dart';
 import 'package:da_ripped_tiny_computer/workflow.dart';
+import 'package:da_ripped_tiny_computer/container_delete_dialog.dart';
 import 'package:da_ripped_tiny_computer/container_setup_page.dart';
 
 import 'package:avnc_flutter/avnc_flutter.dart';
@@ -1215,6 +1216,12 @@ pkill -f tiny_virtual_mic""");
                       ),
                     );
                   },
+                ),
+                const SizedBox.square(dimension: 8),
+                OutlinedButton(
+                  style: D.commandButtonStyle,
+                  child: Text(AppLocalizations.of(context)!.deleteContainers),
+                  onPressed: () => showDeleteContainersDialog(context),
                 ),
                 const SizedBox.square(dimension: 12),
               ],

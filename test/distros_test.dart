@@ -47,6 +47,10 @@ void main() {
     test('dnf', () {
       final d = Distros.byId('fedora');
       expect(d.installCommand(['foo']), contains('dnf -y install'));
+      // Fedora rootfs images ship excludepkgs=*selinux*; a desktop group that pulls
+      // in policycoreutils/anaconda would otherwise abort the whole transaction.
+      expect(d.installCommand(['foo']), contains('--skip-broken'));
+      expect(d.installCommand(['foo']), contains('install_weak_deps=False'));
       expect(d.removeCommand(['foo']), contains('dnf -y remove'));
       expect(d.updateCommand, contains('dnf -y upgrade'));
     });
@@ -60,9 +64,9 @@ void main() {
 
     test('zypper', () {
       final d = Distros.byId('opensuse');
-      expect(d.installCommand(['foo']), contains('zypper --non-interactive install'));
+      expect(d.installCommand(['foo']), contains('zypper --non-interactive --gpg-auto-import-keys install'));
       expect(d.removeCommand(['foo']), contains('zypper --non-interactive remove'));
-      expect(d.updateCommand, contains('zypper --non-interactive refresh'));
+      expect(d.updateCommand, contains('zypper --non-interactive --gpg-auto-import-keys refresh'));
     });
 
     test('apk', () {

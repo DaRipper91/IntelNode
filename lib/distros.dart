@@ -172,20 +172,24 @@ class DistroSpec {
     PackageManagerFamily.dnf => "dnf -y upgrade --refresh",
     PackageManagerFamily.apt => "apt-get update && apt-get -y upgrade",
     PackageManagerFamily.zypper =>
-      "zypper --non-interactive refresh && zypper --non-interactive update",
+      "zypper --non-interactive --gpg-auto-import-keys refresh && zypper --non-interactive --gpg-auto-import-keys update",
     PackageManagerFamily.apk => "apk update && apk upgrade",
-    PackageManagerFamily.xbps => "xbps-install -Syu",
+    PackageManagerFamily.xbps => "xbps-install -uy xbps && xbps-install -Syu",
   };
 
   String installCommand(List<String> packages) => switch (packageManager) {
     PackageManagerFamily.pacman =>
       "pacman -S --noconfirm --needed ${packages.join(' ')}",
-    PackageManagerFamily.dnf => "dnf -y install ${packages.join(' ')}",
+    // The Fedora rootfs ships excludepkgs=*selinux*, so desktop groups that pull
+    // in policycoreutils/anaconda cannot resolve; skip those instead of failing.
+    PackageManagerFamily.dnf =>
+      "dnf -y install --skip-broken --setopt=install_weak_deps=False "
+          "${packages.join(' ')}",
     PackageManagerFamily.apt =>
       "DEBIAN_FRONTEND=noninteractive apt-get -y install "
           "${packages.join(' ')}",
     PackageManagerFamily.zypper =>
-      "zypper --non-interactive install ${packages.join(' ')}",
+      "zypper --non-interactive --gpg-auto-import-keys install ${packages.join(' ')}",
     PackageManagerFamily.apk => "apk add --no-cache ${packages.join(' ')}",
     PackageManagerFamily.xbps => "xbps-install -y ${packages.join(' ')}",
   };
@@ -292,8 +296,10 @@ rm -f /etc/resolv.conf
 printf 'nameserver 1.1.1.1\\nnameserver 8.8.8.8\\n' > /etc/resolv.conf
 # Lock package filesystem to prevent duplicate filesystem warnings under proot
 zypper --non-interactive al filesystem || true
-zypper --non-interactive refresh
-zypper --non-interactive install -y sudo polkit glibc-locale dbus-1
+rm -rf /var/cache/zypp/* /var/tmp/*
+zypper --non-interactive clean -a
+zypper --non-interactive --gpg-auto-import-keys refresh -f
+zypper --non-interactive --gpg-auto-import-keys install -y sudo polkit glibc-locale dbus-1
 ${_commonUserSetup(username)}""";
 
 String _alpineFirstBoot(String username) =>
@@ -313,6 +319,8 @@ String _voidFirstBoot(String username) =>
 set -e
 rm -f /etc/resolv.conf
 printf 'nameserver 1.1.1.1\\nnameserver 8.8.8.8\\n' > /etc/resolv.conf
+xbps-install -S
+xbps-install -uy xbps || true
 xbps-install -Syu || true
 xbps-install -y sudo shadow dbus
 ${_commonUserSetup(username)}""";
@@ -359,9 +367,9 @@ class Distros {
       description: "apt/dpkg, stable release (12 Bookworm).",
       packageManager: PackageManagerFamily.apt,
       rootfs: const RootfsSource.direct(
-        url: "https://github.com/termux/proot-distro/releases/download/v4.7.0/debian-bookworm-aarch64-pd-v4.7.0.tar.xz",
+        url: "https://github.com/termux/proot-distro/releases/download/v4.17.3/debian-bookworm-aarch64-pd-v4.17.3.tar.xz",
         fallbackUrls: [
-          "https://github.com/debuerreotype/docker-debian-artifacts/raw/dist-arm64v8/bookworm/rootfs.tar.xz",
+          "https://github.com/termux/proot-distro/releases/download/v4.7.0/debian-bookworm-aarch64-pd-v4.7.0.tar.xz",
         ],
         verified: true,
         notes: "Verified Debian 12 (Bookworm) aarch64 proot rootfs.",
@@ -383,23 +391,27 @@ class Distros {
     DistroSpec(
       id: "opensuse",
       displayName: "openSUSE",
-      description: "zypper/rpm, Tumbleweed rolling release.",
+      description: "zypper/rpm, Leap 16.0 release.",
       packageManager: PackageManagerFamily.zypper,
       rootfs: const RootfsSource.direct(
-        url: "https://github.com/termux/proot-distro/releases/download/v4.6.0/opensuse-aarch64-pd-v4.6.0.tar.xz",
+        url: "https://github.com/termux/proot-distro/releases/download/v4.34.2/opensuse-aarch64-pd-v4.34.2.tar.xz",
+        fallbackUrls: [
+          "https://github.com/termux/proot-distro/releases/download/v4.6.0/opensuse-aarch64-pd-v4.6.0.tar.xz",
+        ],
         verified: true,
-        notes: "Verified openSUSE Tumbleweed aarch64 proot rootfs.",
+        notes: "Verified openSUSE Leap aarch64 proot rootfs.",
       ),
       firstBootScript: _zypperFirstBoot,
     ),
     DistroSpec(
       id: "alpine",
       displayName: "Alpine Linux",
-      description: "apk/musl, ultra-lightweight rolling release (edge/v3.21).",
+      description: "apk/musl, ultra-lightweight release (v3.22/v3.21).",
       packageManager: PackageManagerFamily.apk,
       rootfs: const RootfsSource.direct(
-        url: "https://github.com/termux/proot-distro/releases/download/v4.16.0/alpine-aarch64-pd-v4.16.0.tar.xz",
+        url: "https://github.com/termux/proot-distro/releases/download/v4.30.1/alpine-aarch64-pd-v4.30.1.tar.xz",
         fallbackUrls: [
+          "https://github.com/termux/proot-distro/releases/download/v4.16.0/alpine-aarch64-pd-v4.16.0.tar.xz",
           "https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/aarch64/alpine-minirootfs-3.21.3-aarch64.tar.gz",
         ],
         verified: true,
@@ -413,8 +425,9 @@ class Distros {
       description: "xbps, lightweight rolling release with runit.",
       packageManager: PackageManagerFamily.xbps,
       rootfs: const RootfsSource.direct(
-        url: "https://github.com/termux/proot-distro/releases/download/v4.6.0/void-aarch64-pd-v4.6.0.tar.xz",
+        url: "https://github.com/termux/proot-distro/releases/download/v4.29.0/void-aarch64-pd-v4.29.0.tar.xz",
         fallbackUrls: [
+          "https://github.com/termux/proot-distro/releases/download/v4.6.0/void-aarch64-pd-v4.6.0.tar.xz",
           "https://repo-default.voidlinux.org/live/current/void-aarch64-ROOTFS-20250202.tar.xz",
         ],
         verified: true,

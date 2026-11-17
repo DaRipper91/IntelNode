@@ -146,5 +146,10 @@
   "installCompleteTitle": "Container Ready",
   "installFailedTitle": "Install Failed",
   "close": "Close",
-  "containerNameLabel": "Name this container"
+  "containerNameLabel": "Name this container",
+  "deleteContainers": "Delete Containers",
+  "deleteContainersTitle": "Select containers to delete",
+  "deleteContainersNone": "There are no containers to delete.",
+  "deleteContainersConfirm": "Their files are removed and this cannot be undone.",
+  "delete": "Delete"
 }
