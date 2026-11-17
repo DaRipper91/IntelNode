@@ -229,6 +229,33 @@ rm -f ${Util.escapeShellArgument(tarballPath)}
     return "chmod -R u+rwX $q 2>/dev/null || true\nrm -rf $q";
   }
 
+  /// proot-distro tarballs (Fedora, Debian, openSUSE, Alpine, Void) wrap the whole
+  /// rootfs in one directory such as fedora-aarch64/. Extracted as-is, proot starts
+  /// at a root with no /usr/bin/env, so first-boot provisioning fails with exit 1
+  /// whatever desktop was chosen. When the extracted tree is exactly one directory
+  /// that is not itself a root directory, move it up to become the rootfs. Flat
+  /// tarballs (Arch, the Ubuntu cloud image) are left untouched.
+  @visibleForTesting
+  static String hoistWrapperDir(String stagingDir) {
+    final q = Util.escapeShellArgument(stagingDir);
+    return """
+S=$q
+if [ "\$(ls -A "\$S" | wc -l)" = 1 ]; then
+  W=\$(ls -A "\$S")
+  case "\$W" in
+    usr|bin|sbin|lib|etc|var|root|opt) ;;
+    *)
+      if [ -d "\$S/\$W" ] && [ ! -L "\$S/\$W" ]; then
+        ${rmrf("$stagingDir.wrap")}
+        mv "\$S/\$W" "\$S.wrap"
+        rmdir "\$S"
+        mv "\$S.wrap" "\$S"
+      fi
+      ;;
+  esac
+fi""";
+  }
+
   /// Extracts as the app user, not root. Arch's tarball has read-only (0555)
   /// directories such as etc/ca-certificates/extracted/cadir; without
   /// --delay-directory-restore tar applies that mode first and then cannot
@@ -250,6 +277,7 @@ export PROOT_LOADER_32=\$DATA_DIR/applib/libproot-loader32.so
 ${rmrf(stagingDir)}
 mkdir -p ${Util.escapeShellArgument(stagingDir)}
 \$DATA_DIR/bin/proot --link2symlink sh -c "\$DATA_DIR/bin/tar -x${compressLetter}pf ${Util.escapeShellArgument(tarballPath)} --delay-directory-restore -C ${Util.escapeShellArgument(stagingDir)}"
+${hoistWrapperDir(stagingDir)}
 """;
 
   @visibleForTesting

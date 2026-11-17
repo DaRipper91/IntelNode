@@ -193,6 +193,8 @@ void busyboxScriptTests() {
 
 void extractScriptTests() {
   group('extractScript', () {
+    late String stagingOf;
+
     // The 0555-directory failure only reproduces under proot on the phone (verified
     // there with the real Arch tarball: without the flag 8 files and Permission
     // denied, with it 130 files); host GNU tar extracts fine either way.
@@ -227,6 +229,54 @@ void extractScriptTests() {
       expect(r.exitCode, 0, reason: '${r.stderr}');
       expect(File('$staging/etc/cadir/a.pem').existsSync(), isTrue);
       expect(Link('$staging/etc/cadir/hash.0').existsSync(), isTrue);
+    });
+
+    // proot-distro tarballs (Fedora, Debian, openSUSE, Alpine, Void) put the whole
+    // rootfs under one directory such as fedora-aarch64/. Left in place, proot
+    // starts at an empty root and first-boot provisioning dies with exit 1.
+    ProcessResult extractWrapped(String wrapper, List<String> files) {
+      final work = Directory.systemTemp.createTempSync('wrap_');
+      addTearDown(() {
+        Process.runSync('chmod', ['-R', 'u+rwX', work.path]);
+        work.deleteSync(recursive: true);
+      });
+      for (final f in files) {
+        final path = '${work.path}/src/${wrapper.isEmpty ? '' : '$wrapper/'}$f';
+        File(path).createSync(recursive: true);
+        File(path).writeAsStringSync('x');
+      }
+      final tar = '${work.path}/rootfs.tar.gz';
+      expect(Process.runSync('tar', ['-C', '${work.path}/src', '-czf', tar, '.']).exitCode, 0);
+      Directory('${work.path}/bin').createSync();
+      File('${work.path}/bin/proot').writeAsStringSync('#!/bin/sh\nshift\nexec "\$@"\n');
+      Process.runSync('chmod', ['+x', '${work.path}/bin/proot']);
+      Link('${work.path}/bin/tar').createSync(Process.runSync('which', ['tar']).stdout.toString().trim());
+      stagingOf = '${work.path}/staging';
+      final script = ContainerInstaller.extractScript(stagingOf, tar, 'z')
+          .replaceAll(RegExp(r'export DATA_DIR=.*'), 'export DATA_DIR=${work.path}');
+      return Process.runSync('sh', ['-c', script]);
+    }
+
+    test('hoists a single wrapper directory so the rootfs sits at the root', () {
+      final r = extractWrapped('fedora-aarch64', ['usr/bin/sh', 'etc/os-release']);
+      expect(r.exitCode, 0, reason: '${r.stderr}');
+      expect(File('$stagingOf/usr/bin/sh').existsSync(), isTrue);
+      expect(File('$stagingOf/etc/os-release').existsSync(), isTrue);
+      expect(Directory('$stagingOf/fedora-aarch64').existsSync(), isFalse);
+      expect(Directory('$stagingOf.wrap').existsSync(), isFalse);
+    });
+
+    test('a flat rootfs (Arch, Ubuntu cloud image) is left exactly as extracted', () {
+      final r = extractWrapped('', ['usr/bin/sh', 'etc/os-release', 'bin/ls']);
+      expect(r.exitCode, 0, reason: '${r.stderr}');
+      expect(File('$stagingOf/usr/bin/sh').existsSync(), isTrue);
+      expect(File('$stagingOf/bin/ls').existsSync(), isTrue);
+    });
+
+    test('a flat rootfs whose only entry is a real root directory is not hoisted', () {
+      final r = extractWrapped('', ['usr/bin/sh']);
+      expect(r.exitCode, 0, reason: '${r.stderr}');
+      expect(File('$stagingOf/usr/bin/sh').existsSync(), isTrue);
     });
   });
 }
