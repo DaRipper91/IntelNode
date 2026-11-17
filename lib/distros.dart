@@ -172,7 +172,7 @@ class DistroSpec {
     PackageManagerFamily.dnf => "dnf -y upgrade --refresh",
     PackageManagerFamily.apt => "apt-get update && apt-get -y upgrade",
     PackageManagerFamily.zypper =>
-      "zypper --non-interactive refresh && zypper --non-interactive update",
+      "zypper --non-interactive --gpg-auto-import-keys refresh && zypper --non-interactive --gpg-auto-import-keys update",
     PackageManagerFamily.apk => "apk update && apk upgrade",
     PackageManagerFamily.xbps => "xbps-install -Syu",
   };
@@ -189,7 +189,7 @@ class DistroSpec {
       "DEBIAN_FRONTEND=noninteractive apt-get -y install "
           "${packages.join(' ')}",
     PackageManagerFamily.zypper =>
-      "zypper --non-interactive install ${packages.join(' ')}",
+      "zypper --non-interactive --gpg-auto-import-keys install ${packages.join(' ')}",
     PackageManagerFamily.apk => "apk add --no-cache ${packages.join(' ')}",
     PackageManagerFamily.xbps => "xbps-install -y ${packages.join(' ')}",
   };
@@ -296,8 +296,8 @@ rm -f /etc/resolv.conf
 printf 'nameserver 1.1.1.1\\nnameserver 8.8.8.8\\n' > /etc/resolv.conf
 # Lock package filesystem to prevent duplicate filesystem warnings under proot
 zypper --non-interactive al filesystem || true
-zypper --non-interactive refresh
-zypper --non-interactive install -y sudo polkit glibc-locale dbus-1
+zypper --non-interactive --gpg-auto-import-keys refresh
+zypper --non-interactive --gpg-auto-import-keys install -y sudo polkit glibc-locale dbus-1
 ${_commonUserSetup(username)}""";
 
 String _alpineFirstBoot(String username) =>
@@ -365,7 +365,7 @@ class Distros {
       rootfs: const RootfsSource.direct(
         url: "https://github.com/termux/proot-distro/releases/download/v4.7.0/debian-bookworm-aarch64-pd-v4.7.0.tar.xz",
         fallbackUrls: [
-          "https://github.com/debuerreotype/docker-debian-artifacts/raw/dist-arm64v8/bookworm/rootfs.tar.xz",
+          "https://github.com/termux/proot-distro/releases/download/v4.17.3/debian-bookworm-aarch64-pd-v4.17.3.tar.xz",
         ],
         verified: true,
         notes: "Verified Debian 12 (Bookworm) aarch64 proot rootfs.",

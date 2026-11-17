@@ -64,9 +64,9 @@ void main() {
 
     test('zypper', () {
       final d = Distros.byId('opensuse');
-      expect(d.installCommand(['foo']), contains('zypper --non-interactive install'));
+      expect(d.installCommand(['foo']), contains('zypper --non-interactive --gpg-auto-import-keys install'));
       expect(d.removeCommand(['foo']), contains('zypper --non-interactive remove'));
-      expect(d.updateCommand, contains('zypper --non-interactive refresh'));
+      expect(d.updateCommand, contains('zypper --non-interactive --gpg-auto-import-keys refresh'));
     });
 
     test('apk', () {
