@@ -204,6 +204,11 @@ void extractScriptTests() {
       expect(script, contains('--delay-directory-restore'));
     });
 
+    test('passes --exclude=dev/* to skip character device nodes on unprivileged filesystems', () {
+      final script = ContainerInstaller.extractScript('/s', '/t.tar', 'z');
+      expect(script, contains("--exclude='dev/*'"));
+    });
+
     test('script runs end to end against a fake proot and extracts read-only dirs', () {
       final work = Directory.systemTemp.createTempSync('ex_');
       addTearDown(() {

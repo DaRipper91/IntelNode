@@ -211,7 +211,7 @@ export PROOT_LOADER=\$DATA_DIR/applib/libproot-loader.so
 export PROOT_LOADER_32=\$DATA_DIR/applib/libproot-loader32.so
 ${rmrf(stagingDir)}
 mkdir -p ${Util.escapeShellArgument(stagingDir)}
-\$DATA_DIR/bin/proot --link2symlink sh -c "\$DATA_DIR/bin/tar -x${compressLetter}pf ${Util.escapeShellArgument(tarballPath)} --delay-directory-restore -C ${Util.escapeShellArgument(stagingDir)}"
+\$DATA_DIR/bin/proot --link2symlink sh -c "\$DATA_DIR/bin/tar -x${compressLetter}pf ${Util.escapeShellArgument(tarballPath)} --exclude='dev/*' --delay-directory-restore -C ${Util.escapeShellArgument(stagingDir)}"
 ${hoistWrapperDir(stagingDir)}
 """;
 
