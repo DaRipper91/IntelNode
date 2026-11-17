@@ -27,6 +27,7 @@ import 'package:retry/retry.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:da_ripped_tiny_computer/theme.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 import 'package:xterm/xterm.dart';
@@ -1374,19 +1375,8 @@ WINEDLLOVERRIDES="d3d8=b,d3d9=b,d3d10core=b,d3d11=b,dxgi=b" wine reg add 'HKEY_C
     {"name": "F12", "key": TerminalKey.f12},
   ];
 
-  static final ButtonStyle commandButtonStyle = OutlinedButton.styleFrom(
-    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-    minimumSize: const Size(0, 0),
-    padding: const EdgeInsets.fromLTRB(4, 2, 4, 2),
-  );
-
-  static final ButtonStyle controlButtonStyle = OutlinedButton.styleFrom(
-    textStyle: const TextStyle(fontWeight: FontWeight.w400),
-    side: const BorderSide(color: Color(0x1F000000)),
-    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-    minimumSize: const Size(0, 0),
-    padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
-  );
+  static ButtonStyle get commandButtonStyle => AppTheme.commandButtonStyle;
+  static ButtonStyle get controlButtonStyle => AppTheme.controlButtonStyle;
 
   static const MethodChannel androidChannel = MethodChannel("android");
 }
@@ -1710,6 +1700,10 @@ fi
     G.updateText.value = "Base system ready";
     final desktop = selectedDesktop ??
         await showDesktopPicker(G.homePageStateContext, distro: distro);
+    if (desktop == null) {
+      G.updateText.value = "Desktop selection cancelled";
+      return;
+    }
     G.updateText.value = "Installing ${desktop.displayName}...";
     await ContainerInstaller.installDesktop(
       distro: distro,
