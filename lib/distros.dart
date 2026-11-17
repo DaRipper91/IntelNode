@@ -363,9 +363,9 @@ class Distros {
       description: "apt/dpkg, stable release (12 Bookworm).",
       packageManager: PackageManagerFamily.apt,
       rootfs: const RootfsSource.direct(
-        url: "https://github.com/termux/proot-distro/releases/download/v4.7.0/debian-bookworm-aarch64-pd-v4.7.0.tar.xz",
+        url: "https://github.com/termux/proot-distro/releases/download/v4.17.3/debian-bookworm-aarch64-pd-v4.17.3.tar.xz",
         fallbackUrls: [
-          "https://github.com/termux/proot-distro/releases/download/v4.17.3/debian-bookworm-aarch64-pd-v4.17.3.tar.xz",
+          "https://github.com/termux/proot-distro/releases/download/v4.7.0/debian-bookworm-aarch64-pd-v4.7.0.tar.xz",
         ],
         verified: true,
         notes: "Verified Debian 12 (Bookworm) aarch64 proot rootfs.",
@@ -387,23 +387,27 @@ class Distros {
     DistroSpec(
       id: "opensuse",
       displayName: "openSUSE",
-      description: "zypper/rpm, Tumbleweed rolling release.",
+      description: "zypper/rpm, Leap 16.0 release.",
       packageManager: PackageManagerFamily.zypper,
       rootfs: const RootfsSource.direct(
-        url: "https://github.com/termux/proot-distro/releases/download/v4.6.0/opensuse-aarch64-pd-v4.6.0.tar.xz",
+        url: "https://github.com/termux/proot-distro/releases/download/v4.34.2/opensuse-aarch64-pd-v4.34.2.tar.xz",
+        fallbackUrls: [
+          "https://github.com/termux/proot-distro/releases/download/v4.6.0/opensuse-aarch64-pd-v4.6.0.tar.xz",
+        ],
         verified: true,
-        notes: "Verified openSUSE Tumbleweed aarch64 proot rootfs.",
+        notes: "Verified openSUSE Leap aarch64 proot rootfs.",
       ),
       firstBootScript: _zypperFirstBoot,
     ),
     DistroSpec(
       id: "alpine",
       displayName: "Alpine Linux",
-      description: "apk/musl, ultra-lightweight rolling release (edge/v3.21).",
+      description: "apk/musl, ultra-lightweight release (v3.22/v3.21).",
       packageManager: PackageManagerFamily.apk,
       rootfs: const RootfsSource.direct(
-        url: "https://github.com/termux/proot-distro/releases/download/v4.16.0/alpine-aarch64-pd-v4.16.0.tar.xz",
+        url: "https://github.com/termux/proot-distro/releases/download/v4.30.1/alpine-aarch64-pd-v4.30.1.tar.xz",
         fallbackUrls: [
+          "https://github.com/termux/proot-distro/releases/download/v4.16.0/alpine-aarch64-pd-v4.16.0.tar.xz",
           "https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/aarch64/alpine-minirootfs-3.21.3-aarch64.tar.gz",
         ],
         verified: true,
@@ -417,8 +421,9 @@ class Distros {
       description: "xbps, lightweight rolling release with runit.",
       packageManager: PackageManagerFamily.xbps,
       rootfs: const RootfsSource.direct(
-        url: "https://github.com/termux/proot-distro/releases/download/v4.6.0/void-aarch64-pd-v4.6.0.tar.xz",
+        url: "https://github.com/termux/proot-distro/releases/download/v4.29.0/void-aarch64-pd-v4.29.0.tar.xz",
         fallbackUrls: [
+          "https://github.com/termux/proot-distro/releases/download/v4.6.0/void-aarch64-pd-v4.6.0.tar.xz",
           "https://repo-default.voidlinux.org/live/current/void-aarch64-ROOTFS-20250202.tar.xz",
         ],
         verified: true,
