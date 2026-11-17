@@ -485,7 +485,7 @@ export LD_LIBRARY_PATH=\$DATA_DIR/lib
 export PROOT_TMP_DIR=\$DATA_DIR/proot_tmp
 export PROOT_LOADER=\$DATA_DIR/applib/libproot-loader.so
 export PROOT_LOADER_32=\$DATA_DIR/applib/libproot-loader32.so
-\$DATA_DIR/bin/proot -0 -r ${Util.escapeShellArgument(rootfs)} --link2symlink -b /proc -b /sys -b /dev /usr/bin/env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/root LANG=C /bin/sh -c ${Util.escapeShellArgument("$_gpgCleanupTrap$script")}
+\$DATA_DIR/bin/proot -0 -r ${Util.escapeShellArgument(rootfs)} -b /proc -b /sys -b /dev /usr/bin/env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/root LANG=C /bin/sh -c ${Util.escapeShellArgument("$_gpgCleanupTrap$script")}
 """;
 
   static Future<void> _registerContainer(

@@ -296,7 +296,9 @@ rm -f /etc/resolv.conf
 printf 'nameserver 1.1.1.1\\nnameserver 8.8.8.8\\n' > /etc/resolv.conf
 # Lock package filesystem to prevent duplicate filesystem warnings under proot
 zypper --non-interactive al filesystem || true
-zypper --non-interactive --gpg-auto-import-keys refresh
+rm -rf /var/cache/zypp/* /var/tmp/*
+zypper --non-interactive clean -a
+zypper --non-interactive --gpg-auto-import-keys refresh -f
 zypper --non-interactive --gpg-auto-import-keys install -y sudo polkit glibc-locale dbus-1
 ${_commonUserSetup(username)}""";
 
