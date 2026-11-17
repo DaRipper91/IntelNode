@@ -1,49 +1,124 @@
 # Agent Report
 
+Hand-off from Claude Code (Sonnet 5.5) to agy. Date: 2026-11-16. Repo: `DaRipper91/IntelNode`
+(local checkout `~/Projects/DaRipped_tiny_computer`). Everything below was verified against live
+code, device output or test runs unless it is marked UNVERIFIED.
+
 ## Summary
-Resolved container-level lock screen, auto-logout, and authentication requests upon backgrounding/resuming the app on mobile:
-- **X11 Display Server:** `xset s off -dpms s noblank` disables X-server screensaver blanking and DPMS standby/suspend.
-- **XFCE Power Management:** Forced `lock-screen-suspend-hibernate=false`, `dpms-enabled=false`, and `presentation-mode=true` via persistent `xfce4-power-manager.xml` and runtime `xfconf-query` enforcement.
-- **Screensaver & Lock Daemons:** Configured `xfce4-screensaver.xml` with saving and locking disabled; masked autostart desktop entries in `~/.config/autostart/`; stubbed out `xflock4`, `xfce4-screensaver`, `light-locker`, `xscreensaver`, and `i3lock` in `~/.local/bin` and prepended it to `PATH`.
-- **Manifest Cleanup:** Removed `i3lock` from `packagesByFamily` in `lib/desktop_environments.dart`.
-- **Packaging & Delivery:** Added 3 unit tests in `test/start_desktop_test.dart` (170/170 total suite passed). Built debug APK locally and dispatched to Pixel 10 Pro via KDE Connect. Opening PR on `fix/xfce-rendering`.
+Audited the remote repo, then debugged IntelNode on a Nothing Phone 2a (model A142, Android 16,
+Magisk-rooted) and fixed why every non-Arch "New Container" install failed. Six local commits sit on
+branch `fix/new-container-wrapper-dir` (stacked on `main` @ `ca9b5a0`). **Nothing is pushed.**
+
+Commits, oldest first:
+- `dc58490` fix(shell): every PTY shell now starts with `ENV=/dev/null`. Root cause: the phone's
+  Magisk module **TermuxRootMods** replaces `/system/etc/mkshrc` with `exec /system/etc/shell`, a
+  Termux-built binary that dies outside Termux (`CANNOT LINK EXECUTABLE ... libssl.so.3`). Android's
+  `sh` sources mkshrc for interactive shells and a PTY is always interactive, so first run died at
+  "Failed to link native library directory". New `lib/pty_shell.dart` (`startShell()`) replaces the
+  five raw `Pty.start("/system/bin/sh")` calls; `test/pty_shell_test.dart` fails if one returns.
+- `6d15fcd` fix(installer): new `ContainerInstaller.hoistWrapperDir`. The `termux/proot-distro`
+  tarballs used for Debian, Fedora, openSUSE, Alpine, Void wrap the rootfs in one top-level folder
+  (`fedora-aarch64/`); `extractScript` never stripped it, so proot started at an empty root and
+  first-boot provisioning failed with exit 1 for every desktop. Arch and the Ubuntu cloud image are
+  flat, which is why only they worked. Confirmed on the phone (leftover staging dir held only the
+  wrapper folder) and after the fix (rootfs at the staging root).
+- `06433a0` fix(ui): auto-scroll progress log. **Superseded** by `d25b4b1` (widget deleted there).
+- `fab6f79` fix(installer): dnf installs use `--skip-broken --setopt=install_weak_deps=False`. The
+  Fedora rootfs ships `excludepkgs=*selinux*` in `/etc/dnf/dnf.conf`, so desktop groups needing
+  `libselinux-utils`/`python3-libselinux` aborted the transaction ("LXDE package failed with code 1").
+  Added `ContainerInstaller.sessionCheckScript`; `installDesktop` verifies the session command exists
+  after a dnf install (only dnf, since only it skips packages silently).
+- `d25b4b1` feat(containers): New Container now uses the first-run visible terminal screen
+  (`lib/container_install_page.dart`, `SetupSession` + `SetupTerminal`, Retry/Close). New
+  `ContainerInstaller.install()` = `installBase` + `installDesktop` + register, with cleanup of an
+  unregistered rootfs on failure. The old hidden-shell `execute()` and its dialog were deleted.
+- `b558251` feat(containers): "Delete Containers" button (Control tab > New Container panel) with a
+  checkbox dialog and a confirm step. `lib/container_manager.dart` (logic) and
+  `lib/container_delete_dialog.dart` (UI). Containers are identified by their position in the
+  `containersInfo` pref and live in `containers/<position>`, so a delete renumbers survivors and
+  renames folders. Blocked: the running container, the default container, and anything below the
+  running one (renumbering would move the running folder). Added `set defaultContainer` in
+  `lib/settings.dart` and 5 keys in `lib/l10n/intl_en.arb` (only English; other locales fall back).
+
+Other branches/artifacts:
+- `docs/intelnode-audit-plan` @ `dd55b09`: `docs/plans/2026-11-16-intelnode-fixes.md`, the 23-task
+  fix plan from a full rip-it-apart audit of `main`. Task 23 (git history rewrite) is gated on owner
+  approval; do NOT run it.
+- `docs/plans/2026-11-16-intelnode-audit-log.md` is the audit evidence log. It is **untracked** in the
+  working tree of the current branch; commit it onto the docs branch or delete it.
+- `fix/pty-skip-mkshrc` @ `dc58490` is just an earlier tip of the same stack.
+- `~/Projects/IntelNode-fix` is a stale worktree on `fix/resilient-first-run`; `stash@{0}` (autostash)
+  only touches `CLAUDE.md`/`.cursorrules`. Neither is mine; leave them.
 
 ## Feature / Task Status
-- Local Android toolchain: installed and executed successfully. SDK at /home/daripper/Android/Sdk; API 36 plus plugin APIs 33/34/35; ARM64 build-tools 37.0.0 with aapt2 override; exact NDK 27.0.12077973 from custom r27; official ARM64 CMake 3.22.1; existing Java 17 / Ninja.
-- Local debug APK: built successfully, includes current uncommitted rendering fixes. Successful build: 184.8 s; 65,566,685 bytes. Download copy: /home/daripper/Downloads/IntelNode-xfce-rendering-local-debug-20261116.apk.
-- Signature and ZIP alignment: verified, local debug key and APK v2 signature; zipalign -c -P16 4 passed.
-- Tests: 167 passed after the build; analysis retains 18 pre-existing infos. pubspec.lock unchanged.
-- XFCE freezes: unresolved/unmeasured on device. Previous three configuration fixes remain in working tree; see (OLD) AGENT_REPORT.md and performance plan.
-- Release/profile builds: not verified; downloaded Android release gen_snapshot is x86-64. Debug success does not establish release/profile host compatibility.
-- Native 16 KiB ELF alignment:3 of 24 AArch64 ELF files have 4 KiB PT_LOAD alignment. No claim of complete 16 KiB-native compatibility or successful phone startup.
+- ✅ ENV=/dev/null shell fix: verified on the Nothing (first run completed, base + MATE installed).
+- ✅ Wrapper-folder hoist: verified on the Nothing for Fedora (extraction exit 0, provisioning exit 0).
+- ✅ dnf `--skip-broken`: verified on the Nothing up to "Transaction check/test succeeded" and a full
+  1064-package install; see the dracut problem below for why it never finished.
+- ✅ New terminal install screen: verified on the Nothing (downloads, steps, scrolls, Copy/Paste).
+- 🔄 Delete Containers: dialog and disabled state verified on screen. **Deleting a real container is
+  UNVERIFIED on a device** (only Arch exists, and it is protected). Logic is covered by tests on a real
+  filesystem including read-only folders.
+- 🔄 Fedora desktop packages: **stopped by the user mid-task, no code changed.** See next section.
+- ❌ Debian, openSUSE, Alpine, Void, Kali new-container installs: never run on a device. Kali's tarball
+  layout was never checked. They share the hoist fix but each may have its own failure.
+- ❌ Checksums for non-Arch distros (only Arch md5 and Ubuntu SHA256SUMS are verified); the Debian
+  fallback URL in `lib/distros.dart` returns 404.
 
 ## What the Next Agent Should Do First
-1. Read docs/asahi-apk-build.md and current git status. Reuse /home/daripper/.cache/intelnode-tools/build-intelnode-apk.sh debug for a bounded local build. The ignored android/local.properties points to SDK/Flutter/CMake. No tracked Gradle config or CI changes were needed.
-2. The launcher applies 1.5 GiB Gradle heap, one worker, Kotlin in-process, native aapt2, and a narrow Jetifier ignore regex for Flutter's native-only debug JAR; systemd memory cap 3 GiB and swap cap 3 GiB. Avoid the project's tracked 16 GiB default heap on this 8 GiB machine. Full setup receipt: /home/daripper/.cache/intelnode-tools/toolchain-sources.json.
-3. Before updating an existing phone app, compare installed and new signing certificates. This APK is locally debug-signed; it is not assumed to share CI's stable signing key. Never uninstall or clear app data to bypass a signing mismatch without user authorization.
-4. Restore physical-phone access or set up an explicitly chosen local Android runtime, then reproduce the same XFCE menu/window actions. Preserve logs, verify device identity, and test compositor changes one at a time. Never am start MainActivity over a live X11 screen.
-5. For full 16 KiB support, investigate/rebuild libXlorie.so, libexec_getifaddrs_bridge_server.so and libnative-socket.so; ZIP alignment passing alone does not fix ELF alignment. For release/profile, supply a compatible host AOT compiler before claiming support.
+1. **Read the rules**: `AGENTS.md` (symlinked as `CLAUDE.md`/`GEMINI.md`), then this file. Do not push or
+   open PRs without asking the owner; master is PR-protected.
+2. **Fedora desktop package lists** (the task that was interrupted). Five entries in
+   `lib/desktop_environments.dart` still use dnf *groups*: `xfce4` (line 78), `lxqt` (95), `mate` (112),
+   `lxde` (236), `cinnamon` (308). A group pulls ~1064 packages including `kernel-core`, GPU/Wi-Fi
+   firmware, VPN tools and plymouth, and its `kernel-core` scriptlet runs `dracut` for 10+ minutes under
+   proot. Replace each with an explicit package list (i3/openbox/etc. already are). Verify every name
+   against the real index, not memory: Fedora 40 is EOL, metadata is at
+   `https://archives.fedoraproject.org/pub/archive/fedora/linux/releases/40/Everything/aarch64/os/repodata/`
+   (the `*-primary.xml.gz`, which also lists `/usr/bin/*` files so you can confirm the package that
+   ships each session command: `startxfce4`, `startlxqt`, `mate-session`, `startlxde`,
+   `cinnamon-session`). Keep `dbus-x11`. The desktop-manifest tests in `test/` must stay green.
+   Consider whether Fedora should move off the EOL 40 image; commit `a386c7e` had used a current
+   `fedora:43` simplestreams image and `1579323` reverted it to the proot-distro tarballs.
+3. **Retest on the Nothing** (see device section), Fedora + XFCE and one other distro, watching the
+   terminal screen. Then delete the container with the new button to cover the UNVERIFIED path.
+4. Walk the other distros one at a time (Debian, openSUSE, Alpine, Void, Kali); expect per-distro
+   problems. Fix the Debian fallback 404.
+5. Then work `docs/plans/2026-11-16-intelnode-fixes.md` (audit plan) in risk order. Highlights:
+   `Bug_Reports/FS` (about 39 MB Android bugreport data) is in public history on `main`, 3 branches and
+   23 tags, with an unopened 80 MB bugreport zip; non-Arch rootfs have no integrity check; `to_vault`
+   reports success on failed writes and accepts `../` topics; `MANUAL.md` claims a Rust parsing stack
+   and PipeWire that do not exist (audio is PulseAudio); mic streaming and `cmatrix` have no binary.
+   Also stale: README says the desktop was "never seen on screen", but MATE ran on the Nothing.
+6. Update `README.md`/`AGENTS.md` for the new flows (terminal install screen, Delete Containers).
+
+## Environment and device notes (hard-won)
+- **Builds**: an hourly systemd timer writes `DIRECTORY_INDEX.md` into every directory, including
+  `android/app/src/main/res/*`, which breaks Gradle's resource merger. Build from a clean detached
+  worktree and delete those files first:
+  `git worktree add --detach <dir> <sha>; find <dir> -name DIRECTORY_INDEX.md -delete;`
+  `flutter build apk --debug --target-platform android-arm64`. Do not run `flutter test` concurrently:
+  the Gradle daemon was killed once ("disappeared unexpectedly"). Judge success by `BUILD_EXIT`/the
+  APK existing, never by a background-task "completed" notice (it only means the wrapper exited).
+- **Signing**: local debug-signed APKs do not upgrade over CI-built ones (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`).
+  The Nothing currently runs a locally signed build from `b558251`; use `adb install -r` with local
+  builds only. Uninstalling wipes the app's containers.
+- **Nothing Phone 2a**: Tailscale `nothing2a` 100.88.63.39. adb over TCP :5555 is refused; use Wireless
+  debugging. Pairing is done (guid `adb-000681455001135-ZjG10R`), but the **connect port changes
+  whenever Wireless debugging is toggled** (last `192.168.1.113:46759`; find it with `adb mdns services`
+  or from the phone). KDE Connect shows it paired but unreachable, and `kdeconnect-cli --ping-msg`
+  fails with "No such object path" for both phones. It runs Magisk with TermuxRootMods, so any code
+  that starts an interactive `sh` must go through `startShell()`.
+- **Pixel 10 Pro**: adb `100.83.49.113:5555`, working Arch container, older CI build.
+- **Disk**: the Claude temp volume hit its quota once; remove scratch builds you no longer need.
+- Do not run `pkill`/`killall` against opencode (see global `CLAUDE.md`).
 
 ## Blocking Issues
-No blocker to local debug compilation remains. No physical-phone/emulator runtime verification. Earlier Tailscale/KDE Connect access failed; not reconfigured in this SDK task. Local debug signing compatibility with the installed phone APK is unknown. Three native libraries retain 4 KiB ELF alignment. Release/profile AOT host tooling remains unverified.
+None blocking. Open risks: delete-container path untested on a real second container; Fedora 40 is EOL
+and its repos could change; one full-suite test failure occurred once under heavy load and could not be
+reproduced in 3 clean reruns (which test is unknown).
 
 ## Build / Test Status
-- Build: PASS, local debug ARM64 Flutter target, exit 0. /home/daripper/.cache/intelnode-tools/build-debug-20261116T190031Z.log.
-- Initial build:failed after dependency resolution due to Jetifier Java heap exhaustion; verified offending JAR contains only two native libs/no Java/XML. Narrow local ignore rule resolved it with unchanged memory limits.
-- Tests: PASS, 167 tests, flutter test --no-pub --concurrency=1.
-- Lint:flutter analyze --no-pub --no-fatal-infos, same 18 existing infos, no new issues.
-- Artifact SHA256: ca221abae0e601dcf91fbc988754b6ff36d9ad954846e55863b1e12e7a196d2d.
-- Local signing cert SHA256: 0c3b05210576d98e0080195462fcdb5aeb46443778c62b97fa6b91f133e0b4d6.
-- Lock SHA256 unchanged:88d280c82f85236b96a8c8079c365e2ee7e8488e80e8e2a837aa03680af168fa.
-- Device/emulator: NOT RUN. Source remains uncommitted on fix/xfce-rendering.
-
-
-## Wireless installation attempt — 2026-11-16
-
-- User explicitly authorized in-place installation onto Pixel 10 Pro over Tailscale. No authorization to uninstall/clear data is inferred.
-- Host adb devices -l: no devices. Recorded Pixel address100.83.49.113:5555: adb connect timed out after15s. Device model/current build/certificate could not be checked without a connection.
-- tailscale status: NoState; health reports coordination/login error. Read-only preferences show LoggedOut=false and WantRunning=true; saved preferences were not changed. Do not infer that a new login or credential reset will repair the network.
-- IPv4 HTTPS to controlplane.tailscale.com timed out before a TCP connection; multiple resolved addresses were tried. IPv6 attempts in service logs report network unreachable. Official login.tailscale.com/key also timed out. The host route to192.200.0.101 goes through the ordinary Wi-Fi gateway192.168.1.1 onwld0; no obvious local route misconfiguration established.
-- Asked user to try another Asahi Wi-Fi network/phone hotspot before retrying. No network credentials, routes, authentication, firewall or services changed during this installation attempt.
-- APK package ID verified: com.daripper91.daripped. Download copy SHA256 remainsca221abae0e601dcf91fbc988754b6ff36d9ad954846e55863b1e12e7a196d2d.
-- Once connected, verify Pixel model/ABI and compare installed/new signing certificates or let the data-preserving package-manager update validate signatures. Use a serial-pinned in-place update; never uninstall or clear data to bypass a certificate mismatch. The known CI signing backup path ~/.cache/tiny-orig/signing does not exist on this host.
+- Build: ✅ `flutter build apk --debug --target-platform android-arm64` succeeded from a clean worktree at `b558251`.
+- Lint:  ✅ `flutter analyze --no-fatal-infos` reports 18 info-level items, the same baseline as `main`.
+- Tests: ✅ `flutter test` 200/200 passed on `b558251` (baseline on `main` was 181).
