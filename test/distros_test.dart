@@ -47,6 +47,10 @@ void main() {
     test('dnf', () {
       final d = Distros.byId('fedora');
       expect(d.installCommand(['foo']), contains('dnf -y install'));
+      // Fedora rootfs images ship excludepkgs=*selinux*; a desktop group that pulls
+      // in policycoreutils/anaconda would otherwise abort the whole transaction.
+      expect(d.installCommand(['foo']), contains('--skip-broken'));
+      expect(d.installCommand(['foo']), contains('install_weak_deps=False'));
       expect(d.removeCommand(['foo']), contains('dnf -y remove'));
       expect(d.updateCommand, contains('dnf -y upgrade'));
     });

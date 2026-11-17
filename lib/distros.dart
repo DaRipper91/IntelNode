@@ -180,7 +180,11 @@ class DistroSpec {
   String installCommand(List<String> packages) => switch (packageManager) {
     PackageManagerFamily.pacman =>
       "pacman -S --noconfirm --needed ${packages.join(' ')}",
-    PackageManagerFamily.dnf => "dnf -y install ${packages.join(' ')}",
+    // The Fedora rootfs ships excludepkgs=*selinux*, so desktop groups that pull
+    // in policycoreutils/anaconda cannot resolve; skip those instead of failing.
+    PackageManagerFamily.dnf =>
+      "dnf -y install --skip-broken --setopt=install_weak_deps=False "
+          "${packages.join(' ')}",
     PackageManagerFamily.apt =>
       "DEBIAN_FRONTEND=noninteractive apt-get -y install "
           "${packages.join(' ')}",

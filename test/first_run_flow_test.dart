@@ -16,6 +16,7 @@ void main() {
   markerToleranceTests();
   busyboxScriptTests();
   extractScriptTests();
+  sessionCheckTests();
   rmrfTests();
   prootRunTests();
   pickReachableTests();
@@ -277,6 +278,26 @@ void extractScriptTests() {
       final r = extractWrapped('', ['usr/bin/sh']);
       expect(r.exitCode, 0, reason: '${r.stderr}');
       expect(File('$stagingOf/usr/bin/sh').existsSync(), isTrue);
+    });
+  });
+}
+
+void sessionCheckTests() {
+  group('sessionCheckScript', () {
+    // --skip-broken can drop packages silently, so a desktop install is only
+    // trusted once its session command is really in the rootfs.
+    int run(String script) => Process.runSync('sh', ['-c', script]).exitCode;
+
+    test('passes when the session command exists', () {
+      expect(run(ContainerInstaller.sessionCheckScript('sh')), 0);
+    });
+
+    test('fails when the session command is missing', () {
+      expect(run(ContainerInstaller.sessionCheckScript('no-such-session-cmd')), isNot(0));
+    });
+
+    test('checks only the command word of an exec line', () {
+      expect(ContainerInstaller.sessionCheckScript('dbus-launch --exit-with-session i3'), contains("'dbus-launch'"));
     });
   });
 }

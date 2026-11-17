@@ -175,6 +175,20 @@ class ContainerInstaller {
         );
       }
 
+      onProgress("Checking the ${desktop.displayName} session...");
+      exitCode = await Util.execute(
+        prootRun(
+          rootfs: stagingDir,
+          script: sessionCheckScript(desktop.xinitrcExec),
+        ),
+      );
+      if (exitCode != 0) {
+        throw Exception(
+          "${desktop.displayName} installed without its session command "
+          "(${desktop.xinitrcExec.split(' ').first}); some packages were skipped",
+        );
+      }
+
       onProgress("Writing session startup files...");
       exitCode = await Util.execute(
         prootRun(
@@ -219,6 +233,15 @@ rm -f ${Util.escapeShellArgument(tarballPath)}
       );
       rethrow;
     }
+  }
+
+  /// Fails unless the desktop's session command is in the rootfs. dnf runs with
+  /// --skip-broken, which can drop packages without failing, so the install is
+  /// only trusted once the command that .xinitrc execs actually exists.
+  @visibleForTesting
+  static String sessionCheckScript(String xinitrcExec) {
+    final command = Util.escapeShellArgument(xinitrcExec.split(' ').first);
+    return "command -v $command >/dev/null 2>&1";
   }
 
   /// rm -rf that also works on a half-extracted rootfs: Arch ships read-only
