@@ -7,6 +7,7 @@ import 'package:http/testing.dart';
 import 'package:da_ripped_tiny_computer/container_installer.dart';
 import 'package:da_ripped_tiny_computer/desktop_environments.dart';
 import 'package:da_ripped_tiny_computer/desktop_picker.dart';
+import 'package:da_ripped_tiny_computer/distro_picker.dart';
 import 'package:da_ripped_tiny_computer/distros.dart';
 import 'package:da_ripped_tiny_computer/setup_session.dart';
 import 'package:da_ripped_tiny_computer/workflow.dart';
@@ -69,6 +70,64 @@ void main() {
           scrollable: find.byType(Scrollable));
       await tester.tap(find.byKey(const ValueKey('desktop-niri')),
           warnIfMissed: false);
+      expect(picked, isNull);
+    });
+
+    testWidgets('formats package manager text dynamically based on distro', (tester) async {
+      final fedora = Distros.byId('fedora');
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: DesktopPickerBody(
+            distro: fedora,
+            onSelected: (_) {},
+          ),
+        ),
+      ));
+      expect(find.textContaining('You can add more later with dnf.'), findsOneWidget);
+    });
+  });
+
+  group('DistroPickerBody', () {
+    testWidgets('shows all distros and returns tapped verified distro', (tester) async {
+      DistroSpec? picked;
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: DistroPickerBody(onSelected: (d) => picked = d),
+        ),
+      ));
+      expect(
+        find.text('Select the Linux distribution to download and install for your container.'),
+        findsOneWidget,
+      );
+      // Tap Arch Linux ARM (first verified distro)
+      await tester.tap(find.byKey(const ValueKey('distro-archlinux')));
+      expect(picked?.id, 'archlinux');
+
+      // Scroll and tap Ubuntu
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('distro-ubuntu')),
+        200,
+        scrollable: find.byType(Scrollable),
+      );
+      await tester.tap(find.byKey(const ValueKey('distro-ubuntu')));
+      expect(picked?.id, 'ubuntu');
+    });
+
+    testWidgets('unverified distros are disabled and cannot be tapped', (tester) async {
+      DistroSpec? picked;
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: DistroPickerBody(onSelected: (d) => picked = d),
+        ),
+      ));
+      // Scroll to Kali
+      await tester.scrollUntilVisible(
+        find.byKey(const ValueKey('distro-kali')),
+        200,
+        scrollable: find.byType(Scrollable),
+      );
+      expect(find.textContaining('Preview, unverified source'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('distro-kali')), warnIfMissed: false);
       expect(picked, isNull);
     });
   });
