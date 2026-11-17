@@ -42,7 +42,9 @@ import 'package:device_info_plus/device_info_plus.dart';
 
 import 'package:da_ripped_tiny_computer/boot_log.dart';
 import 'package:da_ripped_tiny_computer/container_installer.dart';
+import 'package:da_ripped_tiny_computer/desktop_environments.dart';
 import 'package:da_ripped_tiny_computer/desktop_picker.dart';
+import 'package:da_ripped_tiny_computer/distro_picker.dart';
 import 'package:da_ripped_tiny_computer/distros.dart';
 import 'package:da_ripped_tiny_computer/fake_proc.dart';
 import 'package:da_ripped_tiny_computer/guest_shims.dart';
@@ -1665,7 +1667,10 @@ fi
   }
 
   // Actions to perform on first launch
-  static Future<void> initForFirstTime() async {
+  static Future<void> initForFirstTime({
+    DistroSpec? selectedDistro,
+    DesktopEnvironmentSpec? selectedDesktop,
+  }) async {
     // Clear log lines before starting so the log view shows only current session.
     G.logLines.value = [];
     // A full pacman install is thousands of lines: give it its own file and bigger caps,
@@ -1681,14 +1686,16 @@ fi
         .installingBootPackage;
     await setupBootstrap();
 
-    // Stage 1: bare Arch base, downloaded and verified. Stage 2 (the desktop) is
+    final distro =
+        selectedDistro ?? await showDistroPicker(G.homePageStateContext);
+
+    // Stage 1: bare base system, downloaded and verified. Stage 2 (the desktop) is
     // picked by the user once the base is known to work. Everything runs in the
     // visible setup terminal so failures can be read and copied.
     G.setupSession.value?.dispose();
     final session = SetupSession(G.dataPath);
     G.setupSession.value = session;
-    final distro = Distros.byId("archlinux");
-    final String base = "Installing base system...";
+    final String base = "Installing ${distro.displayName} base system...";
     G.updateText.value = base;
     await ContainerInstaller.installBase(
       distro: distro,
@@ -1701,7 +1708,8 @@ fi
     );
 
     G.updateText.value = "Base system ready";
-    final desktop = await showDesktopPicker(G.homePageStateContext);
+    final desktop = selectedDesktop ??
+        await showDesktopPicker(G.homePageStateContext, distro: distro);
     G.updateText.value = "Installing ${desktop.displayName}...";
     await ContainerInstaller.installDesktop(
       distro: distro,
@@ -1714,10 +1722,8 @@ fi
 
     // Initialize container metadata
     String initialVncPassword = Util.generateRandomPassword();
-    const containerName = "Arch Linux";
-    final String packageManager = ContainerInfo.packageManagerForDistro(
-      containerName,
-    );
+    final containerName = distro.displayName;
+    final String packageManager = distro.packageManager.name;
     final List<Map<String, dynamic>> initialCommands =
         D.getCommandsForPackageManager(
       packageManager,

@@ -4,22 +4,25 @@
 import 'package:flutter/material.dart';
 
 import 'package:da_ripped_tiny_computer/desktop_environments.dart';
+import 'package:da_ripped_tiny_computer/distros.dart';
 
 class DesktopPickerBody extends StatelessWidget {
-  const DesktopPickerBody({super.key, required this.onSelected});
+  const DesktopPickerBody({super.key, required this.onSelected, this.distro});
 
   final ValueChanged<DesktopEnvironmentSpec> onSelected;
+  final DistroSpec? distro;
 
   @override
   Widget build(BuildContext context) {
+    final pm = distro != null ? distro!.packageManager.name : "your package manager";
     return ListView(
       shrinkWrap: true,
       children: [
-        const Padding(
-          padding: EdgeInsets.only(bottom: 8),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
           child: Text(
             "The base system is installed and working. Pick what to install "
-            "on top of it. You can add more later with pacman.",
+            "on top of it. You can add more later with $pm.",
           ),
         ),
         _section(context, "Desktop Environments", DesktopKind.environment),
@@ -60,7 +63,10 @@ class DesktopPickerBody extends StatelessWidget {
 }
 
 /// Shows the picker as a non-dismissible dialog and returns the user's choice.
-Future<DesktopEnvironmentSpec> showDesktopPicker(BuildContext context) async {
+Future<DesktopEnvironmentSpec> showDesktopPicker(
+  BuildContext context, {
+  DistroSpec? distro,
+}) async {
   final choice = await showDialog<DesktopEnvironmentSpec>(
     context: context,
     barrierDismissible: false,
@@ -73,6 +79,7 @@ Future<DesktopEnvironmentSpec> showDesktopPicker(BuildContext context) async {
         content: SizedBox(
           width: double.maxFinite,
           child: DesktopPickerBody(
+            distro: distro,
             onSelected: (d) => Navigator.of(dialogContext).pop(d),
           ),
         ),
