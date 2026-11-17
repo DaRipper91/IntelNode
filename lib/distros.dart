@@ -351,6 +351,18 @@ printf 'nameserver 1.1.1.1\\nnameserver 8.8.8.8\\n' > /etc/resolv.conf
 # already extracted and functional; user setup edits /etc files directly, so no
 # packages are needed. Skip xbps to avoid the proot corruption.
 mkdir -p /data/data/com.daripper91.daripped/files
+# The shipped config points at repo-default (a Helsinki mirror that times out on
+# some networks, seen on a Nothing Phone 2a: "failed to download libffi-3.3_2
+# signature ... Connection timed out"). Point later xbps-install runs, e.g. the
+# desktop install, at the Fastly CDN instead. Config files only; xbps is not run.
+mkdir -p /etc/xbps.d
+if [ -d /usr/share/xbps.d ]; then
+  cp -a /usr/share/xbps.d/*-repository-*.conf /etc/xbps.d/ 2>/dev/null || true
+  sed -i 's|https://repo-default.voidlinux.org|https://repo-fastly.voidlinux.org|g' /etc/xbps.d/*-repository-*.conf 2>/dev/null || true
+fi
+if [ ! -f /etc/xbps.d/00-repository-main.conf ]; then
+  echo "repository=https://repo-fastly.voidlinux.org/current/aarch64" > /etc/xbps.d/00-repository-main.conf
+fi
 ${_commonUserSetup(username)}""";
 
 class Distros {
@@ -455,7 +467,7 @@ class Distros {
         url: "https://github.com/termux/proot-distro/releases/download/v4.29.0/void-aarch64-pd-v4.29.0.tar.xz",
         fallbackUrls: [
           "https://github.com/termux/proot-distro/releases/download/v4.6.0/void-aarch64-pd-v4.6.0.tar.xz",
-          "https://repo-default.voidlinux.org/live/current/void-aarch64-ROOTFS-20250202.tar.xz",
+          "https://repo-fastly.voidlinux.org/live/current/void-aarch64-ROOTFS-20250202.tar.xz",
         ],
         verified: true,
         notes: "Verified Void Linux aarch64 proot rootfs.",

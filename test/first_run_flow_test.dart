@@ -389,6 +389,7 @@ void prootRunTests() {
     expect(script, contains('pkill -x dirmngr'));
     expect(script, contains("trap "));
     expect(script, contains('set +e;'), reason: 'set -e would otherwise leak into the trap and change the exit status');
+    expect(script, contains('-w /'), reason: 'proot must set initial working dir to guest root to avoid chdir warning');
   });
 
   test('user setup creates uid/gid 1000 directly in /etc files without shadow locking', () {
@@ -399,6 +400,13 @@ void prootRunTests() {
     expect(script, contains('/etc/passwd'));
     expect(script, contains('/etc/group'));
     expect(script, contains("x:1000:1000:"));
+  });
+
+  test('void first boot switches from repo-default to Fastly CDN', () {
+    final script = Distros.byId('void').firstBootScript('tiny');
+    expect(script, contains('repo-fastly.voidlinux.org'));
+    expect(script, contains('/etc/xbps.d'));
+    expect(script, contains('xbps-install -uy xbps'));
   });
 }
 
