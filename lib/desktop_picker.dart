@@ -63,7 +63,7 @@ class DesktopPickerBody extends StatelessWidget {
 }
 
 /// Shows the picker as a non-dismissible dialog and returns the user's choice.
-Future<DesktopEnvironmentSpec> showDesktopPicker(
+Future<DesktopEnvironmentSpec?> showDesktopPicker(
   BuildContext context, {
   DistroSpec? distro,
 }) async {
@@ -86,5 +86,5 @@ Future<DesktopEnvironmentSpec> showDesktopPicker(
       ),
     ),
   );
-  return choice!;
+  return choice;
 }

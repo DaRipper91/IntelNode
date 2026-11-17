@@ -38,6 +38,7 @@ import 'package:da_ripped_tiny_computer/setup_terminal.dart';
 import 'package:da_ripped_tiny_computer/workflow.dart';
 import 'package:da_ripped_tiny_computer/container_delete_dialog.dart';
 import 'package:da_ripped_tiny_computer/container_setup_page.dart';
+import 'package:da_ripped_tiny_computer/theme.dart';
 
 import 'package:avnc_flutter/avnc_flutter.dart';
 import 'package:x11_flutter/x11_flutter.dart';
@@ -92,16 +93,8 @@ class MyApp extends StatelessWidget {
               countryCode: 'HK',
             ), // 'zh_Hant_HK'
           ],
-          theme: ThemeData(
-            colorSchemeSeed: lightDynamic == null ? Colors.blue : null,
-            colorScheme: lightDynamic,
-            useMaterial3: true,
-          ),
-          darkTheme: ThemeData(
-            colorSchemeSeed: darkDynamic == null ? Colors.blue : null,
-            colorScheme: darkDynamic,
-            useMaterial3: true,
-          ),
+          theme: AppTheme.lightTheme(lightDynamic),
+          darkTheme: AppTheme.darkTheme(darkDynamic),
           home: MyHomePage(title: "IntelNode"),
         );
       },
