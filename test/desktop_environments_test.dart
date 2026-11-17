@@ -55,9 +55,25 @@ void main() {
       expect(xfce.packagesFor(Distros.byId('archlinux')), contains('xfce4'));
       expect(
         xfce.packagesFor(Distros.byId('fedora')),
-        contains('@xfce-desktop-environment'),
+        contains('xfce4-session'),
       );
       expect(xfce.packagesFor(Distros.byId('debian')), contains('xfce4'));
+    });
+
+    test('no dnf package entry starts with @ (no package groups)', () {
+      for (final de in DesktopEnvironments.all) {
+        final dnfPackages = [
+          ...?de.packagesByFamily[PackageManagerFamily.dnf],
+          ...?de.packagesByDistroId['fedora'],
+        ];
+        for (final pkg in dnfPackages) {
+          expect(
+            pkg.startsWith('@'),
+            isFalse,
+            reason: '${de.id} dnf entry "$pkg" is a group; use explicit packages',
+          );
+        }
+      }
     });
 
     test('every stable desktop declares packages for every distro', () {
