@@ -174,7 +174,7 @@ class DistroSpec {
     PackageManagerFamily.zypper =>
       "zypper --non-interactive --gpg-auto-import-keys refresh && zypper --non-interactive --gpg-auto-import-keys update",
     PackageManagerFamily.apk => "apk update && apk upgrade",
-    PackageManagerFamily.xbps => "xbps-install -Syu",
+    PackageManagerFamily.xbps => "xbps-install -uy xbps && xbps-install -Syu",
   };
 
   String installCommand(List<String> packages) => switch (packageManager) {
@@ -319,6 +319,8 @@ String _voidFirstBoot(String username) =>
 set -e
 rm -f /etc/resolv.conf
 printf 'nameserver 1.1.1.1\\nnameserver 8.8.8.8\\n' > /etc/resolv.conf
+xbps-install -S
+xbps-install -uy xbps || true
 xbps-install -Syu || true
 xbps-install -y sudo shadow dbus
 ${_commonUserSetup(username)}""";
