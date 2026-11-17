@@ -59,5 +59,16 @@ Unit/integration test suite: **202/202 passed**. Static analyzer: **18 info-leve
 ---
 
 ## Test & Analysis Verification
-- `flutter test`: **202 passed, 0 failed** (including unit tests for explicit dnf package lists, no-groups guard tests, tar exclusion tests, and proot process cleanup traps).
+- `flutter test`: **205 passed, 0 failed** (including unit tests for explicit dnf package lists, no-groups guard tests, tar exclusion tests, proot process cleanup traps, distro picker selection, and dynamic package manager text formatting).
 - `flutter analyze --no-fatal-infos`: **18 info-level items** (exact baseline from `main`).
+
+---
+
+## First-Run User Distro Selection Flow
+- **Feature:** Replaced hardcoded Arch Linux ARM first-time bootstrap with an interactive, non-dismissible distribution picker dialog (`DistroPickerBody` in `lib/distro_picker.dart`).
+- **Capabilities:**
+  - Enumerates all distributions defined in `Distros.all`.
+  - Verified distributions (Arch Linux ARM, Ubuntu, Debian, Fedora, openSUSE, Alpine, Void) are enabled for immediate selection.
+  - Unverified preview distributions (Kali Linux) are displayed as disabled cards with explanatory status notes.
+  - Dynamic package manager text in `DesktopPickerBody` adapting instructions to the selected distribution's native package manager (`dnf`, `apt`, `zypper`, `apk`, `xbps`, `pacman`).
+  - Decoupled `Workflow.initForFirstTime({DistroSpec? selectedDistro, DesktopEnvironmentSpec? selectedDesktop})` allowing full programmatic invocation and testing.
