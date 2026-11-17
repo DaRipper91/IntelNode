@@ -2,9 +2,9 @@
 // for building a new container on-device. Reads Distros.all and
 // DesktopEnvironments.all so adding a manifest entry is enough to make it
 // selectable here; no page logic needs to change.
-import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 
+import 'package:da_ripped_tiny_computer/container_install_page.dart';
 import 'package:da_ripped_tiny_computer/container_installer.dart';
 import 'package:da_ripped_tiny_computer/desktop_environments.dart';
 import 'package:da_ripped_tiny_computer/distros.dart';
@@ -199,102 +199,11 @@ class _ContainerSetupPageState extends State<ContainerSetupPage> {
   }
 
   Future<void> _runInstall(BuildContext context, InstallPlan plan) async {
-    final l10n = AppLocalizations.of(context)!;
-    final ValueNotifier<List<String>> progress = ValueNotifier([]);
-
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.installProgressTitle),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 200,
-          child: InstallProgressLog(lines: progress),
-        ),
-      ),
+    final installed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => ContainerInstallPage(plan: plan)),
     );
-
-    Object? error;
-    try {
-      await ContainerInstaller.execute(
-        plan,
-        onProgress: (line) => progress.value = [...progress.value, line],
-      );
-    } catch (e) {
-      error = e;
-    }
-
-    if (!context.mounted) return;
-    Navigator.of(context).pop(); // dismiss progress dialog
-
-    final bool succeeded = error == null;
-    await showDialog<void>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(
-          succeeded ? l10n.installCompleteTitle : l10n.installFailedTitle,
-        ),
-        content: Text(succeeded ? plan.containerName : error.toString()),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(l10n.close),
-          ),
-        ],
-      ),
-    );
-
-    if (succeeded && context.mounted) {
+    if (installed == true && context.mounted) {
       Navigator.of(context).pop(); // leave the setup page, back to Settings
     }
-  }
-}
-
-/// Scrolling log for the install progress dialog. Follows the newest line and
-/// keeps only the last [maxLines], since the download step reports repeatedly.
-class InstallProgressLog extends StatefulWidget {
-  const InstallProgressLog({super.key, required this.lines});
-
-  final ValueListenable<List<String>> lines;
-
-  static const int maxLines = 500;
-
-  @override
-  State<InstallProgressLog> createState() => _InstallProgressLogState();
-}
-
-class _InstallProgressLogState extends State<InstallProgressLog> {
-  final ScrollController _controller = ScrollController();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _scrollToEnd() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_controller.hasClients) {
-        _controller.jumpTo(_controller.position.maxScrollExtent);
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder<List<String>>(
-      valueListenable: widget.lines,
-      builder: (context, lines, child) {
-        final shown = lines.length > InstallProgressLog.maxLines
-            ? lines.sublist(lines.length - InstallProgressLog.maxLines)
-            : lines;
-        _scrollToEnd();
-        return ListView(
-          controller: _controller,
-          children: shown.map((l) => Text(l)).toList(),
-        );
-      },
-    );
   }
 }
