@@ -170,7 +170,7 @@ class DistroSpec {
   String get updateCommand => switch (packageManager) {
     PackageManagerFamily.pacman => "pacman -Syu --noconfirm",
     PackageManagerFamily.dnf => "dnf -y upgrade --refresh",
-    PackageManagerFamily.apt => "apt-get update && apt-get -y upgrade",
+    PackageManagerFamily.apt => "apt-get update",
     PackageManagerFamily.zypper =>
       "zypper --non-interactive --gpg-auto-import-keys refresh && zypper --non-interactive --gpg-auto-import-keys update",
     PackageManagerFamily.apk => "apk update && apk upgrade",
@@ -274,9 +274,20 @@ set -e
 rm -f /etc/resolv.conf
 printf 'nameserver 1.1.1.1\\nnameserver 8.8.8.8\\n' > /etc/resolv.conf
 export DEBIAN_FRONTEND=noninteractive
+# Clean dpkg state to avoid permission issues in proot
+rm -rf /var/lib/dpkg/lock /var/lib/dpkg/lock-frontend
+rm -rf /var/cache/apt/archives/lock
+# Fix proot chdir warning by ensuring the path exists
+mkdir -p /data/data/com.daripper91.daripped/files
+# Work around proot hardlink limitations with dpkg backups
+# Configure apt to avoid upgrades and backup creation
+echo 'APT::Get::Allow-Downgrades "true";' > /etc/apt/apt.conf.d/99intelnode
+echo 'APT::Get::Assume-Yes "true";' >> /etc/apt/apt.conf.d/99intelnode
+apt-get clean || true
+# Use apt-get with no-upgrade and force-overwrite to avoid dpkg backup hardlinks
 apt-get update
-# polkitd on current Debian/Ubuntu; policykit-1 is only a transitional name
-apt-get -y install sudo locales polkitd || apt-get -y install sudo locales policykit-1
+# Install packages with no upgrade to avoid triggering dpkg backups
+apt-get -y -o Dpkg::Options::="--force-overwrite" -o Dpkg::Options::="--force-confold" --no-install-recommends install sudo locales polkitd || apt-get -y -o Dpkg::Options::="--force-overwrite" -o Dpkg::Options::="--force-confold" --no-install-recommends install sudo locales policykit-1
 ${_commonUserSetup(username)}
 sed -i 's/# en_US.UTF-8/en_US.UTF-8/' /etc/locale.gen
 locale-gen || true""";
