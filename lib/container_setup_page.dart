@@ -2,6 +2,7 @@
 // for building a new container on-device. Reads Distros.all and
 // DesktopEnvironments.all so adding a manifest entry is enough to make it
 // selectable here; no page logic needs to change.
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 
 import 'package:da_ripped_tiny_computer/container_installer.dart';
@@ -209,11 +210,7 @@ class _ContainerSetupPageState extends State<ContainerSetupPage> {
         content: SizedBox(
           width: double.maxFinite,
           height: 200,
-          child: ValueListenableBuilder<List<String>>(
-            valueListenable: progress,
-            builder: (context, lines, child) =>
-                ListView(children: lines.map((l) => Text(l)).toList()),
-          ),
+          child: InstallProgressLog(lines: progress),
         ),
       ),
     );
@@ -251,5 +248,53 @@ class _ContainerSetupPageState extends State<ContainerSetupPage> {
     if (succeeded && context.mounted) {
       Navigator.of(context).pop(); // leave the setup page, back to Settings
     }
+  }
+}
+
+/// Scrolling log for the install progress dialog. Follows the newest line and
+/// keeps only the last [maxLines], since the download step reports repeatedly.
+class InstallProgressLog extends StatefulWidget {
+  const InstallProgressLog({super.key, required this.lines});
+
+  final ValueListenable<List<String>> lines;
+
+  static const int maxLines = 500;
+
+  @override
+  State<InstallProgressLog> createState() => _InstallProgressLogState();
+}
+
+class _InstallProgressLogState extends State<InstallProgressLog> {
+  final ScrollController _controller = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _scrollToEnd() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_controller.hasClients) {
+        _controller.jumpTo(_controller.position.maxScrollExtent);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<List<String>>(
+      valueListenable: widget.lines,
+      builder: (context, lines, child) {
+        final shown = lines.length > InstallProgressLog.maxLines
+            ? lines.sublist(lines.length - InstallProgressLog.maxLines)
+            : lines;
+        _scrollToEnd();
+        return ListView(
+          controller: _controller,
+          children: shown.map((l) => Text(l)).toList(),
+        );
+      },
+    );
   }
 }
