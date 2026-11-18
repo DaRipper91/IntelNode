@@ -27,8 +27,19 @@ void main() {
     });
 
     test('is blocked for an unverified distro even with a stable desktop', () {
+      final unverified = DistroSpec(
+        id: 'preview-test',
+        displayName: 'Preview Test',
+        description: 'An unverified preview distro.',
+        packageManager: PackageManagerFamily.apt,
+        rootfs: const RootfsSource.direct(
+          url: 'https://example.com/preview.tar.xz',
+          verified: false,
+        ),
+        firstBootScript: (username) => 'set -e\n',
+      );
       final plan = ContainerInstaller.plan(
-        distro: Distros.byId('kali'),
+        distro: unverified,
         desktop: DesktopEnvironments.byId('xfce4'),
         containerName: 'test',
       );
@@ -37,8 +48,19 @@ void main() {
     });
 
     test('dry-run preview is always available regardless of blocked state', () {
+      final unverified = DistroSpec(
+        id: 'preview-test',
+        displayName: 'Preview Test',
+        description: 'An unverified preview distro.',
+        packageManager: PackageManagerFamily.apt,
+        rootfs: const RootfsSource.direct(
+          url: 'https://example.com/preview.tar.xz',
+          verified: false,
+        ),
+        firstBootScript: (username) => 'set -e\n',
+      );
       final plan = ContainerInstaller.plan(
-        distro: Distros.byId('kali'),
+        distro: unverified,
         desktop: DesktopEnvironments.byId('cosmic'),
         containerName: 'test',
       );

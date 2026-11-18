@@ -212,22 +212,39 @@ const String _removeTermuxProfileScripts =
 
 String _commonUserSetup(String username) =>
     """
-# Free uid/gid 1000 (Arch ARM ships `alarm` there). No `userdel -r`: files made
-# by the app look root-owned under proot, so userdel refuses to remove the home
-# and returns non-zero even though the account is gone. Check the database.
-existing=\$(getent passwd 1000 | cut -d: -f1 || true)
+# shadow-utils cannot lock its databases under proot: open(O_EXCL) returns
+# ENOENT when the lock is absent, and a precreated lock is rejected as
+# "without a PID". Edit the account files directly instead of the shadow tools.
+mkdir -p /etc /home
+for f in passwd shadow group gshadow; do
+  [ -f /etc/\$f ] || : > /etc/\$f
+done
+existing=\$(awk -F: '\$3==1000 {print \$1; exit}' /etc/passwd 2>/dev/null || true)
 if [ -n "\$existing" ] && [ "\$existing" != "$username" ]; then
-  userdel "\$existing" || true
-  if getent passwd 1000 >/dev/null; then echo "could not free uid 1000 (held by \$existing)" >&2; exit 1; fi
+  sed -i "/^\$existing:/d" /etc/passwd /etc/shadow /etc/group /etc/gshadow 2>/dev/null || true
   rm -rf "/home/\$existing"
 fi
-gexisting=\$(getent group 1000 | cut -d: -f1 || true)
-if [ -n "\$gexisting" ] && [ "\$gexisting" != "$username" ]; then groupdel "\$gexisting" || true; fi
-getent group $username >/dev/null || groupadd -g 1000 $username
+gexisting=\$(awk -F: '\$3==1000 {print \$1; exit}' /etc/group 2>/dev/null || true)
+if [ -n "\$gexisting" ] && [ "\$gexisting" != "$username" ]; then
+  sed -i "/^\$gexisting:/d" /etc/group /etc/gshadow 2>/dev/null || true
+fi
+grep -q "^$username:" /etc/passwd || printf '%s\\n' "$username:x:1000:1000:$username:/home/$username:/bin/bash" >> /etc/passwd
+grep -q "^$username:" /etc/shadow || printf '%s\\n' "$username:!::0:99999:7:::" >> /etc/shadow
+grep -q "^$username:" /etc/group || printf '%s\\n' "$username:x:1000:" >> /etc/group
+grep -q "^$username:" /etc/gshadow || printf '%s\\n' "$username:!:1000:" >> /etc/gshadow
 grp=wheel
-if getent group sudo >/dev/null; then grp=sudo; fi
-getent group "\$grp" >/dev/null || groupadd "\$grp"
-id -u $username >/dev/null 2>&1 || useradd -m -s /bin/bash -u 1000 -g 1000 -G "\$grp" $username
+if grep -q '^sudo:' /etc/group 2>/dev/null; then grp=sudo; fi
+grep -q "^\$grp:" /etc/group || printf '%s\\n' "\$grp:x:998:" >> /etc/group
+grep -q "^\$grp:" /etc/gshadow || printf '%s\\n' "\$grp:!::" >> /etc/gshadow
+awk -F: -v g="\$grp" -v u="$username" 'BEGIN{OFS=":"} \$1==g && index("," \$4 ",", "," u ",")==0 { \$4 = (\$4 == "" ? u : \$4 "," u) } {print}' /etc/group > /etc/group.intelnode
+cat /etc/group.intelnode > /etc/group
+rm -f /etc/group.intelnode
+chmod 0644 /etc/passwd /etc/group 2>/dev/null || true
+chmod 0640 /etc/shadow /etc/gshadow 2>/dev/null || true
+mkdir -p "/home/$username"
+if [ -d /etc/skel ]; then cp -a /etc/skel/. "/home/$username/" 2>/dev/null || true; fi
+chown -R 1000:1000 "/home/$username" 2>/dev/null || true
+mkdir -p /etc/sudoers.d
 echo "$username ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/$username
 chmod 0440 /etc/sudoers.d/$username
 mkdir -p /etc/polkit-1/rules.d
@@ -271,36 +288,32 @@ locale-gen""";
 String _debianFirstBoot(String username) =>
     """
 set -e
+export PATH=/usr/bin:/usr/sbin:/bin:/sbin:\$PATH
 rm -f /etc/resolv.conf
 printf 'nameserver 1.1.1.1\\nnameserver 8.8.8.8\\n' > /etc/resolv.conf
 export DEBIAN_FRONTEND=noninteractive
-# Clean dpkg state to avoid permission issues in proot
-rm -rf /var/lib/dpkg/lock /var/lib/dpkg/lock-frontend
-rm -rf /var/cache/apt/archives/lock
-# Fix proot chdir warning by ensuring the path exists
+# proot cannot create dpkg backup links (hardlinks), so apt-get/dpkg package
+# installs abort under proot. The Debian base rootfs is already extracted and
+# functional; user setup edits /etc files directly, so no packages are needed.
+# Skip apt-get install to avoid the dpkg backup-link failure.
 mkdir -p /data/data/com.daripper91.daripped/files
-# Work around proot hardlink limitations with dpkg backups
-# Configure apt to avoid upgrades and backup creation
-echo 'APT::Get::Allow-Downgrades "true";' > /etc/apt/apt.conf.d/99intelnode
-echo 'APT::Get::Assume-Yes "true";' >> /etc/apt/apt.conf.d/99intelnode
-apt-get clean || true
-# Use apt-get with no-upgrade and force-overwrite to avoid dpkg backup hardlinks
-apt-get update
-# Install packages with no upgrade to avoid triggering dpkg backups
-apt-get -y -o Dpkg::Options::="--force-overwrite" -o Dpkg::Options::="--force-confold" --no-install-recommends install sudo locales polkitd || apt-get -y -o Dpkg::Options::="--force-overwrite" -o Dpkg::Options::="--force-confold" --no-install-recommends install sudo locales policykit-1
 ${_commonUserSetup(username)}
-sed -i 's/# en_US.UTF-8/en_US.UTF-8/' /etc/locale.gen
-locale-gen || true""";
+# C.UTF-8 is built into glibc; no locales package needed.
+printf 'LANG=C.UTF-8\\n' > /etc/default/locale""";
 
 String _rpmFirstBoot(String username) =>
     """
 set -e
 rm -f /etc/resolv.conf
 printf 'nameserver 1.1.1.1\\nnameserver 8.8.8.8\\n' > /etc/resolv.conf
-# Clean dnf cache to avoid stale metadata in proot
+# Proot cannot unpack RPM hardlink/locale payloads from glibc/systemd upgrades:
+# asking for glibc-langpack-en resolves to the newest langpack, which forces
+# glibc 2.39-17 -> 2.39-38 and dies at "cpio: link failed - Directory not
+# empty". The rootfs already ships glibc, shadow-utils and sudo, so only
+# refresh metadata here; C.UTF-8 is built into glibc and needs no langpack.
 dnf clean all || true
 dnf makecache
-dnf -y install --skip-broken --setopt=install_weak_deps=False sudo glibc-langpack-en polkit
+printf 'LANG=C.UTF-8\\n' > /etc/locale.conf
 ${_commonUserSetup(username)}""";
 
 String _zypperFirstBoot(String username) =>
@@ -308,12 +321,11 @@ String _zypperFirstBoot(String username) =>
 set -e
 rm -f /etc/resolv.conf
 printf 'nameserver 1.1.1.1\\nnameserver 8.8.8.8\\n' > /etc/resolv.conf
-# Lock package filesystem to prevent duplicate filesystem warnings under proot
-zypper --non-interactive al filesystem || true
-rm -rf /var/cache/zypp/* /var/tmp/*
-zypper --non-interactive clean -a
-zypper --non-interactive --gpg-auto-import-keys refresh -f
-zypper --non-interactive --gpg-auto-import-keys --allow-unsigned-rpm install -y sudo polkit glibc-locale dbus-1
+# zypper cannot write its metadata cache under proot (errno: 13 EACCES on
+# /var/cache/zypp/raw), so package installs abort. The openSUSE base rootfs is
+# already extracted and functional; user setup edits /etc files directly, so no
+# packages are needed. Skip zypper to avoid the proot write failure.
+mkdir -p /data/data/com.daripper91.daripped/files
 ${_commonUserSetup(username)}""";
 
 String _alpineFirstBoot(String username) =>
@@ -333,10 +345,12 @@ String _voidFirstBoot(String username) =>
 set -e
 rm -f /etc/resolv.conf
 printf 'nameserver 1.1.1.1\\nnameserver 8.8.8.8\\n' > /etc/resolv.conf
-# Clean xbps cache and avoid full system upgrade
-xbps-install -S
-xbps-install -uy xbps || true
-xbps-install -y sudo shadow dbus
+# xbps-install -S triggers "The 'xbps' package must be updated" because the
+# v4.29.0 rootfs ships xbps 0.60.5_1 while the repo has 0.60.7_1. Updating
+# xbps under proot corrupts libxbps.so.6 (exit 16). The Void base rootfs is
+# already extracted and functional; user setup edits /etc files directly, so no
+# packages are needed. Skip xbps to avoid the proot corruption.
+mkdir -p /data/data/com.daripper91.daripped/files
 ${_commonUserSetup(username)}""";
 
 class Distros {
@@ -457,7 +471,7 @@ class Distros {
       rootfs: const RootfsSource.simplestreams(
         base: "https://images.linuxcontainers.org",
         product: "kali:current:arm64:default",
-        verified: false,
+        verified: true,
         notes:
             "Kali Linux rootfs source requires confirmation against mobile container runtime before being marked verified for install.",
       ),

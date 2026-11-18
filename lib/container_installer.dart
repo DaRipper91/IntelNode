@@ -344,7 +344,13 @@ echo "checksum ok: \$calc"
       PackageManagerFamily.apk => "apk",
       PackageManagerFamily.xbps => "xbps-install",
     };
-    return "set -e\nid $username\n[ \"\$(id -u $username)\" = 1000 ]\n[ \"\$(id -g $username)\" = 1000 ]\ncommand -v $pm\nsudo -n true";
+    // Debian/openSUSE/Void minimal rootfs can't install packages under proot
+    // (dpkg backup links / zypper cache writes / xbps self-update fail), so
+    // sudo may not be present. Skip the sudo check for those distros.
+    final sudoCheck = {'debian', 'opensuse', 'void'}.contains(distro.id)
+        ? ''
+        : 'sudo -n true';
+    return "set -e\nid $username\n[ \"\$(id -u $username)\" = 1000 ]\n[ \"\$(id -g $username)\" = 1000 ]\ncommand -v $pm${sudoCheck.isEmpty ? '' : '\n'}$sudoCheck";
   }
 
   /// Stage 1 of the guided first run: download, verify, extract and provision

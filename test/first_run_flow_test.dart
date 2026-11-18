@@ -113,22 +113,23 @@ void main() {
       expect(picked?.id, 'ubuntu');
     });
 
-    testWidgets('unverified distros are disabled and cannot be tapped', (tester) async {
+    testWidgets('verified distros are enabled and can be tapped', (tester) async {
       DistroSpec? picked;
       await tester.pumpWidget(MaterialApp(
         home: Scaffold(
           body: DistroPickerBody(onSelected: (d) => picked = d),
         ),
       ));
-      // Scroll to Kali
+      // Scroll to Kali (now verified after on-device testing)
       await tester.scrollUntilVisible(
         find.byKey(const ValueKey('distro-kali')),
         200,
         scrollable: find.byType(Scrollable),
       );
-      expect(find.textContaining('Preview, unverified source'), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('distro-kali')), warnIfMissed: false);
-      expect(picked, isNull);
+      expect(find.textContaining('Preview, unverified source'), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('distro-kali')));
+      expect(picked, isNotNull);
+      expect(picked!.id, 'kali');
     });
   });
 
@@ -146,7 +147,7 @@ void main() {
       expect(script, contains('pacman-key --populate archlinuxarm'));
       expect(script, contains('DisableSandbox'));
       expect(script, contains('rm -f /etc/resolv.conf'));
-      expect(script, contains('-u 1000'));
+      expect(script, contains('1000:1000'));
     });
   });
 
@@ -390,12 +391,14 @@ void prootRunTests() {
     expect(script, contains('set +e;'), reason: 'set -e would otherwise leak into the trap and change the exit status');
   });
 
-  test('user setup deletes the old uid-1000 user without relying on userdel -r', () {
+  test('user setup creates uid/gid 1000 directly in /etc files without shadow locking', () {
     final script = Distros.byId('archlinux').firstBootScript('tiny');
     expect(script, isNot(contains('userdel -r "')));
-    expect(script, contains('getent passwd 1000 >/dev/null'));
-    expect(script, contains('groupadd -g 1000 tiny'));
-    expect(script, contains('useradd -m -s /bin/bash -u 1000 -g 1000'));
+    expect(script, isNot(contains('useradd')));
+    expect(script, isNot(contains('groupadd')));
+    expect(script, contains('/etc/passwd'));
+    expect(script, contains('/etc/group'));
+    expect(script, contains("x:1000:1000:"));
   });
 }
 

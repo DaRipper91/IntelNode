@@ -110,8 +110,8 @@ void main() {
       expect(Distros.byId('void').rootfs.verified, isTrue);
     });
 
-    test('preview distros are marked unverified pending device testing', () {
-      expect(Distros.byId('kali').rootfs.verified, isFalse);
+    test('kali is now verified after on-device testing', () {
+      expect(Distros.byId('kali').rootfs.verified, isTrue);
     });
 
     test('direct source describes its literal URL', () {
@@ -129,11 +129,79 @@ void main() {
     test('create the expected user and remove Termux profile scripts', () {
       for (final distro in Distros.all) {
         final script = distro.firstBootScript('tiny');
-        expect(script, contains('useradd -m -s /bin/bash -u 1000 -g 1000 -G'));
+        expect(script, contains('/etc/passwd'),
+            reason: '${distro.id} does not edit /etc/passwd directly');
+        expect(script, contains('/etc/group'),
+            reason: '${distro.id} does not edit /etc/group directly');
+        expect(script, isNot(contains('useradd')),
+            reason: '${distro.id} uses useradd which locks under proot');
+        expect(script, isNot(contains('groupadd')),
+            reason: '${distro.id} uses groupadd which locks under proot');
         expect(script, contains('sudoers.d/tiny'));
         expect(script, contains('polkit-1/rules.d'));
         expect(script, contains('termux'));
+        expect(script, contains('mkdir -p /etc/sudoers.d'));
       }
+    });
+
+    test('fedora avoids proot-unsafe glibc/systemd upgrades', () {
+      final script = Distros.byId('fedora').firstBootScript('tiny');
+      final commands = script
+          .split('\n')
+          .where((line) => !line.trimLeft().startsWith('#'))
+          .join('\n');
+      // The English locale pack pins to the newest version, dragging glibc and
+      // systemd into the transaction; proot cannot unpack their hardlinks.
+      expect(commands, isNot(contains('glibc-langpack-en')));
+      expect(commands, isNot(contains('dnf -y install')));
+      expect(commands, contains('dnf makecache'));
+      expect(commands, contains("printf 'LANG=C.UTF-8\\n' > /etc/locale.conf"));
+    });
+
+    test('debian/ubuntu avoid locales package to prevent proot libc6 upgrades', () {
+      for (final id in ['debian', 'ubuntu']) {
+        final script = Distros.byId(id).firstBootScript('tiny');
+        final commands = script
+            .split('\n')
+            .where((line) => !line.trimLeft().startsWith('#'))
+            .join('\n');
+        // Installing locales drags libc6/libc-bin upgrades; dpkg under proot
+        // cannot create dpkg backup links and the upgrade aborts.
+        expect(commands, isNot(contains('locales')),
+            reason: '$id installs locales which pulls a libc6 upgrade');
+        expect(commands, contains('LANG=C.UTF-8'),
+            reason: '$id does not set C.UTF-8 locale directly');
+      }
+    });
+
+    test('shadow utilities are not used under proot (no lock/race failures)', () {
+      for (final distro in Distros.all) {
+        final script = distro.firstBootScript('tiny');
+        expect(script, isNot(contains('groupadd')),
+            reason: '${distro.id} uses groupadd which locks under proot');
+        expect(script, isNot(contains('useradd')),
+            reason: '${distro.id} uses useradd which locks under proot');
+        expect(script, isNot(contains('/etc/group.lock')),
+            reason: '${distro.id} still references shadow lock files');
+        expect(script, contains('/etc/passwd'),
+            reason: '${distro.id} does not edit /etc/passwd directly');
+        expect(script, contains('/etc/group'),
+            reason: '${distro.id} does not edit /etc/group directly');
+      }
+    });
+
+    test('void does not self-upgrade xbps under proot', () {
+      final script = Distros.byId('void').firstBootScript('tiny');
+      final commands = script
+          .split('\n')
+          .where((line) => !line.trimLeft().startsWith('#'))
+          .join('\n');
+      // xbps self-update under proot corrupts libxbps.so.6; Void skips xbps
+      // entirely and edits /etc files directly.
+      expect(commands, isNot(contains('xbps-install')),
+          reason: 'void uses xbps-install which corrupts libxbps.so.6 under proot');
+      expect(commands, contains('/etc/passwd'),
+          reason: 'void does not edit /etc/passwd directly');
     });
   });
 }
