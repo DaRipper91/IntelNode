@@ -236,7 +236,7 @@ rm -f ${Util.escapeShellArgument(tarballPath)}
   static Future<String?> _checksumScript(String url, String tarballPath) async {
     final String? sumsUrl;
     final String tool;
-    if (url.contains("archlinuxarm.org") || url.contains("archlinuxarm.org")) {
+    if (url.contains("archlinuxarm.org")) {
       // ArchLinuxARM mirrors serve MD5 at either /os/... or /os/.../latest.md5
       sumsUrl = "$url.md5";
       tool = "md5sum";
@@ -258,7 +258,7 @@ rm -f ${Util.escapeShellArgument(tarballPath)}
       // Some mirrors serve a directory listing with the md5 file
       // Try the base path with .md5 suffix from the mirror root
       final baseUrl = url.substring(0, url.lastIndexOf('/') + 1);
-      final resp2 = await http.get(Uri.parse("$baseUrl"));
+      final resp2 = await http.get(Uri.parse(baseUrl));
       if (resp2.statusCode == 200) {
         // Could not parse directory listing; give up on checksum
         return null;

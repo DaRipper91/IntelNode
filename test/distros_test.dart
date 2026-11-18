@@ -52,21 +52,34 @@ void main() {
       expect(d.installCommand(['foo']), contains('--skip-broken'));
       expect(d.installCommand(['foo']), contains('install_weak_deps=False'));
       expect(d.removeCommand(['foo']), contains('dnf -y remove'));
-      expect(d.updateCommand, contains('dnf -y upgrade'));
+      // A full dnf upgrade in proot pulls in packages the container cannot
+      // service; refresh metadata only.
+      expect(d.updateCommand, contains('dnf -y makecache'));
+      expect(d.updateCommand, isNot(contains('upgrade')));
     });
 
     test('apt', () {
       final d = Distros.byId('debian');
-      expect(d.installCommand(['foo']), contains('apt-get -y install'));
+      // Dpkg backup hardlinks fail under proot, so overwrite/confold are forced
+      // and recommended packages are skipped.
+      expect(d.installCommand(['foo']), contains('apt-get -y'));
+      expect(d.installCommand(['foo']), contains('--force-overwrite'));
+      expect(d.installCommand(['foo']), contains('--force-confold'));
+      expect(d.installCommand(['foo']), contains('--no-install-recommends'));
+      expect(d.installCommand(['foo']), contains('foo'));
       expect(d.removeCommand(['foo']), contains('apt-get -y purge'));
       expect(d.updateCommand, contains('apt-get update'));
+      expect(d.updateCommand, isNot(contains('upgrade')));
     });
 
     test('zypper', () {
       final d = Distros.byId('opensuse');
-      expect(d.installCommand(['foo']), contains('zypper --non-interactive --gpg-auto-import-keys install'));
+      expect(d.installCommand(['foo']), contains('zypper --non-interactive --gpg-auto-import-keys'));
+      expect(d.installCommand(['foo']), contains('--allow-unsigned-rpm'));
+      expect(d.installCommand(['foo']), contains('install foo'));
       expect(d.removeCommand(['foo']), contains('zypper --non-interactive remove'));
       expect(d.updateCommand, contains('zypper --non-interactive --gpg-auto-import-keys refresh'));
+      expect(d.updateCommand, isNot(contains('update')));
     });
 
     test('apk', () {
@@ -80,7 +93,9 @@ void main() {
       final d = Distros.byId('void');
       expect(d.installCommand(['foo']), contains('xbps-install -y'));
       expect(d.removeCommand(['foo']), contains('xbps-remove -Ry'));
-      expect(d.updateCommand, contains('xbps-install -Syu'));
+      // Only xbps itself is updated; a full -Syu upgrade breaks in proot.
+      expect(d.updateCommand, contains('xbps-install -Su xbps'));
+      expect(d.updateCommand, isNot(contains('-Syu')));
     });
   });
 
