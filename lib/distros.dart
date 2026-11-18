@@ -169,12 +169,12 @@ class DistroSpec {
 
   String get updateCommand => switch (packageManager) {
     PackageManagerFamily.pacman => "pacman -Syu --noconfirm",
-    PackageManagerFamily.dnf => "dnf -y upgrade --refresh",
+    PackageManagerFamily.dnf => "dnf -y makecache",
     PackageManagerFamily.apt => "apt-get update",
     PackageManagerFamily.zypper =>
-      "zypper --non-interactive --gpg-auto-import-keys refresh && zypper --non-interactive --gpg-auto-import-keys update",
-    PackageManagerFamily.apk => "apk update && apk upgrade",
-    PackageManagerFamily.xbps => "xbps-install -uy xbps && xbps-install -Syu",
+      "zypper --non-interactive --gpg-auto-import-keys refresh",
+    PackageManagerFamily.apk => "apk update",
+    PackageManagerFamily.xbps => "xbps-install -Su xbps",
   };
 
   String installCommand(List<String> packages) => switch (packageManager) {
@@ -186,10 +186,10 @@ class DistroSpec {
       "dnf -y install --skip-broken --setopt=install_weak_deps=False "
           "${packages.join(' ')}",
     PackageManagerFamily.apt =>
-      "DEBIAN_FRONTEND=noninteractive apt-get -y install "
+      "DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::=\"--force-overwrite\" -o Dpkg::Options::=\"--force-confold\" --no-install-recommends install "
           "${packages.join(' ')}",
     PackageManagerFamily.zypper =>
-      "zypper --non-interactive --gpg-auto-import-keys install ${packages.join(' ')}",
+      "zypper --non-interactive --gpg-auto-import-keys --allow-unsigned-rpm install ${packages.join(' ')}",
     PackageManagerFamily.apk => "apk add --no-cache ${packages.join(' ')}",
     PackageManagerFamily.xbps => "xbps-install -y ${packages.join(' ')}",
   };
@@ -297,7 +297,10 @@ String _rpmFirstBoot(String username) =>
 set -e
 rm -f /etc/resolv.conf
 printf 'nameserver 1.1.1.1\\nnameserver 8.8.8.8\\n' > /etc/resolv.conf
-dnf -y install sudo glibc-langpack-en polkit
+# Clean dnf cache to avoid stale metadata in proot
+dnf clean all || true
+dnf makecache
+dnf -y install --skip-broken --setopt=install_weak_deps=False sudo glibc-langpack-en polkit
 ${_commonUserSetup(username)}""";
 
 String _zypperFirstBoot(String username) =>
@@ -310,7 +313,7 @@ zypper --non-interactive al filesystem || true
 rm -rf /var/cache/zypp/* /var/tmp/*
 zypper --non-interactive clean -a
 zypper --non-interactive --gpg-auto-import-keys refresh -f
-zypper --non-interactive --gpg-auto-import-keys install -y sudo polkit glibc-locale dbus-1
+zypper --non-interactive --gpg-auto-import-keys --allow-unsigned-rpm install -y sudo polkit glibc-locale dbus-1
 ${_commonUserSetup(username)}""";
 
 String _alpineFirstBoot(String username) =>
@@ -330,9 +333,9 @@ String _voidFirstBoot(String username) =>
 set -e
 rm -f /etc/resolv.conf
 printf 'nameserver 1.1.1.1\\nnameserver 8.8.8.8\\n' > /etc/resolv.conf
+# Clean xbps cache and avoid full system upgrade
 xbps-install -S
 xbps-install -uy xbps || true
-xbps-install -Syu || true
 xbps-install -y sudo shadow dbus
 ${_commonUserSetup(username)}""";
 

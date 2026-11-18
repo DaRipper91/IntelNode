@@ -434,7 +434,7 @@ echo "checksum ok: \$calc"
     var code = await run(
       prootRun(
         rootfs: containerDir,
-        script: "set -e\n# Work around dpkg hardlink issues in proot\nexport DPKG_FORCE=overwrite\n${distro.packageManager == PackageManagerFamily.apt ? 'apt-get update' : distro.updateCommand}\n${distro.installCommand(packages)}",
+        script: "set -e\n# Work around package manager issues in proot\nexport DPKG_FORCE=overwrite\n${distro.packageManager == PackageManagerFamily.apt ? 'apt-get update' : distro.updateCommand}\n${distro.installCommand(packages)}",
       ),
     );
     if (code != 0) {
