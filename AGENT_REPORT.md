@@ -26,7 +26,7 @@ Files changed this turn (all uncommitted):
 ## Feature / Task Status
 
 - ✅ **PR reconciliation** — #31/#33/#34 confirmed already merged; #29 is the only open PR. No action needed.
-- ✅ **PolyGet system update** — completed earlier this task: DNF 28 / Flatpak 1 / NPM 2 / Rustup 1 / uv 1 upgraded; re-scan reports 0 updates across all supported managers (Fisher unsupported by design). DNF included kernel `6.12.4-401.asahi.fc44`; **reboot still pending to activate it**.
+- ✅ **PolyGet system update** — completed earlier this task: DNF 28 / Flatpak 1 / NPM 2 / Rustup 1 / uv 1 upgraded; re-scan reports 0 updates across all supported managers (Fisher unsupported by design). DNF included kernel `7.3.4-401.asahi.fc44.aarch64+16k`; **reboot still pending to activate it** (currently running `7.2.12-402.asahi.fc44.aarch64+16k`).
 - ✅ **Stale test assertions** — fixed; full suite green at 205 passed.
 - ✅ **Fresh debug APK built** — `build/app/outputs/flutter-apk/app-debug.apk`, 103,943,310 bytes, 2026-11-18 14:20, contains all distro fixes.
 - 🔄 **On-device distro install verification** — blocked: no ADB device attached. The screenshot errors (`dnf: command not found`, `xbps-install: not found`, openSUSE `repomd.xml` signature failure) were from an APK that predates the fixes; they need to be re-tested with the fresh APK before concluding anything is still broken.
