@@ -186,7 +186,7 @@ class DistroSpec {
       "dnf -y install --skip-broken --setopt=install_weak_deps=False "
           "${packages.join(' ')}",
     PackageManagerFamily.apt =>
-      "DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::=\"--force-overwrite\" -o Dpkg::Options::=\"--force-confold\" --no-install-recommends install "
+      "DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::=\"--force-not-root\" -o Dpkg::Options::=\"--force-overwrite\" -o Dpkg::Options::=\"--force-confold\" --no-install-recommends install "
           "${packages.join(' ')}",
     PackageManagerFamily.zypper =>
       "zypper --non-interactive --gpg-auto-import-keys --allow-unsigned-rpm install ${packages.join(' ')}",

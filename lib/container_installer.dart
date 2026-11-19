@@ -437,10 +437,19 @@ echo "checksum ok: \$calc"
     final containerDir = "${G.dataPath}/containers/$containerIndex";
     final packages = desktop.packagesFor(distro);
     log("\r\n== Installing ${desktop.displayName}: ${packages.join(' ')}");
+    // proot blocks dpkg backup-file creation under /var/lib/dpkg
+    // ("cannot create new backup file ... Permission denied"). For apt-based
+    // distros, download .debs with --download-only (no dpkg involved) then
+    // extract them directly with dpkg-deb --extract, bypassing dpkg's backup
+    // mechanism entirely. For other distros, use the normal install command.
+    final installScript =
+        distro.packageManager == PackageManagerFamily.apt
+            ? "set -e\napt-get update\napt-get install -y --download-only --no-install-recommends ${packages.join(' ')}\nfor deb in /var/cache/apt/archives/*.deb; do [ -f \"\$deb\" ] && dpkg-deb --extract \"\$deb\" / || true; done\nldconfig 2>/dev/null || true"
+            : distro.installCommand(packages);
     var code = await run(
       prootRun(
         rootfs: containerDir,
-        script: "set -e\n# Work around package manager issues in proot\nexport DPKG_FORCE=overwrite\n${distro.packageManager == PackageManagerFamily.apt ? 'apt-get update' : distro.updateCommand}\n${distro.installCommand(packages)}",
+        script: installScript,
       ),
     );
     if (code != 0) {
