@@ -16,6 +16,7 @@
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:clipboard/clipboard.dart';
@@ -2343,6 +2344,55 @@ class _FastCommandsState extends State<FastCommands> {
   }
 }
 
+/// Lists installed containers so the user can see and relaunch them.
+/// After a distro install finishes, its entry is added to `containersInfo`
+/// by [Workflow.initForFirstTime]; this page reads that list and lets the
+/// user tap an entry to launch it.
+class ContainerListPage extends StatefulWidget {
+  const ContainerListPage({super.key});
+
+  @override
+  State<ContainerListPage> createState() => _ContainerListPageState();
+}
+
+class _ContainerListPageState extends State<ContainerListPage> {
+  @override
+  Widget build(BuildContext context) {
+    final containers = G.settings.containersInfo;
+    if (containers.isEmpty) {
+      return const Center(
+        child: Text("No containers installed yet."),
+      );
+    }
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Installed Containers"),
+      ),
+      body: ListView.builder(
+        itemCount: containers.length,
+        itemBuilder: (context, index) {
+          final info = jsonDecode(containers[index]) as Map<String, dynamic>;
+          final isCurrent = index == G.currentContainer;
+          return ListTile(
+            leading: Icon(
+              isCurrent ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+              color: isCurrent ? Theme.of(context).colorScheme.primary : null,
+            ),
+            title: Text(info['name'] ?? 'Unknown Container'),
+            subtitle: Text(info['packageManager'] ?? ''),
+            trailing: isCurrent ? const Icon(Icons.check) : null,
+            onTap: () async {
+              G.currentContainer = index;
+              G.settings.defaultContainer = index;
+              await Workflow.launchCurrentContainer();
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
 
@@ -2436,7 +2486,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
               builder: (context, value, child) {
                 return IndexedStack(
                   index: G.pageIndex.value,
-                  children: const [
+                  children: [
                     TerminalPage(),
                     Padding(
                       padding: EdgeInsets.all(8),
@@ -2477,6 +2527,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
                         ),
                       ),
                     ),
+                    ContainerListPage(),
                   ],
                 );
               },
@@ -2497,6 +2548,10 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
                 NavigationDestination(
                   icon: const Icon(Icons.video_settings),
                   label: AppLocalizations.of(context)!.control,
+                ),
+                NavigationDestination(
+                  icon: const Icon(Icons.memory),
+                  label: AppLocalizations.of(context)!.containers,
                 ),
               ],
               onDestinationSelected: (index) {

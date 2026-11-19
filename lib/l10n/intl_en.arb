@@ -75,6 +75,7 @@
   "enterGUI": "Enter Desktop",
   "terminal": "Terminal",
   "control": "Control",
+  "containers": "Containers",
   "enterNumber": "Please enter a number",
   "enterValidNumber": "Please enter a valid number",
   "enterNumberBetween": "Please enter a number between {min} and {max}",

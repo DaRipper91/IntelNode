@@ -444,7 +444,7 @@ echo "checksum ok: \$calc"
     // mechanism entirely. For other distros, use the normal install command.
     final installScript =
         distro.packageManager == PackageManagerFamily.apt
-            ? "set -e\napt-get update\napt-get install -y --download-only --no-install-recommends ${packages.join(' ')}\nfor deb in /var/cache/apt/archives/*.deb; do [ -f \"\$deb\" ] && dpkg-deb --extract \"\$deb\" / || true; done\nldconfig 2>/dev/null || true"
+            ? "set -e\napt-get update\napt-get install -y --download-only --no-install-recommends ${packages.join(' ')}\nfor deb in /var/cache/apt/archives/*.deb; do [ -f \"\$deb\" ] && dpkg-deb --fsys-tarfile \"\$deb\" | tar --no-same-permissions --no-same-owner -x -C / || true; done\nldconfig 2>/dev/null || true"
             : distro.installCommand(packages);
     var code = await run(
       prootRun(
