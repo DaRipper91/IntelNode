@@ -189,7 +189,7 @@ class DistroSpec {
       "DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::=\"--force-not-root\" -o Dpkg::Options::=\"--force-overwrite\" -o Dpkg::Options::=\"--force-confold\" --no-install-recommends install "
           "${packages.join(' ')}",
     PackageManagerFamily.zypper =>
-      "zypper --non-interactive --gpg-auto-import-keys --allow-unsigned-rpm install ${packages.join(' ')}",
+      "zypper --non-interactive --gpg-auto-import-keys install ${packages.join(' ')}",
     PackageManagerFamily.apk => "apk add --no-cache ${packages.join(' ')}",
     PackageManagerFamily.xbps => "xbps-install -y ${packages.join(' ')}",
   };

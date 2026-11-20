@@ -75,7 +75,11 @@ void main() {
     test('zypper', () {
       final d = Distros.byId('opensuse');
       expect(d.installCommand(['foo']), contains('zypper --non-interactive --gpg-auto-import-keys'));
-      expect(d.installCommand(['foo']), contains('--allow-unsigned-rpm'));
+      // --allow-unsigned-rpm is a command option (valid only after the verb, and
+      // only for rpm files named on the command line). Before the verb zypper
+      // rejects it ("The flag --allow-unsigned-rpm is not known", exit 2), which
+      // failed every openSUSE desktop install on a Nothing Phone 2a.
+      expect(d.installCommand(['foo']), isNot(contains('--allow-unsigned-rpm')));
       expect(d.installCommand(['foo']), contains('install foo'));
       expect(d.removeCommand(['foo']), contains('zypper --non-interactive remove'));
       expect(d.updateCommand, contains('zypper --non-interactive --gpg-auto-import-keys refresh'));
