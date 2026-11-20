@@ -58,19 +58,17 @@ void main() {
       expect(picked?.id, 'xfce4');
     });
 
-    testWidgets('experimental entries are not selectable', (tester) async {
+    testWidgets('lists no Wayland previews, every entry is a selectable X11 session', (tester) async {
       DesktopEnvironmentSpec? picked;
       await tester.pumpWidget(MaterialApp(
         home: Scaffold(
           body: DesktopPickerBody(onSelected: (d) => picked = d),
         ),
       ));
-      await tester.scrollUntilVisible(
-          find.byKey(const ValueKey('desktop-niri')), 200,
-          scrollable: find.byType(Scrollable));
-      await tester.tap(find.byKey(const ValueKey('desktop-niri')),
-          warnIfMissed: false);
-      expect(picked, isNull);
+      expect(find.byKey(const ValueKey('desktop-niri')), findsNothing);
+      expect(find.byKey(const ValueKey('desktop-cosmic')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('desktop-xfce4')));
+      expect(picked?.id, 'xfce4');
     });
 
     testWidgets('formats package manager text dynamically based on distro', (tester) async {
@@ -113,22 +111,23 @@ void main() {
       expect(picked?.id, 'ubuntu');
     });
 
-    testWidgets('unverified distros are disabled and cannot be tapped', (tester) async {
+    testWidgets('verified distros are enabled and can be tapped', (tester) async {
       DistroSpec? picked;
       await tester.pumpWidget(MaterialApp(
         home: Scaffold(
           body: DistroPickerBody(onSelected: (d) => picked = d),
         ),
       ));
-      // Scroll to Kali
+      // Scroll to Kali (now verified after on-device testing)
       await tester.scrollUntilVisible(
         find.byKey(const ValueKey('distro-kali')),
         200,
         scrollable: find.byType(Scrollable),
       );
-      expect(find.textContaining('Preview, unverified source'), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('distro-kali')), warnIfMissed: false);
-      expect(picked, isNull);
+      expect(find.textContaining('Preview, unverified source'), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('distro-kali')));
+      expect(picked, isNotNull);
+      expect(picked!.id, 'kali');
     });
   });
 
@@ -146,7 +145,7 @@ void main() {
       expect(script, contains('pacman-key --populate archlinuxarm'));
       expect(script, contains('DisableSandbox'));
       expect(script, contains('rm -f /etc/resolv.conf'));
-      expect(script, contains('-u 1000'));
+      expect(script, contains('1000:1000'));
     });
   });
 
@@ -388,14 +387,29 @@ void prootRunTests() {
     expect(script, contains('pkill -x dirmngr'));
     expect(script, contains("trap "));
     expect(script, contains('set +e;'), reason: 'set -e would otherwise leak into the trap and change the exit status');
+    expect(script, contains('-w /'), reason: 'proot must set initial working dir to guest root to avoid chdir warning');
   });
 
-  test('user setup deletes the old uid-1000 user without relying on userdel -r', () {
+  test('user setup creates uid/gid 1000 directly in /etc files without shadow locking', () {
     final script = Distros.byId('archlinux').firstBootScript('tiny');
     expect(script, isNot(contains('userdel -r "')));
-    expect(script, contains('getent passwd 1000 >/dev/null'));
-    expect(script, contains('groupadd -g 1000 tiny'));
-    expect(script, contains('useradd -m -s /bin/bash -u 1000 -g 1000'));
+    expect(script, isNot(contains('useradd')));
+    expect(script, isNot(contains('groupadd')));
+    expect(script, contains('/etc/passwd'));
+    expect(script, contains('/etc/group'));
+    expect(script, contains("x:1000:1000:"));
+  });
+
+  test('void first boot switches from repo-default to Fastly CDN', () {
+    final script = Distros.byId('void').firstBootScript('tiny');
+    expect(script, contains('repo-fastly.voidlinux.org'));
+    expect(script, contains('/etc/xbps.d'));
+    // The fallback repository must be the aarch64 index; "/current" alone is x86_64.
+    expect(script, contains('repo-fastly.voidlinux.org/current/aarch64'));
+    // Updating xbps under proot corrupts libxbps.so.6 (exit 16), so first boot
+    // only edits config files and never runs xbps. The desktop install does.
+    final runsXbps = RegExp(r'^\s*xbps-install', multiLine: true).hasMatch(script);
+    expect(runsXbps, isFalse);
   });
 }
 
@@ -437,5 +451,13 @@ void pickReachableTests() {
     expect(c.length, greaterThan(1));
     expect(c.toSet().length, c.length);
     expect(c.every((u) => u.endsWith('/os/ArchLinuxARM-aarch64-latest.tar.gz')), isTrue);
+  });
+
+  test('the Arch source avoids hosts whose TLS certificate or DNS is broken', () async {
+    final c = await Distros.byId('archlinux').rootfs.candidates();
+    final hosts = c.map((u) => Uri.parse(u).host).toSet();
+    expect(hosts, isNot(contains('os.archlinuxarm.org')));
+    expect(hosts, isNot(contains('mirror.archlinuxarm.org')));
+    expect(hosts, isNot(contains('us.mirror.archlinuxarm.org')));
   });
 }

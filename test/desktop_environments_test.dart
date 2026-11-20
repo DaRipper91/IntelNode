@@ -17,25 +17,23 @@ void main() {
       expect(stableIds, containsAll(['xfce4', 'lxqt', 'mate', 'i3']));
     });
 
-    test('includes the two experimental-tier desktops', () {
-      final experimentalIds =
-          DesktopEnvironments.forTier(DesktopTier.experimental)
-              .map((d) => d.id)
-              .toSet();
-      expect(experimentalIds, containsAll(['niri', 'cosmic']));
+    test('defines no experimental sessions and no Wayland ones', () {
+      // niri and COSMIC (Wayland previews) were removed: they needed a nested
+      // Wayland-compositor bridge that was never prototyped in this app.
+      expect(DesktopEnvironments.forTier(DesktopTier.experimental), isEmpty);
+      expect(
+        DesktopEnvironments.all.every((d) => d.sessionType == SessionType.x11),
+        isTrue,
+      );
+      final ids = DesktopEnvironments.all.map((d) => d.id).toSet();
+      expect(ids, isNot(contains('niri')));
+      expect(ids, isNot(contains('cosmic')));
     });
 
     test('stable and experimental tiers partition the manifest', () {
       final stable = DesktopEnvironments.forTier(DesktopTier.stable);
       final experimental = DesktopEnvironments.forTier(DesktopTier.experimental);
       expect(stable.length + experimental.length, DesktopEnvironments.all.length);
-    });
-
-    test('every experimental entry documents its unproven caveat', () {
-      for (final de in DesktopEnvironments.forTier(DesktopTier.experimental)) {
-        expect(de.experimentalCaveat, isNotNull);
-        expect(de.experimentalCaveat, isNotEmpty);
-      }
     });
 
     test('every stable entry has no experimental caveat', () {

@@ -10,10 +10,10 @@
 
 </div>
 
-IntelNode is a fork of [Cateners/tiny_computer](https://github.com/Cateners/tiny_computer). It is a Flutter app that runs Arch Linux ARM in proot on Android. No root, one APK, no Termux. The desktop is shown through an X server built into the app (x11_flutter, termux-x11 core).
+IntelNode is a fork of [Cateners/tiny_computer](https://github.com/Cateners/tiny_computer). It is a Flutter app that runs a Linux distribution in proot on Android: Arch Linux ARM (the default), Ubuntu, Debian, Fedora, openSUSE, Alpine, Void or Kali, chosen on first run. No root, one APK, no Termux. The desktop is shown through an X server built into the app (x11_flutter, termux-x11 core).
 
 > [!WARNING]
-> The two-stage first run ran end to end on a Pixel 10 Pro (build `6133f9c`) and the XFCE session processes were seen running. A **screenshot of the desktop has not been taken yet**, and the X server ANR fix has only been checked by process state, not visually. See [Status](#status).
+> This is a pre-release. On 2026-11-20 the first run was exercised on a Nothing Phone 2a (Android 16) with XFCE4 on seven of the eight distros, and the desktop was seen on screen for all seven; openSUSE's panel died once after about 11 minutes. Kali has not been tested. The Pixel 10 Pro has not been re-tested with the latest fixes. See [Status](#status) for the per-distro results and the known issues.
 
 <div align="center">
 <img src="images/neofetch-boot.svg" alt="neofetch-style facts for the IntelNode Arch container" width="85%">
@@ -41,15 +41,16 @@ Two stages, both run in an interactive terminal on the loading screen (Copy sele
 </div>
 
 <details>
-<summary><b>Stage 1: base install</b></summary>
+<summary><b>Stage 1: pick a distribution and install the base</b></summary>
 
 <br>
 
-1. Download the bare Arch Linux ARM base over HTTPS from a mirror.
-2. Verify the published `.md5`.
-3. Extract with proot + busybox/tar.
-4. Provision: `pacman-key` archlinuxarm keyring, user `tiny` (uid 1000, in `wheel`, passwordless sudo), locale, pacman tweaks for proot.
-5. Verify the container boots.
+1. A picker lists the eight distributions, Arch Linux ARM first.
+2. Download the rootfs over HTTPS: Arch from an ArchLinuxARM mirror, Ubuntu from Canonical's cloud images, Debian, Fedora, openSUSE, Alpine and Void from [termux/proot-distro](https://github.com/termux/proot-distro) release tarballs, Kali through the linuxcontainers.org image server.
+3. Verify the download: Arch's `.md5`, Ubuntu's `SHA256SUMS`, and a pinned SHA-256 per tarball URL for the proot-distro images. A source with neither a pin nor a checksum scheme is refused, not installed unverified (see [Known issues](#status)).
+4. Extract with proot + busybox/tar.
+5. Provision: user `tiny` (uid 1000, passwordless sudo), locale, and per-distro tweaks for proot (Arch also gets the `pacman-key` archlinuxarm keyring and `wheel`).
+6. Verify the container boots.
 
 </details>
 
@@ -62,16 +63,16 @@ A picker with two sections:
 
 | Section | Options |
 |---|---|
-| Desktop Environments | XFCE4, LXQt, MATE |
-| Window Managers | i3, Openbox, Fluxbox, IceWM |
+| Desktop Environments | XFCE4, LXQt, MATE, LXDE, Enlightenment, Cinnamon |
+| Window Managers | i3, Openbox, Fluxbox, IceWM, awesome, bspwm |
 
-niri and COSMIC (Wayland) are listed but disabled as previews. The chosen session is written to `~/.intelnode-session`, and `start-desktop` launches it.
+The chosen session is written to `~/.intelnode-session`, and `start-desktop` launches it. Only XFCE4 has been tested on every distribution (see [Status](#status)); the other sessions are defined in `lib/desktop_environments.dart` but have not been run on a device.
 
 <div align="center">
 <img src="images/picker-mock.svg" alt="Mock of the stage 2 picker" width="70%">
 </div>
 
-The image is an illustrative mock, not a screenshot.
+The image is an illustrative mock, not a screenshot, and may not list every session.
 
 </details>
 
@@ -95,7 +96,7 @@ What the cross-section is built from, all observed over adb on a Pixel 10 Pro (A
 | The extracted Arch rootfs is about 2.8 GiB from a 791 MiB tar | `du` and file size on the device |
 | The X server is a TCP listener on `127.0.0.1:7897` (`1ED9` in `/proc/net/tcp`) | `Util.waitForXServer` in `lib/workflow.dart` |
 
-The top layer is dashed on purpose: the XFCE session processes have been seen running (`ps`), but the desktop has not been seen on screen yet.
+The top layer is dashed because, when the diagram was drawn, the XFCE session had only been seen through `ps`. The desktop has since been seen on screen on a Nothing Phone 2a (see [Status](#status)).
 
 ### Trust model: what the guest can reach
 
@@ -111,8 +112,9 @@ The Linux guest is not a security boundary against the app that hosts it. proot 
 ## Requirements
 
 - An ARM64 Android phone.
-- Network on first run. The base is roughly 700 MB and the desktop a few hundred MB more; exact sizes vary.
-- Last device tested: Pixel 10 Pro on the Android 17 developer preview.
+- Network on first run. Sizes depend on the distribution: Arch's rootfs is about 790 MB and its XFCE4 packages about 135 MiB, Ubuntu's rootfs about 206 MB; the others vary.
+- A network that can reach the distribution's mirrors. On one Wi-Fi without working IPv6, Void's default mirror and Kali's image server were unreachable (see [Status](#status)).
+- Devices tested: Pixel 10 Pro (Android 17 developer preview) and Nothing Phone 2a (Android 16, kernel 5.15, 4 KB pages).
 
 ## Install
 
@@ -126,12 +128,12 @@ Grab a build from [Releases](https://github.com/DaRipper91/IntelNode/releases). 
 1. Builds from commit `3f70dbf` on are signed with a stable key from repo secrets, so they upgrade in place (`adb install -r`). Uninstall first only if you have an older build, which was signed with a different key each time.
 2. Allow installs from unknown sources.
 3. Install the APK.
-4. Grant the storage permission.
+4. When asked, allow "All files access" (Android opens its settings screen) and notifications. On Android 13 and later the notification prompt can appear over the desktop until you answer it.
 5. Keep the app open during first run.
 
 </details>
 
-Extra containers: Settings -> New Container builds other distro/desktop combinations on the device (experimental).
+On first run the app asks which distribution to install. Settings -> New Container builds other distro/desktop combinations on the device (experimental). Distros defined in `lib/distros.dart`: Arch Linux ARM, Ubuntu, Debian, Fedora, openSUSE, Alpine, Void and Kali. Installed containers are listed in the Containers tab. The first container is the default and cannot be deleted from the app, and neither can a container that is running; to start over, clear the app's data in Android settings.
 
 ## Status
 
@@ -139,9 +141,35 @@ Extra containers: Settings -> New Container builds other distro/desktop combinat
 <img src="images/status-board.svg" alt="Status board: what was observed, what is unverified, what is not wired" width="100%">
 </div>
 
+**Tested 2026-11-20 on a Nothing Phone 2a** (Android 16), XFCE4 only, builds from the `fix/proot-safe-distro-installs` branch (PR #35). Times are rough and depend on the network.
+
+| Distribution | XFCE4 install | Result on the phone |
+|---|---|---|
+| Arch Linux ARM | about 14 min | Boots with panel, dock and icons. |
+| Ubuntu 24.04 | about 4 min | Boots. Not re-run since the later apt changes. |
+| Debian 12 | about 5 min | Boots. |
+| Fedora 40 | about 5.5 min | Boots. |
+| openSUSE Leap 16 | about 4 min | Boots, but the panel died once about 11 minutes in; after a full app restart it came back, and longer-term stability is unconfirmed. |
+| Alpine 3.22 | about 1.5 min | Boots; the dock launchers all show a generic gear icon (no icon theme in the package list). |
+| Void | about 4 min | Boots with panel, dock and icons; watched for about a minute. |
+| Kali | not run | Its image server (`images.linuxcontainers.org`) failed with "Network is unreachable" from the test network, and the installer now refuses it (no pin). |
+
+Findings from this round (each reproduced on the phone, fixed, and re-run there): the Arch download could never succeed because its mirror URLs had mismatched TLS certificates or no DNS record; Debian's apt unpack replaced the `/lib -> usr/lib` symlink and later lost its icon caches; openSUSE needed a corrected zypper command, tolerance for a skipped repository (exit 106), and a `dbus-daemon` because Leap 16 ships `dbus-broker`; Void's default mirror timed out and its package index had to be synced and `xbps` updated first.
+
+**Known issues**
+
+- openSUSE: the XFCE panel and its plugin host died together about 11 minutes into a session, and the session D-Bus stopped answering new clients afterwards. The cause is not known; the container writes no `~/.xsession-errors`.
+- Pixel 10 Pro: after backing out of the X11 screen into the app, the play button reopens X11, which reports that nothing is connected. A log captured on the phone shows Android freezing the separate `:x11` process while it is in the background; the cause is not confirmed.
+- Checksums are now fail-closed (the security audit, PR #36). The pinned SHA-256 values for the Debian, Fedora, openSUSE, Alpine and Void tarballs were computed once and have not been checked against real downloads on a device. Several are trust-on-first-use. A wrong pin shows up as a hard install failure.
+- Kali has no pin and no checksum scheme, so the installer now refuses it. It also could not be reached on the test network (see the table above).
+- openSUSE's signing key is imported from the rootfs (`/usr/lib/rpm/gnupg/keys`) with a fingerprint check instead of a zypper flag. That location and the key's expiry have not been confirmed on a device.
+- Only XFCE4 has been tested. The Pixel 10 Pro has not been re-tested with the fixes above.
+
+Earlier result on a Pixel 10 Pro, kept for history:
+
 - The two-stage flow (download with resume, md5, extract, provision, picker, XFCE4 install, session file) ran end to end on a Pixel 10 Pro, build `6133f9c`, CI run 43879730575.
 - On that build `xfce4-session`, `xfwm4`, `xfce4-panel`, `xfsettingsd`, Thunar and a session dbus were running, with no ANR and no `Function not implemented` errors in `boot.log`. This comes from the on-device debugging session's report; I have not re-checked it on the phone.
-- Not yet seen: a screenshot of the XFCE desktop. Known follow-ups: an icon theme package looks missing, and `am start` on a running app re-runs the workflow and starts the X server twice.
+- A later commit (`172c51d`) records the XFCE desktop as verified on screen on the device; I have not re-checked that on the phone. Known follow-ups: an icon theme package looks missing, and `am start` on a running app re-runs the workflow and starts the X server twice.
 - The browser noVNC / AVNC display path is not wired for the Arch container.
 
 One earlier first run, reconstructed from adb timestamps. The build on the phone then was the old bundled-rootfs flow, not the two-stage one, and the stage names are inferred from timing:
@@ -236,5 +264,6 @@ CI pins Flutter 3.41.6. JDK 17-21 is needed. Pushes to `wip/**`, `rebase/**` and
 - [Cateners/tiny_computer](https://github.com/Cateners/tiny_computer), the project this forks.
 - [Termux](https://termux.dev) and termux-x11, the basis of the in-app X server.
 - [Arch Linux ARM](https://archlinuxarm.org).
+- [termux/proot-distro](https://github.com/termux/proot-distro), whose release tarballs are the Debian, Fedora, openSUSE, Alpine and Void rootfs images.
 
 Licensed under the GNU General Public License v3.0. See [COPYING](COPYING).

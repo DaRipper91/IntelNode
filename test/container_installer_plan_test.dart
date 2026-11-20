@@ -3,6 +3,22 @@ import 'package:da_ripped_tiny_computer/container_installer.dart';
 import 'package:da_ripped_tiny_computer/desktop_environments.dart';
 import 'package:da_ripped_tiny_computer/distros.dart';
 
+// A made-up experimental session. The real Wayland previews (niri, COSMIC) were
+// removed, but blocking of experimental desktops is still exercised with this.
+const _experimental = DesktopEnvironmentSpec(
+  id: 'test-experimental',
+  displayName: 'Test Experimental',
+  description: 'A made-up experimental session for tests.',
+  tier: DesktopTier.experimental,
+  sessionType: SessionType.wayland,
+  packagesByFamily: {
+    PackageManagerFamily.pacman: ['test-session'],
+  },
+  xinitrcExec: 'test-session',
+  xdgDesktopName: 'Test',
+  experimentalCaveat: 'Not proven under this display path.',
+);
+
 void main() {
   group('ContainerInstaller.plan', () {
     test('is not blocked for a verified distro + stable desktop', () {
@@ -19,7 +35,7 @@ void main() {
     test('is blocked for an experimental desktop even on a verified distro', () {
       final plan = ContainerInstaller.plan(
         distro: Distros.byId('archlinux'),
-        desktop: DesktopEnvironments.byId('niri'),
+        desktop: _experimental,
         containerName: 'test',
       );
       expect(plan.blocked, isTrue);
@@ -27,8 +43,19 @@ void main() {
     });
 
     test('is blocked for an unverified distro even with a stable desktop', () {
+      final unverified = DistroSpec(
+        id: 'preview-test',
+        displayName: 'Preview Test',
+        description: 'An unverified preview distro.',
+        packageManager: PackageManagerFamily.apt,
+        rootfs: const RootfsSource.direct(
+          url: 'https://example.com/preview.tar.xz',
+          verified: false,
+        ),
+        firstBootScript: (username) => 'set -e\n',
+      );
       final plan = ContainerInstaller.plan(
-        distro: Distros.byId('kali'),
+        distro: unverified,
         desktop: DesktopEnvironments.byId('xfce4'),
         containerName: 'test',
       );
@@ -37,9 +64,20 @@ void main() {
     });
 
     test('dry-run preview is always available regardless of blocked state', () {
+      final unverified = DistroSpec(
+        id: 'preview-test',
+        displayName: 'Preview Test',
+        description: 'An unverified preview distro.',
+        packageManager: PackageManagerFamily.apt,
+        rootfs: const RootfsSource.direct(
+          url: 'https://example.com/preview.tar.xz',
+          verified: false,
+        ),
+        firstBootScript: (username) => 'set -e\n',
+      );
       final plan = ContainerInstaller.plan(
-        distro: Distros.byId('kali'),
-        desktop: DesktopEnvironments.byId('cosmic'),
+        distro: unverified,
+        desktop: _experimental,
         containerName: 'test',
       );
       expect(plan.steps, isNotEmpty);
@@ -69,7 +107,7 @@ void main() {
     test('throws StateError instead of running a blocked plan', () async {
       final plan = ContainerInstaller.plan(
         distro: Distros.byId('archlinux'),
-        desktop: DesktopEnvironments.byId('niri'),
+        desktop: _experimental,
         containerName: 'test',
       );
       final ran = <String>[];
@@ -86,6 +124,91 @@ void main() {
         throwsA(isA<StateError>()),
       );
       expect(ran, isEmpty, reason: 'a blocked plan must not touch the device');
+    });
+  });
+
+  group('ContainerInstaller xbps desktop install', () {
+    final s = ContainerInstaller.xbpsDesktopInstallScript(['xfce4', 'dbus-x11']);
+
+    test('syncs the index and updates xbps before installing', () {
+      expect(s.indexOf('xbps-install -S'), lessThan(s.indexOf('xbps-install -uy xbps')));
+      expect(s.indexOf('xbps-install -uy xbps'), lessThan(s.indexOf('xbps-install -y xfce4')));
+      expect(s, contains('xbps-install -y xfce4 dbus-x11'));
+    });
+
+    test('is chained so the first failing step decides the exit code', () {
+      expect(s.split('&&').length, 3);
+      expect(s, isNot(contains('||')));
+      expect(s, isNot(contains(';')));
+    });
+  });
+
+  group('ContainerInstaller zypper desktop install', () {
+    test('treats zypper exit 106 (repos skipped) as installed, but no other family', () {
+      expect(ContainerInstaller.acceptedInstallExitCodes(PackageManagerFamily.zypper), containsAll([0, 106]));
+      for (final f in PackageManagerFamily.values.where((f) => f != PackageManagerFamily.zypper)) {
+        expect(ContainerInstaller.acceptedInstallExitCodes(f), {0}, reason: '$f must stay strict');
+      }
+    });
+
+    test('installs dbus-1-daemon because Leap 16 ships dbus-broker only', () {
+      expect(ContainerInstaller.zypperDesktopSupportPackages, contains('dbus-1-daemon'));
+      final s = ContainerInstaller.zypperDesktopInstallScript(['patterns-xfce-xfce']);
+      expect(s, contains('install patterns-xfce-xfce dbus-1-daemon'));
+    });
+
+    test('post-install check requires a real dbus-daemon', () {
+      expect(ContainerInstaller.dbusDaemonCheckScript, contains('command -v dbus-daemon'));
+    });
+
+    test('does not accept zypper failure codes', () {
+      final ok = ContainerInstaller.acceptedInstallExitCodes(PackageManagerFamily.zypper);
+      for (final bad in [1, 2, 4, 5, 104, 107]) {
+        expect(ok, isNot(contains(bad)));
+      }
+    });
+
+    test('disables debug, source and openh264 repos before installing', () {
+      final s = ContainerInstaller.zypperDesktopInstallScript(['patterns-xfce-xfce', 'dbus-1-x11']);
+      expect(s, contains('debug|source|openh264'));
+      expect(s, contains('modifyrepo --disable'));
+      expect(s.indexOf('modifyrepo'), lessThan(s.indexOf(' install ')));
+      expect(s, contains('install patterns-xfce-xfce dbus-1-x11'));
+      expect(s, isNot(contains('--allow-unsigned-rpm')));
+    });
+  });
+
+  group('ContainerInstaller.aptDesktopInstallScript', () {
+    final script = ContainerInstaller.aptDesktopInstallScript(['xfce4', 'dbus-x11']);
+
+    test('keeps directory symlinks so a usr-merged /lib survives extraction', () {
+      expect(script, contains('tar --keep-directory-symlink'));
+    });
+
+    test('does not swallow a failed unpack', () {
+      expect(script, isNot(contains('|| true; done')));
+      expect(script, contains('failed=1'));
+      expect(script, contains('[ "\$failed" = 0 ]'));
+    });
+
+    test('downloads the requested packages without dpkg installing them', () {
+      expect(script, contains('--download-only --no-install-recommends xfce4 dbus-x11'));
+      expect(script, isNot(contains('dpkg -i')));
+    });
+
+    test('fetches the SVG loader and glib tools that Recommends would have pulled in', () {
+      for (final p in ContainerInstaller.aptDesktopSupportPackages) {
+        expect(script, contains(p));
+      }
+      expect(ContainerInstaller.aptDesktopSupportPackages, contains('librsvg2-common'));
+    });
+
+    test('replays the pixbuf loader cache and icon cache triggers after unpacking', () {
+      expect(script, contains('gdk-pixbuf-query-loaders'));
+      expect(script, contains('--update-cache'));
+      expect(script, contains('gtk-update-icon-cache'));
+      expect(script.indexOf('gdk-pixbuf-query-loaders'),
+          greaterThan(script.indexOf('--keep-directory-symlink')));
     });
   });
 }

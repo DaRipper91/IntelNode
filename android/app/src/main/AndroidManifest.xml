@@ -15,7 +15,8 @@
         android:label="@string/tc_app_name"
         android:name=".MainApplication"
         android:icon="@mipmap/launcher_icon"
-        android:usesCleartextTraffic="true"
+        android:usesCleartextTraffic="false"
+        android:allowBackup="false"
         android:resizeableActivity="true"
         android:theme="@style/App.Theme"
         android:extractNativeLibs="true">

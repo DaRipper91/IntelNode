@@ -94,6 +94,7 @@
   "more": "更多",
   "terminal": "终端",
   "control": "控制",
+  "containers": "容器",
   "enterGUI": "进入图形界面",
   "enterNumber": "请输入数字",
   "enterValidNumber": "请输入有效的数字",

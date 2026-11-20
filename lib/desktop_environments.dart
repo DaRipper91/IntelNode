@@ -4,12 +4,12 @@
 // Tier.stable entries are the X11 desktops upstream's own container-creation
 // guide documents installing via apt; they follow the same shape of install
 // sequence across distros with pacman/dnf swapped in for apt, driven by
-// DesktopEnvironmentSpec.packagesFor(). Tier.experimental entries are
-// Wayland compositors that would need a nested Wayland-compositor-to-
-// display-backend bridge instead of the Termux:X11-as-X-server model
-// Tier.stable relies on -- that bridge is unprototyped in this codebase, so
-// ContainerInstaller (see container_installer.dart) only offers a dry-run
-// preview for them and refuses to actually run their install steps.
+// DesktopEnvironmentSpec.packagesFor(). Tier.experimental is for sessions that
+// are not proven under this app's display path; ContainerInstaller (see
+// container_installer.dart) only offers a dry-run preview for them and refuses
+// to run their install steps. No experimental entries are defined at the
+// moment: the Wayland previews (niri, COSMIC) were removed because they needed
+// a nested Wayland-compositor bridge that was never prototyped here.
 //
 // Adding a new DE (either tier) means adding one entry to
 // DesktopEnvironments.all; no selector UI needs to change.
@@ -365,61 +365,6 @@ class DesktopEnvironments {
       xdgDesktopName: "X-Cinnamon",
     ),
 
-    // ---- Tier 2: experimental (Wayland) ----
-    const DesktopEnvironmentSpec(
-      id: "niri",
-      displayName: "niri",
-      description: "Scrollable-tiling Wayland compositor. Experimental.",
-      tier: DesktopTier.experimental,
-      sessionType: SessionType.wayland,
-      kind: DesktopKind.windowManager,
-      packagesByFamily: {
-        PackageManagerFamily.pacman: ["niri", "xwayland-satellite"],
-        PackageManagerFamily.dnf: ["niri", "xwayland-satellite"],
-        PackageManagerFamily.apt: ["niri", "xwayland-satellite"],
-        PackageManagerFamily.zypper: ["niri", "xwayland-satellite"],
-        PackageManagerFamily.apk: ["niri", "xwayland-satellite"],
-        PackageManagerFamily.xbps: ["niri", "xwayland-satellite"],
-      },
-      xinitrcExec: "niri-session",
-      xdgDesktopName: "niri",
-      experimentalCaveat:
-          "niri is Wayland-only and needs xwayland-satellite for X11 app "
-          "compatibility. This app's display path (Termux:X11 acting as an "
-          "X server the container connects to as a client) has no proven "
-          "nested Wayland-compositor bridge -- getting niri's own output "
-          "onto Termux:X11/AVNC/noVNC needs prototyping (Arch first, per "
-          "package freshness) before this can ship as supported rather than "
-          "a preview. Package availability also varies by distro today "
-          "(AUR on Arch, COPR on Fedora, no official Debian/Ubuntu "
-          "packages) -- verify before install.",
-    ),
-    const DesktopEnvironmentSpec(
-      id: "cosmic",
-      displayName: "COSMIC",
-      description: "System76's Wayland desktop. Experimental.",
-      tier: DesktopTier.experimental,
-      sessionType: SessionType.wayland,
-      packagesByFamily: {
-        PackageManagerFamily.pacman: ["cosmic-session"],
-        PackageManagerFamily.dnf: ["cosmic-desktop"],
-        PackageManagerFamily.apt: ["cosmic-session"],
-        PackageManagerFamily.zypper: ["cosmic-session"],
-        PackageManagerFamily.apk: ["cosmic-session"],
-        PackageManagerFamily.xbps: ["cosmic-session"],
-      },
-      xinitrcExec: "cosmic-session",
-      xdgDesktopName: "COSMIC",
-      experimentalCaveat:
-          "COSMIC is Wayland-only with no mature X11 fallback path -- same "
-          "unproven nested-compositor-bridge problem as niri. Packages are "
-          "unofficial/repo-specific on every target distro today (AUR on "
-          "Arch, COPR on Fedora, no official Debian/Ubuntu packages). If "
-          "the bridge prototype on Arch turns out to need substantially "
-          "more custom work than niri's, the simpler fallback is to skip "
-          "native Wayland output entirely and only ship COSMIC's apps "
-          "running under Xwayland, rather than a full compositor bridge.",
-    ),
   ];
 
   static List<DesktopEnvironmentSpec> forTier(DesktopTier tier) =>

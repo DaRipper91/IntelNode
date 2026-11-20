@@ -52,23 +52,40 @@ void main() {
       expect(d.installCommand(['foo']), contains('--skip-broken'));
       expect(d.installCommand(['foo']), contains('install_weak_deps=False'));
       expect(d.removeCommand(['foo']), contains('dnf -y remove'));
-      expect(d.updateCommand, contains('dnf -y upgrade'));
+      // A full dnf upgrade in proot pulls in packages the container cannot
+      // service; refresh metadata only.
+      expect(d.updateCommand, contains('dnf -y makecache'));
+      expect(d.updateCommand, isNot(contains('upgrade')));
     });
 
     test('apt', () {
       final d = Distros.byId('debian');
-      expect(d.installCommand(['foo']), contains('apt-get -y install'));
+      // Dpkg backup hardlinks fail under proot, so overwrite/confold are forced
+      // and recommended packages are skipped.
+      expect(d.installCommand(['foo']), contains('apt-get -y'));
+      expect(d.installCommand(['foo']), contains('--force-overwrite'));
+      expect(d.installCommand(['foo']), contains('--force-confold'));
+      expect(d.installCommand(['foo']), contains('--no-install-recommends'));
+      expect(d.installCommand(['foo']), contains('foo'));
       expect(d.removeCommand(['foo']), contains('apt-get -y purge'));
       expect(d.updateCommand, contains('apt-get update'));
+      expect(d.updateCommand, isNot(contains('upgrade')));
     });
 
     test('zypper', () {
       final d = Distros.byId('opensuse');
       expect(d.installCommand(['foo']), contains('zypper --non-interactive install'));
       expect(d.installCommand(['foo']), isNot(contains('gpg-auto-import-keys')));
+      // --allow-unsigned-rpm is a command option (valid only after the verb, and
+      // only for rpm files named on the command line). Before the verb zypper
+      // rejects it ("The flag --allow-unsigned-rpm is not known", exit 2), which
+      // failed every openSUSE desktop install on a Nothing Phone 2a.
+      expect(d.installCommand(['foo']), isNot(contains('--allow-unsigned-rpm')));
+      expect(d.installCommand(['foo']), contains('install foo'));
       expect(d.removeCommand(['foo']), contains('zypper --non-interactive remove'));
       expect(d.updateCommand, contains('zypper --non-interactive refresh'));
       expect(d.updateCommand, isNot(contains('gpg-auto-import-keys')));
+      expect(d.updateCommand, isNot(contains('update')));
     });
 
     test('apk', () {
@@ -78,11 +95,27 @@ void main() {
       expect(d.updateCommand, contains('apk update'));
     });
 
+    test('openSUSE first boot pre-imports the vendor key and runs no zypper', () {
+      final script = Distros.byId('opensuse').firstBootScript('tiny');
+      expect(script, contains('rpm --import'));
+      expect(script, contains('AD485664E901B867051AB15F35A2F86E29B700A4'));
+      expect(script, contains('/usr/lib/rpm/gnupg/keys'));
+      final code = script
+          .split('\n')
+          .where((l) => !l.trimLeft().startsWith('#'))
+          .join('\n');
+      expect(code, isNot(contains('zypper')));
+    });
+
     test('xbps', () {
       final d = Distros.byId('void');
       expect(d.installCommand(['foo']), contains('xbps-install -y'));
       expect(d.removeCommand(['foo']), contains('xbps-remove -Ry'));
-      expect(d.updateCommand, contains('xbps-install -Syu'));
+      // Sync, then update xbps itself (a synced index makes xbps refuse
+      // everything else until it is updated); a full -Syu is not run.
+      expect(d.updateCommand, contains('xbps-install -S'));
+      expect(d.updateCommand, contains('xbps-install -uy xbps'));
+      expect(d.updateCommand, isNot(contains('-Syu')));
     });
   });
 
@@ -97,8 +130,8 @@ void main() {
       expect(Distros.byId('void').rootfs.verified, isTrue);
     });
 
-    test('preview distros are marked unverified pending device testing', () {
-      expect(Distros.byId('kali').rootfs.verified, isFalse);
+    test('kali is now verified after on-device testing', () {
+      expect(Distros.byId('kali').rootfs.verified, isTrue);
     });
 
     test('direct source describes its literal URL', () {
@@ -116,11 +149,79 @@ void main() {
     test('create the expected user and remove Termux profile scripts', () {
       for (final distro in Distros.all) {
         final script = distro.firstBootScript('tiny');
-        expect(script, contains('useradd -m -s /bin/bash -u 1000 -g 1000 -G'));
+        expect(script, contains('/etc/passwd'),
+            reason: '${distro.id} does not edit /etc/passwd directly');
+        expect(script, contains('/etc/group'),
+            reason: '${distro.id} does not edit /etc/group directly');
+        expect(script, isNot(contains('useradd')),
+            reason: '${distro.id} uses useradd which locks under proot');
+        expect(script, isNot(contains('groupadd')),
+            reason: '${distro.id} uses groupadd which locks under proot');
         expect(script, contains('sudoers.d/tiny'));
         expect(script, contains('polkit-1/rules.d'));
         expect(script, contains('termux'));
+        expect(script, contains('mkdir -p /etc/sudoers.d'));
       }
+    });
+
+    test('fedora avoids proot-unsafe glibc/systemd upgrades', () {
+      final script = Distros.byId('fedora').firstBootScript('tiny');
+      final commands = script
+          .split('\n')
+          .where((line) => !line.trimLeft().startsWith('#'))
+          .join('\n');
+      // The English locale pack pins to the newest version, dragging glibc and
+      // systemd into the transaction; proot cannot unpack their hardlinks.
+      expect(commands, isNot(contains('glibc-langpack-en')));
+      expect(commands, isNot(contains('dnf -y install')));
+      expect(commands, contains('dnf makecache'));
+      expect(commands, contains("printf 'LANG=C.UTF-8\\n' > /etc/locale.conf"));
+    });
+
+    test('debian/ubuntu avoid locales package to prevent proot libc6 upgrades', () {
+      for (final id in ['debian', 'ubuntu']) {
+        final script = Distros.byId(id).firstBootScript('tiny');
+        final commands = script
+            .split('\n')
+            .where((line) => !line.trimLeft().startsWith('#'))
+            .join('\n');
+        // Installing locales drags libc6/libc-bin upgrades; dpkg under proot
+        // cannot create dpkg backup links and the upgrade aborts.
+        expect(commands, isNot(contains('locales')),
+            reason: '$id installs locales which pulls a libc6 upgrade');
+        expect(commands, contains('LANG=C.UTF-8'),
+            reason: '$id does not set C.UTF-8 locale directly');
+      }
+    });
+
+    test('shadow utilities are not used under proot (no lock/race failures)', () {
+      for (final distro in Distros.all) {
+        final script = distro.firstBootScript('tiny');
+        expect(script, isNot(contains('groupadd')),
+            reason: '${distro.id} uses groupadd which locks under proot');
+        expect(script, isNot(contains('useradd')),
+            reason: '${distro.id} uses useradd which locks under proot');
+        expect(script, isNot(contains('/etc/group.lock')),
+            reason: '${distro.id} still references shadow lock files');
+        expect(script, contains('/etc/passwd'),
+            reason: '${distro.id} does not edit /etc/passwd directly');
+        expect(script, contains('/etc/group'),
+            reason: '${distro.id} does not edit /etc/group directly');
+      }
+    });
+
+    test('void does not self-upgrade xbps under proot', () {
+      final script = Distros.byId('void').firstBootScript('tiny');
+      final commands = script
+          .split('\n')
+          .where((line) => !line.trimLeft().startsWith('#'))
+          .join('\n');
+      // xbps self-update under proot corrupts libxbps.so.6; Void skips xbps
+      // entirely and edits /etc files directly.
+      expect(commands, isNot(contains('xbps-install')),
+          reason: 'void uses xbps-install which corrupts libxbps.so.6 under proot');
+      expect(commands, contains('/etc/passwd'),
+          reason: 'void does not edit /etc/passwd directly');
     });
   });
 }

@@ -3,16 +3,13 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:da_ripped_tiny_computer/workflow.dart';
 
-// S5: nothing in lib/ may switch off package signature checks, except the one
-// documented first-boot key import for openSUSE.
+// S5: nothing in lib/ may switch off package signature checks or auto-trust a
+// repository key. openSUSE gets its signing key from the rootfs (rpm --import
+// plus a fingerprint check at first boot), not from a zypper flag.
 void main() {
   final bypass = RegExp(r'gpg-auto-import-keys|nogpgcheck|no-gpg-checks');
-  // Exact lines allowed to match, by file.
-  const allowed = {
-    'distros.dart': [
-      'zypper --non-interactive --gpg-auto-import-keys refresh -f',
-    ],
-  };
+  // Exact lines allowed to match, by file. Empty on purpose: nothing is allowed.
+  const allowed = <String, List<String>>{};
 
   test('no signature-check bypass remains in lib/ outside the allow-list', () {
     final offenders = <String>[];
@@ -29,9 +26,9 @@ void main() {
     expect(offenders, isEmpty);
   });
 
-  test('the allow-listed first-boot import exists exactly once', () {
+  test('no zypper key auto-import remains in the distro manifest', () {
     final text = File('lib/distros.dart').readAsStringSync();
-    expect('--gpg-auto-import-keys'.allMatches(text).length, 1);
+    expect('--gpg-auto-import-keys'.allMatches(text).length, 0);
   });
 
   group('third-party .deb installs are hash-pinned', () {

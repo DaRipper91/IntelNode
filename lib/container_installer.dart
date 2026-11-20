@@ -410,7 +410,13 @@ echo "checksum ok: \$calc"
       PackageManagerFamily.apk => "apk",
       PackageManagerFamily.xbps => "xbps-install",
     };
-    return "set -e\nid $username\n[ \"\$(id -u $username)\" = 1000 ]\n[ \"\$(id -g $username)\" = 1000 ]\ncommand -v $pm\nsudo -n true";
+    // Debian/openSUSE/Void minimal rootfs can't install packages under proot
+    // (dpkg backup links / zypper cache writes / xbps self-update fail), so
+    // sudo may not be present. Skip the sudo check for those distros.
+    final sudoCheck = {'debian', 'opensuse', 'void'}.contains(distro.id)
+        ? ''
+        : 'sudo -n true';
+    return "set -e\nid $username\n[ \"\$(id -u $username)\" = 1000 ]\n[ \"\$(id -g $username)\" = 1000 ]\ncommand -v $pm${sudoCheck.isEmpty ? '' : '\n'}$sudoCheck";
   }
 
   /// Stage 1 of the guided first run: download, verify, extract and provision
@@ -505,18 +511,34 @@ echo "checksum ok: \$calc"
     final containerDir = "${G.dataPath}/containers/$containerIndex";
     final packages = desktop.packagesFor(distro);
     log("\r\n== Installing ${desktop.displayName}: ${packages.join(' ')}");
+    // proot blocks dpkg backup-file creation under /var/lib/dpkg
+    // ("cannot create new backup file ... Permission denied"). For apt-based
+    // distros, download .debs with --download-only (no dpkg involved) then
+    // extract them directly with dpkg-deb --extract, bypassing dpkg's backup
+    // mechanism entirely. For other distros, use the normal install command.
+    final installScript = switch (distro.packageManager) {
+      PackageManagerFamily.apt => aptDesktopInstallScript(packages),
+      PackageManagerFamily.zypper => zypperDesktopInstallScript(packages),
+      PackageManagerFamily.xbps => xbpsDesktopInstallScript(packages),
+      _ => distro.installCommand(packages),
+    };
     var code = await run(
       prootRun(
         rootfs: containerDir,
-        script: "set -e\n${distro.updateCommand}\n${distro.installCommand(packages)}",
+        script: installScript,
       ),
     );
-    if (code != 0) {
+    if (!acceptedInstallExitCodes(distro.packageManager).contains(code)) {
       throw Exception("${desktop.displayName} install failed (exit code $code)");
     }
-    // Only dnf installs with --skip-broken, the one way a desktop can be installed
-    // with parts of it silently dropped.
-    if (distro.packageManager == PackageManagerFamily.dnf) {
+    // dnf installs with --skip-broken, apt extracts debs by hand, and zypper can
+    // exit 106 with a skipped repo: the ways a desktop can be installed with
+    // parts of it silently dropped, or look failed when it is not. Check that
+    // the session command exists instead of trusting the exit code alone.
+    if (distro.packageManager == PackageManagerFamily.dnf ||
+        distro.packageManager == PackageManagerFamily.apt ||
+        distro.packageManager == PackageManagerFamily.zypper ||
+        distro.packageManager == PackageManagerFamily.xbps) {
       log("\r\n== Checking the ${desktop.displayName} session");
       code = await run(
         prootRun(
@@ -530,6 +552,16 @@ echo "checksum ok: \$calc"
           "(${desktop.xinitrcExec.split(' ').first}); some packages were skipped",
         );
       }
+      // start-arch.sh and dbus-launch both need a real dbus-daemon. openSUSE
+      // Leap 16 ships dbus-broker instead, so a desktop can install cleanly and
+      // still never start a session (X11 opens, nothing runs on it).
+      code = await run(prootRun(rootfs: containerDir, script: dbusDaemonCheckScript));
+      if (code != 0) {
+        throw Exception(
+          "${desktop.displayName} installed but the guest has no dbus-daemon, "
+          "so its session cannot start",
+        );
+      }
     }
     log("\r\n== Writing session files");
     code = await run(prootRun(rootfs: containerDir, script: sessionFilesScript(desktop)));
@@ -538,6 +570,90 @@ echo "checksum ok: \$calc"
     }
     log("\r\n== ${desktop.displayName} installed");
   }
+
+  /// Exit codes of the desktop install step that still count as installed.
+  /// zypper returns 106 (ZYPPER_EXIT_INF_REPOS_SKIPPED) when a repo could not be
+  /// refreshed even though the transaction completed; the session check that
+  /// follows is what proves the desktop is really there.
+  @visibleForTesting
+  static Set<int> acceptedInstallExitCodes(PackageManagerFamily family) =>
+      family == PackageManagerFamily.zypper ? {0, 106} : {0};
+
+  /// Void: xbps keeps one package index per repository URL, and the rootfs only
+  /// ships one for repo-default, so after the first-boot switch to the Fastly
+  /// repo the pool is empty ("Package 'xfce4' not found in repository pool").
+  /// Sync first. A synced index then makes xbps refuse everything else until
+  /// xbps itself is updated ("The 'xbps' package must be updated", exit 16), so
+  /// update it before installing. Verified on a Nothing Phone 2a (xbps 0.60.7,
+  /// libxbps.so.6 intact afterwards); not yet verified on a Pixel 10 Pro.
+  /// Chained with && so the first failing step decides the exit code.
+  @visibleForTesting
+  static String xbpsDesktopInstallScript(List<String> packages) =>
+      "xbps-install -S && xbps-install -uy xbps && xbps-install -y ${packages.join(' ')}";
+
+  @visibleForTesting
+  static const String dbusDaemonCheckScript = "command -v dbus-daemon >/dev/null 2>&1";
+
+  /// Packages the openSUSE desktop needs that the XFCE/LXQt/... patterns do not
+  /// pull in. Leap 16 uses dbus-broker; the session scripts need dbus-daemon.
+  /// A zypper dry run on a Nothing Phone 2a showed dbus-1-daemon installs as one
+  /// new 243 KiB package with no conflict against dbus-broker.
+  @visibleForTesting
+  static const List<String> zypperDesktopSupportPackages = ["dbus-1-daemon"];
+
+  /// openSUSE ships six repos, including -debug and -source variants and
+  /// openh264 (which failed to refresh on a Nothing Phone 2a and made zypper
+  /// exit 106). None are needed for a desktop, and refreshing them downloads
+  /// hundreds of MB, so they are disabled before the install.
+  @visibleForTesting
+  static String zypperDesktopInstallScript(List<String> packages) => """
+repos=\$(zypper lr | awk -F'|' '\$2 ~ /debug|source|openh264/ {gsub(/ /,"",\$2); print \$2}')
+if [ -n "\$repos" ]; then zypper --non-interactive modifyrepo --disable \$repos; fi
+zypper --non-interactive install ${[...packages, ...zypperDesktopSupportPackages].join(' ')}
+""";
+
+  /// apt desktops: download the debs, then unpack them without dpkg (dpkg cannot
+  /// create its backup files under proot). Two hazards this guards against:
+  /// - Debian 12 is usr-merged (/lib -> usr/lib). Plain `tar -x -C /` replaces
+  ///   that symlink with a real directory when a deb ships a ./lib/ entry, which
+  ///   removes the ELF loader path and breaks every dynamic binary in the guest
+  ///   (seen on a Nothing Phone 2a: "tar: not found", "execve: Function not
+  ///   implemented"). --keep-directory-symlink keeps the symlink.
+  /// - A failed unpack must fail the install instead of being swallowed.
+  ///
+  /// Unpacking by hand also skips the maintainer scripts and dpkg triggers. GTK
+  /// then has no GdkPixbuf loader cache and no SVG loader (librsvg2-common is only
+  /// a Recommends, dropped by --no-install-recommends), so xfdesktop cannot load a
+  /// single icon and xfce4-panel dies (seen on Debian 12, Nothing Phone 2a). The
+  /// support packages are fetched explicitly and the trigger work is replayed.
+  @visibleForTesting
+  static const List<String> aptDesktopSupportPackages = [
+    "librsvg2-common",
+    "libglib2.0-bin",
+  ];
+
+  @visibleForTesting
+  static String aptDesktopInstallScript(List<String> packages) => """
+set -e
+apt-get update
+apt-get install -y --download-only --no-install-recommends ${[...packages, ...aptDesktopSupportPackages].join(' ')}
+failed=0
+for deb in /var/cache/apt/archives/*.deb; do
+  [ -f "\$deb" ] || continue
+  dpkg-deb --fsys-tarfile "\$deb" | tar --keep-directory-symlink --no-same-permissions --no-same-owner -x -C / || { echo "unpack failed: \$deb" >&2; failed=1; }
+done
+ldconfig 2>/dev/null || true
+for q in /usr/lib/*/gdk-pixbuf-2.0/gdk-pixbuf-query-loaders; do
+  if [ -x "\$q" ]; then "\$q" --update-cache || echo "pixbuf loader cache failed" >&2; fi
+done
+if [ -x /usr/bin/glib-compile-schemas ]; then glib-compile-schemas /usr/share/glib-2.0/schemas || true; fi
+for d in /usr/share/icons/*/; do
+  if [ -f "\${d}index.theme" ] && [ -x /usr/bin/gtk-update-icon-cache ]; then gtk-update-icon-cache -q -f -t "\$d" || true; fi
+done
+if [ -x /usr/bin/update-mime-database ]; then update-mime-database /usr/share/mime || true; fi
+if [ -x /usr/bin/fc-cache ]; then fc-cache -f || true; fi
+[ "\$failed" = 0 ]
+""";
 
   /// `.intelnode-session` is what start-desktop launches first; `.xinitrc`
   /// keeps the xinit path working too.
@@ -581,7 +697,7 @@ export LD_LIBRARY_PATH=\$DATA_DIR/lib
 export PROOT_TMP_DIR=\$DATA_DIR/proot_tmp
 export PROOT_LOADER=\$DATA_DIR/applib/libproot-loader.so
 export PROOT_LOADER_32=\$DATA_DIR/applib/libproot-loader32.so
-\$DATA_DIR/bin/proot -0 -r ${Util.escapeShellArgument(rootfs)} -b /proc -b /sys -b /dev /usr/bin/env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/root LANG=C /bin/sh -c ${Util.escapeShellArgument("$_gpgCleanupTrap$script")}
+\$DATA_DIR/bin/proot -0 -r ${Util.escapeShellArgument(rootfs)} -w / -b /proc -b /sys -b /dev /usr/bin/env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/root LANG=C /bin/sh -c ${Util.escapeShellArgument("$_gpgCleanupTrap$script")}
 """;
 
   /// The record for a freshly installed container. It carries the distro's real

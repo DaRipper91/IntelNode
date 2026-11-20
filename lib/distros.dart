@@ -198,12 +198,12 @@ class DistroSpec {
 
   String get updateCommand => switch (packageManager) {
     PackageManagerFamily.pacman => "pacman -Syu --noconfirm",
-    PackageManagerFamily.dnf => "dnf -y upgrade --refresh",
-    PackageManagerFamily.apt => "apt-get update && apt-get -y upgrade",
+    PackageManagerFamily.dnf => "dnf -y makecache",
+    PackageManagerFamily.apt => "apt-get update",
     PackageManagerFamily.zypper =>
-      "zypper --non-interactive refresh && zypper --non-interactive update",
-    PackageManagerFamily.apk => "apk update && apk upgrade",
-    PackageManagerFamily.xbps => "xbps-install -uy xbps && xbps-install -Syu",
+      "zypper --non-interactive refresh",
+    PackageManagerFamily.apk => "apk update",
+    PackageManagerFamily.xbps => "xbps-install -S && xbps-install -uy xbps",
   };
 
   String installCommand(List<String> packages) => switch (packageManager) {
@@ -215,7 +215,7 @@ class DistroSpec {
       "dnf -y install --skip-broken --setopt=install_weak_deps=False "
           "${packages.join(' ')}",
     PackageManagerFamily.apt =>
-      "DEBIAN_FRONTEND=noninteractive apt-get -y install "
+      "DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::=\"--force-not-root\" -o Dpkg::Options::=\"--force-overwrite\" -o Dpkg::Options::=\"--force-confold\" --no-install-recommends install "
           "${packages.join(' ')}",
     PackageManagerFamily.zypper =>
       "zypper --non-interactive install ${packages.join(' ')}",
@@ -241,22 +241,39 @@ const String _removeTermuxProfileScripts =
 
 String _commonUserSetup(String username) =>
     """
-# Free uid/gid 1000 (Arch ARM ships `alarm` there). No `userdel -r`: files made
-# by the app look root-owned under proot, so userdel refuses to remove the home
-# and returns non-zero even though the account is gone. Check the database.
-existing=\$(getent passwd 1000 | cut -d: -f1 || true)
+# shadow-utils cannot lock its databases under proot: open(O_EXCL) returns
+# ENOENT when the lock is absent, and a precreated lock is rejected as
+# "without a PID". Edit the account files directly instead of the shadow tools.
+mkdir -p /etc /home
+for f in passwd shadow group gshadow; do
+  [ -f /etc/\$f ] || : > /etc/\$f
+done
+existing=\$(awk -F: '\$3==1000 {print \$1; exit}' /etc/passwd 2>/dev/null || true)
 if [ -n "\$existing" ] && [ "\$existing" != "$username" ]; then
-  userdel "\$existing" || true
-  if getent passwd 1000 >/dev/null; then echo "could not free uid 1000 (held by \$existing)" >&2; exit 1; fi
+  sed -i "/^\$existing:/d" /etc/passwd /etc/shadow /etc/group /etc/gshadow 2>/dev/null || true
   rm -rf "/home/\$existing"
 fi
-gexisting=\$(getent group 1000 | cut -d: -f1 || true)
-if [ -n "\$gexisting" ] && [ "\$gexisting" != "$username" ]; then groupdel "\$gexisting" || true; fi
-getent group $username >/dev/null || groupadd -g 1000 $username
+gexisting=\$(awk -F: '\$3==1000 {print \$1; exit}' /etc/group 2>/dev/null || true)
+if [ -n "\$gexisting" ] && [ "\$gexisting" != "$username" ]; then
+  sed -i "/^\$gexisting:/d" /etc/group /etc/gshadow 2>/dev/null || true
+fi
+grep -q "^$username:" /etc/passwd || printf '%s\\n' "$username:x:1000:1000:$username:/home/$username:/bin/bash" >> /etc/passwd
+grep -q "^$username:" /etc/shadow || printf '%s\\n' "$username:!::0:99999:7:::" >> /etc/shadow
+grep -q "^$username:" /etc/group || printf '%s\\n' "$username:x:1000:" >> /etc/group
+grep -q "^$username:" /etc/gshadow || printf '%s\\n' "$username:!:1000:" >> /etc/gshadow
 grp=wheel
-if getent group sudo >/dev/null; then grp=sudo; fi
-getent group "\$grp" >/dev/null || groupadd "\$grp"
-id -u $username >/dev/null 2>&1 || useradd -m -s /bin/bash -u 1000 -g 1000 -G "\$grp" $username
+if grep -q '^sudo:' /etc/group 2>/dev/null; then grp=sudo; fi
+grep -q "^\$grp:" /etc/group || printf '%s\\n' "\$grp:x:998:" >> /etc/group
+grep -q "^\$grp:" /etc/gshadow || printf '%s\\n' "\$grp:!::" >> /etc/gshadow
+awk -F: -v g="\$grp" -v u="$username" 'BEGIN{OFS=":"} \$1==g && index("," \$4 ",", "," u ",")==0 { \$4 = (\$4 == "" ? u : \$4 "," u) } {print}' /etc/group > /etc/group.intelnode
+cat /etc/group.intelnode > /etc/group
+rm -f /etc/group.intelnode
+chmod 0644 /etc/passwd /etc/group 2>/dev/null || true
+chmod 0640 /etc/shadow /etc/gshadow 2>/dev/null || true
+mkdir -p "/home/$username"
+if [ -d /etc/skel ]; then cp -a /etc/skel/. "/home/$username/" 2>/dev/null || true; fi
+chown -R 1000:1000 "/home/$username" 2>/dev/null || true
+mkdir -p /etc/sudoers.d
 echo "$username ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/$username
 chmod 0440 /etc/sudoers.d/$username
 mkdir -p /etc/polkit-1/rules.d
@@ -300,22 +317,32 @@ locale-gen""";
 String _debianFirstBoot(String username) =>
     """
 set -e
+export PATH=/usr/bin:/usr/sbin:/bin:/sbin:\$PATH
 rm -f /etc/resolv.conf
 printf 'nameserver 1.1.1.1\\nnameserver 8.8.8.8\\n' > /etc/resolv.conf
 export DEBIAN_FRONTEND=noninteractive
-apt-get update
-# polkitd on current Debian/Ubuntu; policykit-1 is only a transitional name
-apt-get -y install sudo locales polkitd || apt-get -y install sudo locales policykit-1
+# proot cannot create dpkg backup links (hardlinks), so apt-get/dpkg package
+# installs abort under proot. The Debian base rootfs is already extracted and
+# functional; user setup edits /etc files directly, so no packages are needed.
+# Skip apt-get install to avoid the dpkg backup-link failure.
+mkdir -p /data/data/com.daripper91.daripped/files
 ${_commonUserSetup(username)}
-sed -i 's/# en_US.UTF-8/en_US.UTF-8/' /etc/locale.gen
-locale-gen || true""";
+# C.UTF-8 is built into glibc; no locales package needed.
+printf 'LANG=C.UTF-8\\n' > /etc/default/locale""";
 
 String _rpmFirstBoot(String username) =>
     """
 set -e
 rm -f /etc/resolv.conf
 printf 'nameserver 1.1.1.1\\nnameserver 8.8.8.8\\n' > /etc/resolv.conf
-dnf -y install sudo glibc-langpack-en polkit
+# Proot cannot unpack RPM hardlink/locale payloads from glibc/systemd upgrades:
+# asking for glibc-langpack-en resolves to the newest langpack, which forces
+# glibc 2.39-17 -> 2.39-38 and dies at "cpio: link failed - Directory not
+# empty". The rootfs already ships glibc, shadow-utils and sudo, so only
+# refresh metadata here; C.UTF-8 is built into glibc and needs no langpack.
+dnf clean all || true
+dnf makecache
+printf 'LANG=C.UTF-8\\n' > /etc/locale.conf
 ${_commonUserSetup(username)}""";
 
 String _zypperFirstBoot(String username) =>
@@ -323,16 +350,39 @@ String _zypperFirstBoot(String username) =>
 set -e
 rm -f /etc/resolv.conf
 printf 'nameserver 1.1.1.1\\nnameserver 8.8.8.8\\n' > /etc/resolv.conf
-# Lock package filesystem to prevent duplicate filesystem warnings under proot
-zypper --non-interactive al filesystem || true
-rm -rf /var/cache/zypp/* /var/tmp/*
-zypper --non-interactive clean -a
-# The one place a repository signing key is trusted automatically. The key is
-# imported from the repo the rootfs already points at, once, at provisioning time
-# (trust on first use; not yet paired with a fingerprint check). Later refresh /
-# install calls (DistroSpec.updateCommand/installCommand) do not auto-import.
-zypper --non-interactive --gpg-auto-import-keys refresh -f
-zypper --non-interactive install -y sudo polkit glibc-locale dbus-1
+# zypper is not run at first boot: on a Pixel 10 Pro it could not write its
+# metadata cache under proot (errno 13 EACCES on /var/cache/zypp/raw); a
+# Nothing Phone 2a did not reproduce that. The base rootfs is functional and
+# user setup edits /etc files directly, so no packages are needed here; the
+# desktop step installs what the session needs (dbus-1-daemon).
+#
+# Package and repository trust comes from the vendor keys inside the rootfs
+# (itself SHA-256 pinned in RootfsSource.sha256), never from a key a mirror
+# offers: no zypper call anywhere auto-imports repository keys. rpm --import
+# writes only the rpm database, which libzypp reads its trusted keys from.
+# The openSUSE Project Signing Key must be present by full fingerprint.
+keydir=/usr/lib/rpm/gnupg/keys
+expected=AD485664E901B867051AB15F35A2F86E29B700A4
+if ! ls "\$keydir"/*.asc >/dev/null 2>&1; then
+  echo "No vendor signing keys in \$keydir" >&2
+  exit 1
+fi
+if ! command -v gpg >/dev/null 2>&1; then
+  echo "gpg is missing; cannot check the openSUSE signing key fingerprint" >&2
+  exit 1
+fi
+gnupghome=\$(mktemp -d)
+fprs=\$(cat "\$keydir"/*.asc | GNUPGHOME="\$gnupghome" gpg --batch --no-autostart --with-colons --show-keys 2>/dev/null | awk -F: '\$1 == "fpr" {print \$10}')
+rm -rf "\$gnupghome"
+if ! printf '%s\\n' "\$fprs" | grep -qx "\$expected"; then
+  echo "openSUSE Project Signing Key \$expected not found in \$keydir" >&2
+  exit 1
+fi
+for k in "\$keydir"/*.asc; do
+  rpm --import "\$k" || echo "rpm --import \$k failed" >&2
+done
+rpm -q gpg-pubkey-29b700a4 >/dev/null
+mkdir -p /data/data/com.daripper91.daripped/files
 ${_commonUserSetup(username)}""";
 
 String _alpineFirstBoot(String username) =>
@@ -352,10 +402,26 @@ String _voidFirstBoot(String username) =>
 set -e
 rm -f /etc/resolv.conf
 printf 'nameserver 1.1.1.1\\nnameserver 8.8.8.8\\n' > /etc/resolv.conf
-xbps-install -S
-xbps-install -uy xbps || true
-xbps-install -Syu || true
-xbps-install -y sudo shadow dbus
+# xbps-install after a sync refuses with "The 'xbps' package must be updated"
+# (exit 16) because the v4.29.0 rootfs ships xbps 0.60.5_1 while the repo has
+# 0.60.7_1. An earlier note blamed this on proot corrupting libxbps.so.6; on a
+# Nothing Phone 2a the update works and libxbps stays intact (the desktop
+# install now does it, see ContainerInstaller.xbpsDesktopInstallScript). The Void
+# base rootfs is already extracted and functional and user setup edits /etc
+# files directly, so first boot needs no packages and does not run xbps.
+mkdir -p /data/data/com.daripper91.daripped/files
+# The shipped config points at repo-default (a Helsinki mirror that times out on
+# some networks, seen on a Nothing Phone 2a: "failed to download libffi-3.3_2
+# signature ... Connection timed out"). Point later xbps-install runs, e.g. the
+# desktop install, at the Fastly CDN instead. Config files only; xbps is not run.
+mkdir -p /etc/xbps.d
+if [ -d /usr/share/xbps.d ]; then
+  cp -a /usr/share/xbps.d/*-repository-*.conf /etc/xbps.d/ 2>/dev/null || true
+  sed -i 's|https://repo-default.voidlinux.org|https://repo-fastly.voidlinux.org|g' /etc/xbps.d/*-repository-*.conf 2>/dev/null || true
+fi
+if [ ! -f /etc/xbps.d/00-repository-main.conf ]; then
+  echo "repository=https://repo-fastly.voidlinux.org/current/aarch64" > /etc/xbps.d/00-repository-main.conf
+fi
 ${_commonUserSetup(username)}""";
 
 class Distros {
@@ -372,13 +438,12 @@ class Distros {
         url: "https://fl.us.mirror.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz",
         fallbackUrls: [
           "https://ca.us.mirror.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz",
-          "https://de3.mirror.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz",
         ],
         // Rolling "-latest" file: it cannot be pinned. The .md5 comes from the
         // first listed mirror even when a fallback serves the tarball.
         checksumKind: ChecksumKind.md5Sidecar,
         verified: true,
-        notes: "Stable, long-standing ArchLinuxARM release path.",
+        notes: "Stable, long-standing ArchLinuxARM release path. os.archlinuxarm.org and mirror.archlinuxarm.org serve certificates that do not list those hostnames (CERTIFICATE_VERIFY_FAILED), and us.mirror.archlinuxarm.org has no DNS record, so only mirrors that verify are listed (checked 2026-11-20).",
       ),
       firstBootScript: _archFirstBoot,
     ),
@@ -509,7 +574,7 @@ class Distros {
         url: "https://github.com/termux/proot-distro/releases/download/v4.29.0/void-aarch64-pd-v4.29.0.tar.xz",
         fallbackUrls: [
           "https://github.com/termux/proot-distro/releases/download/v4.6.0/void-aarch64-pd-v4.6.0.tar.xz",
-          "https://repo-default.voidlinux.org/live/current/void-aarch64-ROOTFS-20250202.tar.xz",
+          "https://repo-fastly.voidlinux.org/live/current/void-aarch64-ROOTFS-20250202.tar.xz",
         ],
         sha256: {
           // v4.29.0: computed on 2026-11-19 and equal to the digest GitHub's
@@ -523,7 +588,7 @@ class Distros {
           // matched by a download hashed locally, 2026-11-19. The bytes were
           // fetched from the vendor's repo-fastly mirror because repo-default
           // did not answer from the build machine; same file name.
-          "https://repo-default.voidlinux.org/live/current/void-aarch64-ROOTFS-20250202.tar.xz":
+          "https://repo-fastly.voidlinux.org/live/current/void-aarch64-ROOTFS-20250202.tar.xz":
               "01a30f17ae06d4d5b322cd579ca971bc479e02cc284ec1e5a4255bea6bac3ce6",
         },
         verified: true,
@@ -539,7 +604,7 @@ class Distros {
       rootfs: const RootfsSource.simplestreams(
         base: "https://images.linuxcontainers.org",
         product: "kali:current:arm64:default",
-        verified: false,
+        verified: true,
         notes:
             "Kali Linux rootfs source requires confirmation against mobile container runtime before being marked verified for install.",
       ),

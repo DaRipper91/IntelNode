@@ -1612,18 +1612,19 @@ fi
     // ignore: use_build_context_synchronously (G.homePageStateContext is the long-lived home page context, not a widget-local one)
           Localizations.localeOf(G.homePageStateContext).languageCode != 'zh',
     );
-    await G.prefs.setStringList("containersInfo", [
-      """{
-"name":"$containerName",
-"packageManager":"$packageManager",
-"boot":${jsonEncode(Workflow.getBootCommand())},
-"vnc":"start-desktop &",
-"vncPassword":"$initialVncPassword",
-"vncUrl":"http://localhost:36082/vnc.html?host=localhost&port=36082&autoconnect=true&resize=remote&password=$initialVncPassword",
-"vncUri":"vnc://127.0.0.1:5904?VncPassword=$initialVncPassword&SecurityType=2",
-"commands":${jsonEncode(initialCommands)}
-}""",
-    ]);
+    final existing = List<String>.from(G.settings.containersInfo);
+    existing.add('''{
+  "name":"$containerName",
+  "packageManager":"$packageManager",
+  "boot":${jsonEncode(Workflow.getBootCommand())},
+  "vnc":"start-desktop &",
+  "vncPassword":"$initialVncPassword",
+  "vncUrl":"http://localhost:36082/vnc.html?host=localhost&port=36082&autoconnect=true&resize=remote&password=$initialVncPassword",
+  "vncUri":"vnc://127.0.0.1:5904?VncPassword=$initialVncPassword&SecurityType=2",
+  "commands":${jsonEncode(initialCommands)}
+}''');
+    await G.prefs.setStringList("containersInfo", existing);
+    G.settings.defaultContainer = existing.length - 1;
 
     G.updateText.value = AppLocalizations.of(
     // ignore: use_build_context_synchronously (G.homePageStateContext is the long-lived home page context, not a widget-local one)
