@@ -153,5 +153,4 @@ object AudioStream {
         // (isStreaming is false and the socket is closed); startStreaming refuses to start while it
         // is still alive, so a restart cannot overlap the old worker.
     }
-    }
 }
