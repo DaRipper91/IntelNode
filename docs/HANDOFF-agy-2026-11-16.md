@@ -69,11 +69,6 @@ returns 404. Non-Arch downloads have no checksum. Then work `docs/plans/2026-11-
 - End your turn by updating `AGENT_REPORT.md` (rotate the old one to `(OLD) AGENT_REPORT.md`).
 
 ## Reaching the phones
-- **Nothing Phone 2a** (A142, Android 16, Magisk-rooted): adb over Wireless debugging only. Pairing is done
-  (guid `adb-000681455001135-ZjG10R`); the **connect port changes every time Wireless debugging is
-  toggled**. Find it with `adb mdns services` (last seen `192.168.1.113:46759`) or ask the owner. KDE Connect
-  shows it paired but unreachable.
-- **Pixel 10 Pro**: `adb connect 100.83.49.113:5555` (Tailscale). Older CI build, working Arch container.
 - Install a local build with `adb -s <serial> install -r <apk>`. App id `com.daripper91.daripped`.
 
 ## Paste this to start agy

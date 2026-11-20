@@ -13,9 +13,12 @@ import android.view.WindowInsets
 import android.view.inputmethod.InputMethodManager
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import java.io.Reader
 import java.net.InetAddress
+import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
+import java.util.concurrent.atomic.AtomicInteger
 
 class X11KeyboardReceiver : BroadcastReceiver() {
 
@@ -35,6 +38,12 @@ class X11KeyboardReceiver : BroadcastReceiver() {
         const val EXTRA_STATE = "state"
         private const val PORT = 4720
         private const val DEBOUNCE_HIDE_MS = 200L
+        // The bridge only ever carries "show"/"hide"/"toggle" style words, so a client that sends
+        // more than this without a newline, or stalls, is dropped instead of tying up a thread.
+        private const val MAX_LINE_CHARS = 64
+        private const val READ_TIMEOUT_MS = 2000
+        private const val MAX_CONCURRENT_CLIENTS = 4
+        private val activeClients = AtomicInteger(0)
 
         private val mainHandler = Handler(Looper.getMainLooper())
         private var hideRunnable: Runnable? = null
@@ -50,8 +59,10 @@ class X11KeyboardReceiver : BroadcastReceiver() {
             serverThread = Thread({
                 var serverSocket: ServerSocket? = null
                 try {
-                    serverSocket = ServerSocket(PORT, 10, InetAddress.getByName("127.0.0.1"))
-                    serverSocket.reuseAddress = true
+                    serverSocket = ServerSocket().apply {
+                        reuseAddress = true
+                        bind(InetSocketAddress(InetAddress.getByName("127.0.0.1"), PORT), 10)
+                    }
                     Log.i(TAG, "IntelNode IME socket bound to 127.0.0.1:$PORT")
                     while (serverRunning && !serverSocket.isClosed) {
                         try {
@@ -76,12 +87,33 @@ class X11KeyboardReceiver : BroadcastReceiver() {
             }
         }
 
+        // Reads one line of at most [maxChars] characters. Returns null when the stream ends
+        // with nothing read or the limit is exceeded without a newline.
+        private fun readBoundedLine(reader: Reader, maxChars: Int): String? {
+            val sb = StringBuilder()
+            while (true) {
+                val c = reader.read()
+                if (c == -1) return if (sb.isEmpty()) null else sb.toString()
+                if (c == '\n'.code) return sb.toString()
+                if (sb.length >= maxChars) return null
+                sb.append(c.toChar())
+            }
+        }
+
         private fun handleClientSocket(context: Context, socket: Socket) {
+            if (activeClients.incrementAndGet() > MAX_CONCURRENT_CLIENTS) {
+                activeClients.decrementAndGet()
+                try {
+                    socket.close()
+                } catch (_: Exception) {}
+                return
+            }
             Thread {
                 try {
                     socket.use { s ->
-                        val reader = BufferedReader(InputStreamReader(s.getInputStream()))
-                        val line = reader.readLine()?.trim()?.lowercase()
+                        s.soTimeout = READ_TIMEOUT_MS
+                        val reader = BufferedReader(InputStreamReader(s.getInputStream()), MAX_LINE_CHARS * 2)
+                        val line = readBoundedLine(reader, MAX_LINE_CHARS)?.trim()?.lowercase()
                         if (line != null) {
                             val state = when (line) {
                                 "show", "1", "open", "in" -> "show"
@@ -94,6 +126,8 @@ class X11KeyboardReceiver : BroadcastReceiver() {
                     }
                 } catch (e: Exception) {
                     Log.w(TAG, "Client socket error: ${e.message}")
+                } finally {
+                    activeClients.decrementAndGet()
                 }
             }.start()
         }

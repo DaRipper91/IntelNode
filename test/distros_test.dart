@@ -74,7 +74,8 @@ void main() {
 
     test('zypper', () {
       final d = Distros.byId('opensuse');
-      expect(d.installCommand(['foo']), contains('zypper --non-interactive --gpg-auto-import-keys'));
+      expect(d.installCommand(['foo']), contains('zypper --non-interactive install'));
+      expect(d.installCommand(['foo']), isNot(contains('gpg-auto-import-keys')));
       // --allow-unsigned-rpm is a command option (valid only after the verb, and
       // only for rpm files named on the command line). Before the verb zypper
       // rejects it ("The flag --allow-unsigned-rpm is not known", exit 2), which
@@ -82,7 +83,8 @@ void main() {
       expect(d.installCommand(['foo']), isNot(contains('--allow-unsigned-rpm')));
       expect(d.installCommand(['foo']), contains('install foo'));
       expect(d.removeCommand(['foo']), contains('zypper --non-interactive remove'));
-      expect(d.updateCommand, contains('zypper --non-interactive --gpg-auto-import-keys refresh'));
+      expect(d.updateCommand, contains('zypper --non-interactive refresh'));
+      expect(d.updateCommand, isNot(contains('gpg-auto-import-keys')));
       expect(d.updateCommand, isNot(contains('update')));
     });
 
@@ -93,12 +95,26 @@ void main() {
       expect(d.updateCommand, contains('apk update'));
     });
 
+    test('openSUSE first boot pre-imports the vendor key and runs no zypper', () {
+      final script = Distros.byId('opensuse').firstBootScript('tiny');
+      expect(script, contains('rpm --import'));
+      expect(script, contains('AD485664E901B867051AB15F35A2F86E29B700A4'));
+      expect(script, contains('/usr/lib/rpm/gnupg/keys'));
+      final code = script
+          .split('\n')
+          .where((l) => !l.trimLeft().startsWith('#'))
+          .join('\n');
+      expect(code, isNot(contains('zypper')));
+    });
+
     test('xbps', () {
       final d = Distros.byId('void');
       expect(d.installCommand(['foo']), contains('xbps-install -y'));
       expect(d.removeCommand(['foo']), contains('xbps-remove -Ry'));
-      // Only xbps itself is updated; a full -Syu upgrade breaks in proot.
-      expect(d.updateCommand, contains('xbps-install -Su xbps'));
+      // Sync, then update xbps itself (a synced index makes xbps refuse
+      // everything else until it is updated); a full -Syu is not run.
+      expect(d.updateCommand, contains('xbps-install -S'));
+      expect(d.updateCommand, contains('xbps-install -uy xbps'));
       expect(d.updateCommand, isNot(contains('-Syu')));
     });
   });

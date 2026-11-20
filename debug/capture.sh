@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Capture an IntelNode run from a connected phone into debug/logs/<stamp>/.
-# usage: debug/capture.sh [adb-serial]   (e.g. 192.168.1.68:5555)
+# usage: debug/capture.sh [adb-serial]   (e.g. <DEVICE_IP>:5555)
 set -u
 PKG=com.daripper91.daripped
 ADB=(adb); [ $# -ge 1 ] && ADB=(adb -s "$1")

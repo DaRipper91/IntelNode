@@ -45,8 +45,7 @@
         </activity>
         <activity
             android:name=".Signal9Activity"
-            android:exported="true"
-            android:permission="android.permission.WRITE_EXTERNAL_STORAGE"
+            android:exported="false"
             android:theme="@style/Theme.AppCompat.Light.NoActionBar"/>
         <activity
             android:name="com.termux.x11.MainActivity"
@@ -70,8 +69,7 @@
         <receiver
             android:name=".X11KeyboardReceiver"
             android:enabled="true"
-            android:exported="true"
-            android:permission="android.permission.BROADCAST_SMS"
+            android:exported="false"
             android:process=":x11">
             <intent-filter>
                 <action android:name="com.daripper91.daripped.ACTION_KEYBOARD" />

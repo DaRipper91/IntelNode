@@ -6,8 +6,9 @@ against the stage table below.
 ## Capture
 
 ```bash
-adb connect 192.168.1.68:5555        # wireless debugging, or use USB
-debug/capture.sh 192.168.1.68:5555   # writes debug/logs/<timestamp>/
+export DEVICE_IP=<phone address>     # set to your phone's address
+adb connect "$DEVICE_IP":5555        # wireless debugging, or use USB
+debug/capture.sh "$DEVICE_IP":5555   # writes debug/logs/<timestamp>/
 ```
 
 `debug/logs/` is git-ignored. Raw logcat contains other apps' package names; trim it before sharing.
