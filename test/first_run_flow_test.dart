@@ -441,4 +441,12 @@ void pickReachableTests() {
     expect(c.toSet().length, c.length);
     expect(c.every((u) => u.endsWith('/os/ArchLinuxARM-aarch64-latest.tar.gz')), isTrue);
   });
+
+  test('the Arch source avoids hosts whose TLS certificate or DNS is broken', () async {
+    final c = await Distros.byId('archlinux').rootfs.candidates();
+    final hosts = c.map((u) => Uri.parse(u).host).toSet();
+    expect(hosts, isNot(contains('os.archlinuxarm.org')));
+    expect(hosts, isNot(contains('mirror.archlinuxarm.org')));
+    expect(hosts, isNot(contains('us.mirror.archlinuxarm.org')));
+  });
 }

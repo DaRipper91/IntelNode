@@ -364,13 +364,12 @@ class Distros {
           "Rolling release, pacman. Matches the bundled default container.",
       packageManager: PackageManagerFamily.pacman,
       rootfs: const RootfsSource.direct(
-        url: "https://os.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz",
+        url: "https://fl.us.mirror.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz",
         fallbackUrls: [
-          "https://mirror.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz",
-          "https://us.mirror.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz",
+          "https://ca.us.mirror.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz",
         ],
         verified: true,
-        notes: "Stable, long-standing ArchLinuxARM release path. Using official mirror to avoid DNS issues.",
+        notes: "Stable, long-standing ArchLinuxARM release path. os.archlinuxarm.org and mirror.archlinuxarm.org serve certificates that do not list those hostnames (CERTIFICATE_VERIFY_FAILED), and us.mirror.archlinuxarm.org has no DNS record, so only mirrors that verify are listed (checked 2026-11-20).",
       ),
       firstBootScript: _archFirstBoot,
     ),
