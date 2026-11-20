@@ -5,6 +5,15 @@
 VAULT_DIR="$HOME/Vault/Raw_Intel"
 mkdir -p "$VAULT_DIR"
 
+# Device metadata is read at run time (never hardcoded): override with
+# INTELNODE_DEVICE / INTELNODE_OS, else ask Android's getprop when it is reachable.
+sanitize() { printf '%s' "$1" | tr -c 'A-Za-z0-9._-' '_'; }
+DEVICE="${INTELNODE_DEVICE:-$(getprop ro.product.model 2>/dev/null)}"
+OS_VERSION="$(getprop ro.build.version.release 2>/dev/null)"
+OS_NAME="${INTELNODE_OS:-${OS_VERSION:+Android_$OS_VERSION}}"
+DEVICE="$(sanitize "${DEVICE:-unknown}")"
+OS_NAME="$(sanitize "${OS_NAME:-unknown}")"
+
 TOPIC="${1:-General_Intel}"
 TIMESTAMP=$(date +"%Y-%m-%dT%H:%M:%S")
 FILENAME="$VAULT_DIR/${TOPIC}_${TIMESTAMP//:/-}.md"
@@ -14,8 +23,8 @@ FILENAME="$VAULT_DIR/${TOPIC}_${TIMESTAMP//:/-}.md"
   echo "topic: $TOPIC"
   echo "timestamp: $TIMESTAMP"
   echo "source: daripped_tiny_computer"
-  echo "device: Pixel_10_Pro"
-  echo "os: Android_Cinnamon_Bun"
+  echo "device: $DEVICE"
+  echo "os: $OS_NAME"
   echo "---"
   echo ""
   cat -

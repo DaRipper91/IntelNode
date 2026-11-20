@@ -23,6 +23,7 @@ IntelNode is a fork of [Cateners/tiny_computer](https://github.com/Cateners/tiny
 
 - [How first run works](#how-first-run-works)
 - [Inside the sandbox](#inside-the-sandbox)
+  - [Trust model: what the guest can reach](#trust-model-what-the-guest-can-reach)
 - [Requirements](#requirements)
 - [Install](#install)
 - [Status](#status)
@@ -95,6 +96,15 @@ What the cross-section is built from, all observed over adb on a Pixel 10 Pro (A
 | The X server is a TCP listener on `127.0.0.1:7897` (`1ED9` in `/proc/net/tcp`) | `Util.waitForXServer` in `lib/workflow.dart` |
 
 The top layer is dashed on purpose: the XFCE session processes have been seen running (`ps`), but the desktop has not been seen on screen yet.
+
+### Trust model: what the guest can reach
+
+The Linux guest is not a security boundary against the app that hosts it. proot runs unprivileged as the app's own Android user id; `--change-id=1000:1000` only fakes the user id the guest sees. Inside the guest:
+
+- **Bound host paths.** The boot command (`Workflow.getBootCommand` in `lib/workflow.dart`) binds `/system`, `/apex`, `/sys`, `/data`, `/storage`, `/proc` and `/dev` from the phone into the guest, plus `/storage/self/primary` at `/media/sd`. Which files under those paths are actually readable is decided by Android, not by IntelNode, and has not been confirmed on a device. Treat any path the app's own uid can open as reachable.
+- **Root inside the guest.** First-boot provisioning gives the guest user passwordless `sudo` (`NOPASSWD:ALL`) and a polkit rule that allows every action. That is root inside the guest only; on the host the process is still the app's uid.
+- **What that means.** Any program you run in the guest, including packages and quick-command installs, can in principle read the same files as the app itself: its SharedPreferences, other containers under `containers/`, and anything in shared storage the app has been granted. Only install software you would trust with the app's data.
+- **Not narrowed yet.** The mounts above are unchanged. Whether `/apex`, `/system` or `/data` could be dropped or narrowed without breaking the desktop is an open item, not a claim.
 
 <img src="images/divider-prompt.svg" alt="" width="100%">
 

@@ -1,74 +1,44 @@
 # Agent Report
 
-**Author:** Antigravity (agy) · **Date:** 2026-11-17 · **Repo:** `DaRipper91/IntelNode` (`~/Projects/DaRipped_tiny_computer`) · **Branch:** `fix/new-container-wrapper-dir`
+**Author:** Claude Code (orchestrator + Sonnet implementers) · **Date:** 2026-11-19 · **Branch:** `fix/audit-2026-11-19` (local, off `origin/main` d0eaa99, uncommitted, not pushed)
+**Source of truth for scope:** `docs/plans/2026-11-19-intelnode-fixes.md` (55 tasks from a rip-it-apart audit; final ledger: 0 critical, 0 high, 13 medium, 5 low-medium, 37 low).
 
----
+## Summary
+Round 1 and 2 of the audit fix plan were implemented. Nothing was built with Gradle and nothing was run on a device; verification is `flutter analyze` + `flutter test` only.
 
-## Executive Summary
-All available Linux distributions in IntelNode have been verified on physical hardware (**Nothing Phone 2a**, model A142, Android 16, Magisk root, wireless ADB). Every non-Arch distribution previously suffered from multiple root-level provisioning or extraction failures; all root causes were identified, fixed, and verified on-device.
+- **Exposure (S11):** removed device-connection lines and network identifiers from `(OLD) AGENT_REPORT.md` (now rotated), `docs/HANDOFF-agy-2026-11-16.md`, `debug/README.md`, `debug/capture.sh` (now takes `$DEVICE_IP`). Deleted `OWNERS` (held only an upstream author's email; nothing referenced it).
+- **SAF provider (S1, S2):** new `android/.../DocumentPathGuard.java`; `TinyDocumentsProvider.java` now confines paths canonically, rejects `..` and prefix siblings, sanitises displayName, fails search closed, null-guards `listFiles`/`getParentFile`, refuses to delete the root.
+- **Manifest / X11 bridge (S10, partial):** `X11KeyboardReceiver` and `Signal9Activity` set `exported=false`; receiver socket has `reuseAddress`, 64-char line cap, 2 s read timeout, 4-client cap. New `test/android_manifest_exports_test.dart`.
+- **Docs (S13):** "Trust model" in `README.md` and `MANUAL.md` section 2.3 (docs only, no runtime change).
+- **Rootfs trust (S3, S4, F9, S5):** `lib/distros.dart` + `lib/container_installer.dart`: per-URL SHA-256 pins for all 12 fixed URLs, explicit `checksumKind`, fail-closed on unpinned/unknown tar extension, partial tarballs named by source, `--gpg-auto-import-keys` removed except one first-boot refresh, `.deb` third-party installs hash-gated. Install quick commands for CAJViewer, EdrawMax, QQ, WeChat, DingTalk removed (uninstall kept). Provenance table: `~/agent-config-review/intelnode-fix-notes-B.md`.
+- **Boot-line escaping (S14):** `Workflow.envAssignmentArguments()` in `lib/workflow.dart`.
+- **Runtime bugs (F4, F19, F20, F12, F5, F6, F18):** JNI symbols in `android/app/src/main/cpp/native-socket.cpp` renamed to `Java_com_daripper91_daripped_AudioStream_*`; `MainActivity.kt`/`AudioStream.kt` reply on streaming calls, no `!!`, state hardened; `copyAsset(..., executable:)` chmods `to_vault` etc.; `to_vault` reads device/OS from `getprop`; `_registerContainer` records the real package manager via `ContainerInstaller.containerInfoFor`; default commands fixed (sudo on pacman/apt update, `uname -a` replaces neofetch); launch-path futures awaited or `unawaited(...catchError)` + `BootLog`.
+- **Tests added/changed:** `android_manifest_exports_test`, `distros_pins_test`, `rootfs_verify_test`, `package_trust_test`, `workflow_test/env_options_test`, `audio_stream_jni_test`, `workflow_test/{to_vault,register_container,distro_commands}_test`.
+- Plan file copied into `docs/plans/2026-11-19-intelnode-fixes.md`.
 
-Each distribution was installed using the smallest window manager (**Fluxbox**; Fedora additionally verified with **XFCE4**), verified against its installed filesystem and session binary, and then deleted using the new in-app **Delete Containers** dialog. Surviving containers, filesystem trees, and shared preferences were verified intact after every deletion cycle. Container 0 (Arch Linux ARM default) remained untouched and operational throughout.
+## Feature / Task Status
+- ✅ S11, S1, S2, S13, S3, S4, S14, F4, F19, F20, F12, F5 — implemented, unit-tested where the repo allows; **not device-verified**
+- 🔄 S10 — `usesCleartextTraffic` left true (depends on F2: `workflow.dart` still uses `http://localhost:36082`); `com.termux.x11.MainActivity` untouched
+- 🔄 S5 — `--gpg-auto-import-keys` kept on one first-boot `zypper refresh -f` (rootfs key presence unconfirmed on device; allow-listed in `test/package_trust_test.dart`)
+- 🔄 F9 — partial naming done; "delete unverified tarball after failed extraction" not implemented (unreachable: downloads are verified or refused before extraction)
+- 🔄 F6 — items a, b done; item c (`wget` on Arch base) unconfirmed
+- 🔄 F18 — `launchGUIBackend` awaited, others handled via `catchError`; `G.homePageStateContext` sites carry per-site `// ignore:` because a `mounted` check is impossible on a global context
+- ❌ F24 (operator precedence in `getCurrentProp` legacy VNC-password migration) — edit was denied and conflicts with "leave VNC code alone"; proposed fix: `keyIsVnc && (!hasProp || stored.isEmpty || stored == "12345678")`; needs owner OK
+- ❌ Protected, need explicit owner go-ahead: S6, S7, S8, F32, F33, workflow parts of F35 (`.github/workflows/*`); S13 narrowing and anything touching `AGENTS.md`/`.github/copilot-instructions.md`
+- ❌ Owner decisions pending: F1 (`boot` setting), F2 (dead VNC path: remove or restore), F3 (guest commands not shipped), F10 (container delete atomicity / stable IDs), F7, F11
+- ❌ Not started: remaining Phase 2-4 tasks per the plan task index
 
-Unit/integration test suite: **202/202 passed**. Static analyzer: **18 info-level baseline issues**, zero warnings, zero errors.
+## What the Next Agent Should Do First
+1. Read `docs/plans/2026-11-19-intelnode-fixes.md` (coverage statement and "Needs device confirmation" table) and the notes in `~/agent-config-review/intelnode-fix-notes-{A,B,C}.md`.
+2. **Device confirmation before trusting anything here** (Pixel 10 Pro): mic streaming toggle (JNI link, F4), `to_vault` exec bit, SAF `..`/`../../x` behaviour (S1), guest `am broadcast` still reaching the unexported X11 receiver (S10), openSUSE first boot with narrowed key import (S5), a real install of a pinned distro, Void from repo-default.
+3. Do NOT commit or push without the owner's say-so; `git filter-repo` history purge (identifiers + `assets/xaa..xae` rootfs chunks, ~3 GB) is an owner decision and a force-push to a public repo. The ADB pairing record, tailnet host/IP and wireless-debug address that were exposed in history should be revoked/rotated by the owner.
+4. Five SHA-256 pins are trust-on-first-use (computed 2026-11-19): Debian v4.17.3 and v4.7.0, Fedora v4.15.0, openSUSE and Void v4.6.0 builds. They prove integrity from now on, not original authenticity. Re-pin from a vendor source if one appears.
+5. Respect: `.github/workflows/`, `AGENTS.md` and its symlinks, lock files are protected.
 
----
+## Blocking Issues
+None blocking the implemented work. Open items: F24 owner approval; protected-file tasks; F1/F2/F3/F10/F7/F11 decisions; CAJViewer/EdrawMax/WeChat hosts timed out from the build machine so their pins could not be obtained (quick commands dropped instead).
 
-## On-Device Multi-Distro Verification Results
-
-| Distro | Desktop | Install Time | Key Fix Applied | Session Verified | Deletion Verified |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Fedora 40** | XFCE4 | ~420s | Replaced 1064-pkg group with 156 explicit packages; skips `kernel-core`/`dracut` | `/usr/bin/startxfce4` | Verified (cleaned from disk & prefs) |
-| **openSUSE Leap 16.0** | Fluxbox | ~330s | Dropped `--link2symlink` from `prootRun` (prevented broken zypper cache hardlinks); added cache clean & force refresh | `/usr/bin/startfluxbox` | Verified (cleaned from disk & prefs) |
-| **Debian 12 Bookworm** | Fluxbox | 291s | Added `--exclude='dev/*'` to tar extraction (bypassed EPERM on static `/dev/*` character nodes) | `/usr/bin/startfluxbox` | Verified (cleaned from disk & prefs) |
-| **Alpine Linux v3.22** | Fluxbox | 32s | Verified multi-repo setup (`main` + `community`), rapid apk install | `/usr/bin/startfluxbox` | Verified (cleaned from disk & prefs) |
-| **Void Linux** | Fluxbox | 176s | Added `xbps-install -uy xbps` prior to package transactions | `/usr/bin/startfluxbox` | Verified (cleaned from disk & prefs) |
-| **Ubuntu 24.04 LTS** | Fluxbox | 374s | Cloud image tarball extraction with `--exclude='dev/*'` and user reassignment | `/usr/bin/startfluxbox` | Verified (cleaned from disk & prefs) |
-
----
-
-## Root Causes Identified and Fixed
-
-### 1. Fedora 40 Package Group Bloat & DNF SELinux Exclusions
-- **Symptom:** Fedora package install pulled in 1064 packages including kernel initramfs (`dracut`), which hung for 10+ minutes.
-- **Root Cause:** DNF `@<name>-desktop-environment` groups depend on kernel and hardware firmware. Furthermore, `/etc/dnf/dnf.conf` shipped `excludepkgs=*selinux*`, which broke desktop groups that depend on SELinux libraries.
-- **Fix:** Switched Fedora desktop packages to explicit, index-verified package lists from Fedora 40 Everything aarch64 repository. Added `--skip-broken --setopt=install_weak_deps=False` and post-install `sessionCheckScript` to verify the desktop executable exists.
-
-### 2. PRoot `--link2symlink` Breaking Zypper Hardlinks (openSUSE)
-- **Symptom:** Zypper failed with exit code 4: `Can't open solv-file: /var/cache/zypp/solv/openSUSE:repo-oss/solv`.
-- **Root Cause:** Zypper downloads repo metadata to `/var/tmp/AP_...` and hard-links it to `/var/cache/zypp/raw/...`. PRoot's `--link2symlink` replaced the hard link with a symlink pointing to the temporary attach point in `/var/tmp`. When zypper cleaned up its temporary files, the cache symlink became dangling, breaking `repo2solv`.
-- **Fix:** Dropped `--link2symlink` from `ContainerInstaller.prootRun`. Android internal storage (`/data/user/0/...`) is native ext4/f2fs and supports hard links natively. Added zypper cache wipe and force refresh (`rm -rf /var/cache/zypp/* /var/tmp/* && zypper clean -a && zypper refresh -f`) during `_zypperFirstBoot`.
-
-### 3. Tar `mknod()` EPERM on Static Device Nodes (Debian)
-- **Symptom:** Debian rootfs extraction failed with exit code 2: `tar: debian-bookworm-aarch64/dev/null: Cannot mknod: Operation not permitted`.
-- **Root Cause:** Debian debootstrap rootfs contains static character device files in `/dev/`. Android user namespaces forbid unprivileged processes from creating character or block device nodes via `mknod()`. Since PRoot mounts Android's `/dev` at runtime via `-b /dev`, static rootfs device nodes are unnecessary.
-- **Fix:** Added `--exclude='dev/*'` to `ContainerInstaller.extractScript`. Tar extracts directory `dev/` cleanly while skipping device node creation.
-
-### 4. Void Linux `xbps` Package Self-Update Lockout
-- **Symptom:** Base provisioning failed with exit code 16: `ERROR: The 'xbps' package must be updated, please run xbps-install -u xbps`.
-- **Root Cause:** In Void Linux, when a newer version of the package manager itself (`xbps`) is available in upstream repositories, xbps refuses all package installations until updated directly.
-- **Fix:** Updated `_voidFirstBoot` and `DistroSpec.updateCommand` to run `xbps-install -uy xbps` before subsequent package operations.
-
-### 5. Tarball Hoisting for proot-distro Archives
-- **Symptom:** Proot started inside an empty container rootfs because `termux/proot-distro` tarballs wrap contents in top-level directory (e.g. `fedora-aarch64/`).
-- **Fix:** `ContainerInstaller.hoistWrapperDir` detects single wrapper folders and hoists all files to the root level. Flat images (Arch, Ubuntu) remain untouched.
-
-### 6. Delete Containers Lifecycle Verification
-- **Symptom:** Untested deletion flow.
-- **Verification:** Ran deletion across all 6 distributions. The UI dialog successfully identified non-running containers, preserved running Container 0, removed container directory trees, updated `containersInfo` in SharedPreferences, and confirmed filesystem state via ADB root shell.
-
----
-
-## Test & Analysis Verification
-- `flutter test`: **205 passed, 0 failed** (including unit tests for explicit dnf package lists, no-groups guard tests, tar exclusion tests, proot process cleanup traps, distro picker selection, and dynamic package manager text formatting).
-- `flutter analyze --no-fatal-infos`: **18 info-level items** (exact baseline from `main`).
-
----
-
-## First-Run User Distro Selection Flow
-- **Feature:** Replaced hardcoded Arch Linux ARM first-time bootstrap with an interactive, non-dismissible distribution picker dialog (`DistroPickerBody` in `lib/distro_picker.dart`).
-- **Capabilities:**
-  - Enumerates all distributions defined in `Distros.all`.
-  - Verified distributions (Arch Linux ARM, Ubuntu, Debian, Fedora, openSUSE, Alpine, Void) are enabled for immediate selection.
-  - Unverified preview distributions (Kali Linux) are displayed as disabled cards with explanatory status notes.
-  - Dynamic package manager text in `DesktopPickerBody` adapting instructions to the selected distribution's native package manager (`dnf`, `apt`, `zypper`, `apk`, `xbps`, `pacman`).
-  - Decoupled `Workflow.initForFirstTime({DistroSpec? selectedDistro, DesktopEnvironmentSpec? selectedDesktop})` allowing full programmatic invocation and testing.
+## Build / Test Status
+- Build: ❓ Gradle build NOT run (only `flutter analyze`/`flutter test` and standalone compile checks of the Java provider and Kotlin receiver; NDK clang++ `-fsyntax-only` on `native-socket.cpp`).
+- Lint:  ✅ `flutter analyze --no-fatal-infos`: 0 errors, 0 warnings, 10 infos (CI baseline at d0eaa99 was 18 infos).
+- Tests: ✅ `flutter test`: 279 passing, 0 failing (CI baseline at d0eaa99: 205). Flutter 3.41.6 / Dart 3.11.4 installed at `~/src/flutter` for this work.

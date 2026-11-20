@@ -17,6 +17,20 @@ enum PackageManagerFamily { pacman, dnf, apt, zypper, apk, xbps }
 
 enum RootfsSourceKind { direct, simplestreams }
 
+// How a download is verified when its URL has no entry in RootfsSource.sha256.
+// A URL with neither a pin nor a scheme is refused at install time (fail
+// closed); there is no "skip verification" mode.
+enum ChecksumKind {
+  // No sidecar published: only a pinned hash can verify the download.
+  none,
+  // `<url>.md5` next to the tarball (Arch Linux ARM). Detects corruption, not
+  // tampering, because it comes from the same host as the tarball unless a
+  // fallback mirror is chosen (then it is fetched from the first listed one).
+  md5Sidecar,
+  // `SHA256SUMS` in the same directory as the tarball (Ubuntu cloud images).
+  sha256Sums,
+}
+
 // Where a distro's rootfs tarball comes from, and how confident this entry
 // is that the source actually works right now.
 class RootfsSource {
@@ -44,9 +58,22 @@ class RootfsSource {
   // current network (seen on a real phone: one mirror timed out on a shop wifi).
   final List<String> fallbackUrls;
 
+  // Pinned SHA-256 (64 lowercase hex) per exact download URL. Keyed by URL, not
+  // by distro, because pickReachable can choose a fallback with different
+  // bytes. A pin wins over checksumKind. Every pin here was computed from a
+  // download on 2026-11-19; the comment next to each entry says whether a
+  // vendor-published value agreed (so authenticity was checked) or not
+  // (trust-on-first-use: this only proves the bytes have not changed since).
+  final Map<String, String> sha256;
+
+  // Scheme for URLs that are not pinned (rolling "-latest" files cannot be).
+  final ChecksumKind checksumKind;
+
   const RootfsSource.direct({
     required String url,
     this.fallbackUrls = const [],
+    this.sha256 = const {},
+    this.checksumKind = ChecksumKind.none,
     required this.verified,
     this.notes = "",
   }) : kind = RootfsSourceKind.direct,
@@ -60,6 +87,8 @@ class RootfsSource {
     required this.verified,
     this.notes = "",
   }) : fallbackUrls = const [],
+       sha256 = const {},
+       checksumKind = ChecksumKind.none,
        kind = RootfsSourceKind.simplestreams,
        directUrl = null,
        simplestreamsBase = base,
@@ -172,7 +201,7 @@ class DistroSpec {
     PackageManagerFamily.dnf => "dnf -y upgrade --refresh",
     PackageManagerFamily.apt => "apt-get update && apt-get -y upgrade",
     PackageManagerFamily.zypper =>
-      "zypper --non-interactive --gpg-auto-import-keys refresh && zypper --non-interactive --gpg-auto-import-keys update",
+      "zypper --non-interactive refresh && zypper --non-interactive update",
     PackageManagerFamily.apk => "apk update && apk upgrade",
     PackageManagerFamily.xbps => "xbps-install -uy xbps && xbps-install -Syu",
   };
@@ -189,7 +218,7 @@ class DistroSpec {
       "DEBIAN_FRONTEND=noninteractive apt-get -y install "
           "${packages.join(' ')}",
     PackageManagerFamily.zypper =>
-      "zypper --non-interactive --gpg-auto-import-keys install ${packages.join(' ')}",
+      "zypper --non-interactive install ${packages.join(' ')}",
     PackageManagerFamily.apk => "apk add --no-cache ${packages.join(' ')}",
     PackageManagerFamily.xbps => "xbps-install -y ${packages.join(' ')}",
   };
@@ -298,8 +327,12 @@ printf 'nameserver 1.1.1.1\\nnameserver 8.8.8.8\\n' > /etc/resolv.conf
 zypper --non-interactive al filesystem || true
 rm -rf /var/cache/zypp/* /var/tmp/*
 zypper --non-interactive clean -a
+# The one place a repository signing key is trusted automatically. The key is
+# imported from the repo the rootfs already points at, once, at provisioning time
+# (trust on first use; not yet paired with a fingerprint check). Later refresh /
+# install calls (DistroSpec.updateCommand/installCommand) do not auto-import.
 zypper --non-interactive --gpg-auto-import-keys refresh -f
-zypper --non-interactive --gpg-auto-import-keys install -y sudo polkit glibc-locale dbus-1
+zypper --non-interactive install -y sudo polkit glibc-locale dbus-1
 ${_commonUserSetup(username)}""";
 
 String _alpineFirstBoot(String username) =>
@@ -341,6 +374,9 @@ class Distros {
           "https://ca.us.mirror.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz",
           "https://de3.mirror.archlinuxarm.org/os/ArchLinuxARM-aarch64-latest.tar.gz",
         ],
+        // Rolling "-latest" file: it cannot be pinned. The .md5 comes from the
+        // first listed mirror even when a fallback serves the tarball.
+        checksumKind: ChecksumKind.md5Sidecar,
         verified: true,
         notes: "Stable, long-standing ArchLinuxARM release path.",
       ),
@@ -352,10 +388,20 @@ class Distros {
       description: "apt/dpkg, LTS release (24.04 Noble).",
       packageManager: PackageManagerFamily.apt,
       rootfs: const RootfsSource.direct(
-        url: "https://cloud-images.ubuntu.com/releases/noble/release/ubuntu-24.04-server-cloudimg-arm64-root.tar.xz",
+        // Dated directory first: it is immutable, so it can be pinned. The rolling
+        // `release/` directory moves and is only a fallback (SHA256SUMS from the
+        // same host; corruption check, not tamper check).
+        url: "https://cloud-images.ubuntu.com/releases/noble/release-20261017/ubuntu-24.04-server-cloudimg-arm64-root.tar.xz",
         fallbackUrls: [
-          "https://cloud-images.ubuntu.com/releases/noble/release-20261017/ubuntu-24.04-server-cloudimg-arm64-root.tar.xz",
+          "https://cloud-images.ubuntu.com/releases/noble/release/ubuntu-24.04-server-cloudimg-arm64-root.tar.xz",
         ],
+        sha256: {
+          // Vendor-published (SHA256SUMS in this dated directory) and matched
+          // by a fresh download hashed locally, 2026-11-19.
+          "https://cloud-images.ubuntu.com/releases/noble/release-20261017/ubuntu-24.04-server-cloudimg-arm64-root.tar.xz":
+              "b68ef0444ca56ce4f00ae7e8ccfb0c553ffbc92e4a1b14ed7dd8aa18c6d68652",
+        },
+        checksumKind: ChecksumKind.sha256Sums,
         verified: true,
         notes: "Official Ubuntu 24.04 LTS (Noble) cloud-image build.",
       ),
@@ -371,6 +417,14 @@ class Distros {
         fallbackUrls: [
           "https://github.com/termux/proot-distro/releases/download/v4.7.0/debian-bookworm-aarch64-pd-v4.7.0.tar.xz",
         ],
+        sha256: {
+          // Trust-on-first-use: computed from a download on 2026-11-19 (no
+          // vendor or GitHub digest is published for these assets).
+          "https://github.com/termux/proot-distro/releases/download/v4.17.3/debian-bookworm-aarch64-pd-v4.17.3.tar.xz":
+              "3a841a794ae5999b33e33b329582ed0379d4f54ca62c6ce5a8eb9cff5ef8900b",
+          "https://github.com/termux/proot-distro/releases/download/v4.7.0/debian-bookworm-aarch64-pd-v4.7.0.tar.xz":
+              "4baa32280cc70b67e2c650777c1d974349f0cdf23afaabc305ad3bc6182b8df8",
+        },
         verified: true,
         notes: "Verified Debian 12 (Bookworm) aarch64 proot rootfs.",
       ),
@@ -383,6 +437,11 @@ class Distros {
       packageManager: PackageManagerFamily.dnf,
       rootfs: const RootfsSource.direct(
         url: "https://github.com/termux/proot-distro/releases/download/v4.15.0/fedora-aarch64-pd-v4.15.0.tar.xz",
+        sha256: {
+          // Trust-on-first-use: computed from a download on 2026-11-19.
+          "https://github.com/termux/proot-distro/releases/download/v4.15.0/fedora-aarch64-pd-v4.15.0.tar.xz":
+              "0aa0da1860db99a26b2ecb3996e1c39020395e882658c3e33ea5d748811b3271",
+        },
         verified: true,
         notes: "Verified Fedora 40 aarch64 proot rootfs.",
       ),
@@ -398,6 +457,15 @@ class Distros {
         fallbackUrls: [
           "https://github.com/termux/proot-distro/releases/download/v4.6.0/opensuse-aarch64-pd-v4.6.0.tar.xz",
         ],
+        sha256: {
+          // v4.34.2: computed on 2026-11-19 and equal to the digest GitHub's
+          // release-asset API publishes for it (same origin as the file).
+          "https://github.com/termux/proot-distro/releases/download/v4.34.2/opensuse-aarch64-pd-v4.34.2.tar.xz":
+              "ac161ca81deb7a0418f382d66c2110802b90481cfe0f925b02b69a5642674379",
+          // v4.6.0: trust-on-first-use, computed on 2026-11-19.
+          "https://github.com/termux/proot-distro/releases/download/v4.6.0/opensuse-aarch64-pd-v4.6.0.tar.xz":
+              "cf81e80a7116f1a4638ba37619c4daf9b1052cc9635fe2925b26b9b60508600d",
+        },
         verified: true,
         notes: "Verified openSUSE Leap aarch64 proot rootfs.",
       ),
@@ -414,6 +482,19 @@ class Distros {
           "https://github.com/termux/proot-distro/releases/download/v4.16.0/alpine-aarch64-pd-v4.16.0.tar.xz",
           "https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/aarch64/alpine-minirootfs-3.21.3-aarch64.tar.gz",
         ],
+        sha256: {
+          // v4.30.1: computed on 2026-11-19 and equal to the digest GitHub's
+          // release-asset API publishes for it (same origin as the file).
+          "https://github.com/termux/proot-distro/releases/download/v4.30.1/alpine-aarch64-pd-v4.30.1.tar.xz":
+              "bb23e51cd5b5ae56bf946a34992876902de1bb2ecc0f639d59c702c6371adc62",
+          // v4.16.0: trust-on-first-use, computed on 2026-11-19.
+          "https://github.com/termux/proot-distro/releases/download/v4.16.0/alpine-aarch64-pd-v4.16.0.tar.xz":
+              "70370f107b2f00a2ddcd795482eb863c95c18032de3c96a64a9f61fe872c48fc",
+          // Vendor-published (the .sha256 file next to it on dl-cdn) and
+          // matched by a fresh download hashed locally, 2026-11-19.
+          "https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/aarch64/alpine-minirootfs-3.21.3-aarch64.tar.gz":
+              "ead8a4b37867bd19e7417dd078748e2312c0aea364403d96758d63ea8ff261ea",
+        },
         verified: true,
         notes: "Verified Alpine Linux aarch64 proot rootfs.",
       ),
@@ -430,6 +511,21 @@ class Distros {
           "https://github.com/termux/proot-distro/releases/download/v4.6.0/void-aarch64-pd-v4.6.0.tar.xz",
           "https://repo-default.voidlinux.org/live/current/void-aarch64-ROOTFS-20250202.tar.xz",
         ],
+        sha256: {
+          // v4.29.0: computed on 2026-11-19 and equal to the digest GitHub's
+          // release-asset API publishes for it (same origin as the file).
+          "https://github.com/termux/proot-distro/releases/download/v4.29.0/void-aarch64-pd-v4.29.0.tar.xz":
+              "7a7c449b3efe504749e40f556d13812010bccc930a820a56973a0f5fc2f16997",
+          // v4.6.0: trust-on-first-use, computed on 2026-11-19.
+          "https://github.com/termux/proot-distro/releases/download/v4.6.0/void-aarch64-pd-v4.6.0.tar.xz":
+              "423c73d0b3767477da5d763f01dfb1a8e5f8148468bcb0c86ca365a15dfeadc1",
+          // Vendor-published (sha256sum.txt in the same Void directory) and
+          // matched by a download hashed locally, 2026-11-19. The bytes were
+          // fetched from the vendor's repo-fastly mirror because repo-default
+          // did not answer from the build machine; same file name.
+          "https://repo-default.voidlinux.org/live/current/void-aarch64-ROOTFS-20250202.tar.xz":
+              "01a30f17ae06d4d5b322cd579ca971bc479e02cc284ec1e5a4255bea6bac3ce6",
+        },
         verified: true,
         notes: "Verified Void Linux aarch64 proot rootfs.",
       ),

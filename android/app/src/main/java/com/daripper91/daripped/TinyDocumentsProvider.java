@@ -92,7 +92,9 @@ public class TinyDocumentsProvider extends DocumentsProvider {
     public Cursor queryChildDocuments(String parentDocumentId, String[] projection, String sortOrder) throws FileNotFoundException {
         final MatrixCursor result = new MatrixCursor(projection != null ? projection : DEFAULT_DOCUMENT_PROJECTION);
         final File parent = getFileForDocId(parentDocumentId);
-        for (File file : parent.listFiles()) {
+        final File[] children = parent.listFiles();
+        if (children == null) return result;
+        for (File file : children) {
             includeFile(result, null, file);
         }
         return result;
@@ -119,10 +121,15 @@ public class TinyDocumentsProvider extends DocumentsProvider {
 
     @Override
     public String createDocument(String parentDocumentId, String mimeType, String displayName) throws FileNotFoundException {
-        File newFile = new File(parentDocumentId, displayName);
+        final File parent = getFileForDocId(parentDocumentId);
+        if (!parent.isDirectory()) {
+            throw new FileNotFoundException("Parent is not a directory: " + parentDocumentId);
+        }
+        final String name = DocumentPathGuard.sanitizeDisplayName(displayName);
+        File newFile = new File(parent, name);
         int noConflictId = 2;
         while (newFile.exists()) {
-            newFile = new File(parentDocumentId, displayName + " (" + noConflictId++ + ")");
+            newFile = new File(parent, name + " (" + noConflictId++ + ")");
         }
         try {
             boolean succeeded;
@@ -137,12 +144,16 @@ public class TinyDocumentsProvider extends DocumentsProvider {
         } catch (IOException e) {
             throw new FileNotFoundException("Failed to create document with id " + newFile.getPath());
         }
-        return newFile.getPath();
+        getFileForDocId(newFile.getAbsolutePath()); // re-check containment after creation
+        return getDocIdForFile(newFile);
     }
 
     @Override
     public void deleteDocument(String documentId) throws FileNotFoundException {
         File file = getFileForDocId(documentId);
+        if (file.equals(baseDir())) {
+            throw new FileNotFoundException("Refusing to delete the containers root");
+        }
         if (!file.delete()) {
             throw new FileNotFoundException("Failed to delete document with id " + documentId);
         }
@@ -173,13 +184,14 @@ public class TinyDocumentsProvider extends DocumentsProvider {
             // through the whole SD card).
             boolean isInsideHome;
             try {
-                isInsideHome = file.getCanonicalPath().startsWith(new File(getContext().getFilesDir(), "containers").getAbsolutePath());
+                isInsideHome = DocumentPathGuard.isInside(baseDir(), file.getCanonicalFile());
             } catch (IOException e) {
-                isInsideHome = true;
+                isInsideHome = false;
             }
             if (isInsideHome) {
                 if (file.isDirectory()) {
-                    Collections.addAll(pending, file.listFiles());
+                    final File[] children = file.listFiles();
+                    if (children != null) Collections.addAll(pending, children);
                 } else {
                     if (file.getName().toLowerCase().contains(query)) {
                         includeFile(result, null, file);
@@ -193,7 +205,11 @@ public class TinyDocumentsProvider extends DocumentsProvider {
 
     @Override
     public boolean isChildDocument(String parentDocumentId, String documentId) {
-        return documentId.startsWith(parentDocumentId);
+        try {
+            return DocumentPathGuard.isChild(baseDir(), parentDocumentId, documentId);
+        } catch (FileNotFoundException e) {
+            return false;
+        }
     }
 
     /**
@@ -209,10 +225,17 @@ public class TinyDocumentsProvider extends DocumentsProvider {
     /**
      * Get the file given a document id (the reverse of {@link #getDocIdForFile(File)}).
      */
-    private static File getFileForDocId(String docId) throws FileNotFoundException {
-        final File f = new File(docId);
-        if (!f.exists()) throw new FileNotFoundException(f.getAbsolutePath() + " not found");
-        return f;
+    private File getFileForDocId(String docId) throws FileNotFoundException {
+        return DocumentPathGuard.resolve(baseDir(), docId);
+    }
+
+    /** Canonical containers/ root; doc ids are compared against this, never against raw strings. */
+    private File baseDir() throws FileNotFoundException {
+        try {
+            return new File(getContext().getFilesDir(), "containers").getCanonicalFile();
+        } catch (IOException e) {
+            throw new FileNotFoundException("containers root unavailable");
+        }
     }
 
     private static String getMimeType(File file) {
@@ -251,7 +274,8 @@ public class TinyDocumentsProvider extends DocumentsProvider {
         } else if (file.canWrite()) {
             flags |= Document.FLAG_SUPPORTS_WRITE;
         }
-        if (file.getParentFile().canWrite()) flags |= Document.FLAG_SUPPORTS_DELETE;
+        final File parentFile = file.getParentFile();
+        if (parentFile != null && parentFile.canWrite()) flags |= Document.FLAG_SUPPORTS_DELETE;
 
         final String displayName = file.getName();
         final String mimeType = getMimeType(file);

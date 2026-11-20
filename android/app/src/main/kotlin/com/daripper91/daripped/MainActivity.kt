@@ -50,7 +50,9 @@ class MainActivity: FlutterActivity() {
                         try {
                             setenv("TMPDIR", tmpdir, true)
                             setenv("XKB_CONFIG_ROOT", xkb, true)
-                            setenv("TERMUX_X11_DEBUG", "1", true)
+                            if (BuildConfig.DEBUG) {
+                                setenv("TERMUX_X11_DEBUG", "1", true)
+                            }
                             setenv("TERMUX_X11_OVERRIDE_PACKAGE", packageName, true)
                             // CmdEntryPoint.main() posts the server start to a Handler bound to the
                             // calling thread's looper and then runs Looper.loop(). x11_flutter calls it
@@ -78,10 +80,18 @@ class MainActivity: FlutterActivity() {
                     }
                 }
                 "startStreaming" -> {
-                    AudioStream.startStreaming(call.argument("path")!!)
+                    val path = call.argument<String>("path")
+                    if (path == null) {
+                        result.error("INVALID_ARGUMENTS", "path is required", null)
+                    } else if (AudioStream.startStreaming(path)) {
+                        result.success(null)
+                    } else {
+                        result.error("STREAMING_UNAVAILABLE", "Microphone streaming could not be started", null)
+                    }
                 }
                 "stopStreaming" -> {
                     AudioStream.stopStreaming()
+                    result.success(null)
                 }
                 else -> {
                     // 不支持的方法名
