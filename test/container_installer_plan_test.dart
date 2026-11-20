@@ -111,6 +111,22 @@ void main() {
     });
   });
 
+  group('ContainerInstaller xbps desktop install', () {
+    final s = ContainerInstaller.xbpsDesktopInstallScript(['xfce4', 'dbus-x11']);
+
+    test('syncs the index and updates xbps before installing', () {
+      expect(s.indexOf('xbps-install -S'), lessThan(s.indexOf('xbps-install -uy xbps')));
+      expect(s.indexOf('xbps-install -uy xbps'), lessThan(s.indexOf('xbps-install -y xfce4')));
+      expect(s, contains('xbps-install -y xfce4 dbus-x11'));
+    });
+
+    test('is chained so the first failing step decides the exit code', () {
+      expect(s.split('&&').length, 3);
+      expect(s, isNot(contains('||')));
+      expect(s, isNot(contains(';')));
+    });
+  });
+
   group('ContainerInstaller zypper desktop install', () {
     test('treats zypper exit 106 (repos skipped) as installed, but no other family', () {
       expect(ContainerInstaller.acceptedInstallExitCodes(PackageManagerFamily.zypper), containsAll([0, 106]));

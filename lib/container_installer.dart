@@ -445,6 +445,7 @@ echo "checksum ok: \$calc"
     final installScript = switch (distro.packageManager) {
       PackageManagerFamily.apt => aptDesktopInstallScript(packages),
       PackageManagerFamily.zypper => zypperDesktopInstallScript(packages),
+      PackageManagerFamily.xbps => xbpsDesktopInstallScript(packages),
       _ => distro.installCommand(packages),
     };
     var code = await run(
@@ -462,7 +463,8 @@ echo "checksum ok: \$calc"
     // the session command exists instead of trusting the exit code alone.
     if (distro.packageManager == PackageManagerFamily.dnf ||
         distro.packageManager == PackageManagerFamily.apt ||
-        distro.packageManager == PackageManagerFamily.zypper) {
+        distro.packageManager == PackageManagerFamily.zypper ||
+        distro.packageManager == PackageManagerFamily.xbps) {
       log("\r\n== Checking the ${desktop.displayName} session");
       code = await run(
         prootRun(
@@ -502,6 +504,18 @@ echo "checksum ok: \$calc"
   @visibleForTesting
   static Set<int> acceptedInstallExitCodes(PackageManagerFamily family) =>
       family == PackageManagerFamily.zypper ? {0, 106} : {0};
+
+  /// Void: xbps keeps one package index per repository URL, and the rootfs only
+  /// ships one for repo-default, so after the first-boot switch to the Fastly
+  /// repo the pool is empty ("Package 'xfce4' not found in repository pool").
+  /// Sync first. A synced index then makes xbps refuse everything else until
+  /// xbps itself is updated ("The 'xbps' package must be updated", exit 16), so
+  /// update it before installing. Verified on a Nothing Phone 2a (xbps 0.60.7,
+  /// libxbps.so.6 intact afterwards); not yet verified on a Pixel 10 Pro.
+  /// Chained with && so the first failing step decides the exit code.
+  @visibleForTesting
+  static String xbpsDesktopInstallScript(List<String> packages) =>
+      "xbps-install -S && xbps-install -uy xbps && xbps-install -y ${packages.join(' ')}";
 
   @visibleForTesting
   static const String dbusDaemonCheckScript = "command -v dbus-daemon >/dev/null 2>&1";

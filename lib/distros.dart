@@ -345,11 +345,13 @@ String _voidFirstBoot(String username) =>
 set -e
 rm -f /etc/resolv.conf
 printf 'nameserver 1.1.1.1\\nnameserver 8.8.8.8\\n' > /etc/resolv.conf
-# xbps-install -S triggers "The 'xbps' package must be updated" because the
-# v4.29.0 rootfs ships xbps 0.60.5_1 while the repo has 0.60.7_1. Updating
-# xbps under proot corrupts libxbps.so.6 (exit 16). The Void base rootfs is
-# already extracted and functional; user setup edits /etc files directly, so no
-# packages are needed. Skip xbps to avoid the proot corruption.
+# xbps-install after a sync refuses with "The 'xbps' package must be updated"
+# (exit 16) because the v4.29.0 rootfs ships xbps 0.60.5_1 while the repo has
+# 0.60.7_1. An earlier note blamed this on proot corrupting libxbps.so.6; on a
+# Nothing Phone 2a the update works and libxbps stays intact (the desktop
+# install now does it, see ContainerInstaller.xbpsDesktopInstallScript). The Void
+# base rootfs is already extracted and functional and user setup edits /etc
+# files directly, so first boot needs no packages and does not run xbps.
 mkdir -p /data/data/com.daripper91.daripped/files
 # The shipped config points at repo-default (a Helsinki mirror that times out on
 # some networks, seen on a Nothing Phone 2a: "failed to download libffi-3.3_2
