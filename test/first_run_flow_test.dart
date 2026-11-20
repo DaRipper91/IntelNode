@@ -406,7 +406,12 @@ void prootRunTests() {
     final script = Distros.byId('void').firstBootScript('tiny');
     expect(script, contains('repo-fastly.voidlinux.org'));
     expect(script, contains('/etc/xbps.d'));
-    expect(script, contains('xbps-install -uy xbps'));
+    // The fallback repository must be the aarch64 index; "/current" alone is x86_64.
+    expect(script, contains('repo-fastly.voidlinux.org/current/aarch64'));
+    // Updating xbps under proot corrupts libxbps.so.6 (exit 16), so first boot
+    // only edits config files and never runs xbps. The desktop install does.
+    final runsXbps = RegExp(r'^\s*xbps-install', multiLine: true).hasMatch(script);
+    expect(runsXbps, isFalse);
   });
 }
 
