@@ -47,7 +47,7 @@ Two stages, both run in an interactive terminal on the loading screen (Copy sele
 
 1. A picker lists the eight distributions, Arch Linux ARM first.
 2. Download the rootfs over HTTPS: Arch from an ArchLinuxARM mirror, Ubuntu from Canonical's cloud images, Debian, Fedora, openSUSE, Alpine and Void from [termux/proot-distro](https://github.com/termux/proot-distro) release tarballs, Kali through the linuxcontainers.org image server.
-3. Verify the checksum where the source publishes one: Arch's `.md5` and Ubuntu's `SHA256SUMS`. The proot-distro tarballs had no published checksum on the builds tested (see [Known issues](#status)).
+3. Verify the download: Arch's `.md5`, Ubuntu's `SHA256SUMS`, and a pinned SHA-256 per tarball URL for the proot-distro images. A source with neither a pin nor a checksum scheme is refused, not installed unverified (see [Known issues](#status)).
 4. Extract with proot + busybox/tar.
 5. Provision: user `tiny` (uid 1000, passwordless sudo), locale, and per-distro tweaks for proot (Arch also gets the `pacman-key` archlinuxarm keyring and `wheel`).
 6. Verify the container boots.
@@ -152,7 +152,7 @@ On first run the app asks which distribution to install. Settings -> New Contain
 | openSUSE Leap 16 | about 4 min | Boots, but the panel died once about 11 minutes in; after a full app restart it came back, and longer-term stability is unconfirmed. |
 | Alpine 3.22 | about 1.5 min | Boots; the dock launchers all show a generic gear icon (no icon theme in the package list). |
 | Void | about 4 min | Boots with panel, dock and icons; watched for about a minute. |
-| Kali | not run | Its image server (`images.linuxcontainers.org`) failed with "Network is unreachable" from the test network. |
+| Kali | not run | Its image server (`images.linuxcontainers.org`) failed with "Network is unreachable" from the test network, and the installer now refuses it (no pin). |
 
 Findings from this round (each reproduced on the phone, fixed, and re-run there): the Arch download could never succeed because its mirror URLs had mismatched TLS certificates or no DNS record; Debian's apt unpack replaced the `/lib -> usr/lib` symlink and later lost its icon caches; openSUSE needed a corrected zypper command, tolerance for a skipped repository (exit 106), and a `dbus-daemon` because Leap 16 ships `dbus-broker`; Void's default mirror timed out and its package index had to be synced and `xbps` updated first.
 
@@ -160,7 +160,9 @@ Findings from this round (each reproduced on the phone, fixed, and re-run there)
 
 - openSUSE: the XFCE panel and its plugin host died together about 11 minutes into a session, and the session D-Bus stopped answering new clients afterwards. The cause is not known; the container writes no `~/.xsession-errors`.
 - Pixel 10 Pro: after backing out of the X11 screen into the app, the play button reopens X11, which reports that nothing is connected. A log captured on the phone shows Android freezing the separate `:x11` process while it is in the background; the cause is not confirmed.
-- The proot-distro tarballs (Debian, Fedora, openSUSE, Alpine, Void) were installed without checksum verification on the builds tested. PR #36 adds pinned SHA-256 values for them; those have not been run on a device yet.
+- Checksums are now fail-closed (the security audit, PR #36). The pinned SHA-256 values for the Debian, Fedora, openSUSE, Alpine and Void tarballs were computed once and have not been checked against real downloads on a device. Several are trust-on-first-use. A wrong pin shows up as a hard install failure.
+- Kali has no pin and no checksum scheme, so the installer now refuses it. It also could not be reached on the test network (see the table above).
+- openSUSE's signing key is imported from the rootfs (`/usr/lib/rpm/gnupg/keys`) with a fingerprint check instead of a zypper flag. That location and the key's expiry have not been confirmed on a device.
 - Only XFCE4 has been tested. The Pixel 10 Pro has not been re-tested with the fixes above.
 
 Earlier result on a Pixel 10 Pro, kept for history:
