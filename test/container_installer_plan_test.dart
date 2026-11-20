@@ -128,5 +128,20 @@ void main() {
       expect(script, contains('--download-only --no-install-recommends xfce4 dbus-x11'));
       expect(script, isNot(contains('dpkg -i')));
     });
+
+    test('fetches the SVG loader and glib tools that Recommends would have pulled in', () {
+      for (final p in ContainerInstaller.aptDesktopSupportPackages) {
+        expect(script, contains(p));
+      }
+      expect(ContainerInstaller.aptDesktopSupportPackages, contains('librsvg2-common'));
+    });
+
+    test('replays the pixbuf loader cache and icon cache triggers after unpacking', () {
+      expect(script, contains('gdk-pixbuf-query-loaders'));
+      expect(script, contains('--update-cache'));
+      expect(script, contains('gtk-update-icon-cache'));
+      expect(script.indexOf('gdk-pixbuf-query-loaders'),
+          greaterThan(script.indexOf('--keep-directory-symlink')));
+    });
   });
 }

@@ -489,17 +489,38 @@ echo "checksum ok: \$calc"
   ///   (seen on a Nothing Phone 2a: "tar: not found", "execve: Function not
   ///   implemented"). --keep-directory-symlink keeps the symlink.
   /// - A failed unpack must fail the install instead of being swallowed.
+  ///
+  /// Unpacking by hand also skips the maintainer scripts and dpkg triggers. GTK
+  /// then has no GdkPixbuf loader cache and no SVG loader (librsvg2-common is only
+  /// a Recommends, dropped by --no-install-recommends), so xfdesktop cannot load a
+  /// single icon and xfce4-panel dies (seen on Debian 12, Nothing Phone 2a). The
+  /// support packages are fetched explicitly and the trigger work is replayed.
+  @visibleForTesting
+  static const List<String> aptDesktopSupportPackages = [
+    "librsvg2-common",
+    "libglib2.0-bin",
+  ];
+
   @visibleForTesting
   static String aptDesktopInstallScript(List<String> packages) => """
 set -e
 apt-get update
-apt-get install -y --download-only --no-install-recommends ${packages.join(' ')}
+apt-get install -y --download-only --no-install-recommends ${[...packages, ...aptDesktopSupportPackages].join(' ')}
 failed=0
 for deb in /var/cache/apt/archives/*.deb; do
   [ -f "\$deb" ] || continue
   dpkg-deb --fsys-tarfile "\$deb" | tar --keep-directory-symlink --no-same-permissions --no-same-owner -x -C / || { echo "unpack failed: \$deb" >&2; failed=1; }
 done
 ldconfig 2>/dev/null || true
+for q in /usr/lib/*/gdk-pixbuf-2.0/gdk-pixbuf-query-loaders; do
+  if [ -x "\$q" ]; then "\$q" --update-cache || echo "pixbuf loader cache failed" >&2; fi
+done
+if [ -x /usr/bin/glib-compile-schemas ]; then glib-compile-schemas /usr/share/glib-2.0/schemas || true; fi
+for d in /usr/share/icons/*/; do
+  if [ -f "\${d}index.theme" ] && [ -x /usr/bin/gtk-update-icon-cache ]; then gtk-update-icon-cache -q -f -t "\$d" || true; fi
+done
+if [ -x /usr/bin/update-mime-database ]; then update-mime-database /usr/share/mime || true; fi
+if [ -x /usr/bin/fc-cache ]; then fc-cache -f || true; fi
 [ "\$failed" = 0 ]
 """;
 
