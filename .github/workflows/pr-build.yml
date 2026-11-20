@@ -1,0 +1,63 @@
+name: PR build check
+
+# Compiles the app on every pull request into main. flutter test and flutter
+# analyze never run Gradle, so a Kotlin, Java or C++ syntax error can pass both
+# and still break the build (PR #36 merged an extra closing brace in
+# AudioStream.kt that way, and main stayed red until #37). This job runs the same
+# steps as debug-build.yml plus the Gradle build, without signing secrets and
+# without publishing anything.
+
+on:
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: pr-build-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          # Pinned to the version the app is built against (see debug-build.yml).
+          flutter-version: '3.41.6'
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Accept Android SDK licenses
+        run: |
+          # `yes` exits on SIGPIPE once sdkmanager is done; without this the
+          # pipeline fails under pipefail even on success.
+          set +o pipefail
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null
+
+      # The step that catches Kotlin/Java/C++ compile errors. No signing key is
+      # restored on purpose: PR builds use the throwaway debug key.
+      - name: Build Debug APK
+        run: flutter build apk --debug
