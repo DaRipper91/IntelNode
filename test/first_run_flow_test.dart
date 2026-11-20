@@ -58,19 +58,17 @@ void main() {
       expect(picked?.id, 'xfce4');
     });
 
-    testWidgets('experimental entries are not selectable', (tester) async {
+    testWidgets('lists no Wayland previews, every entry is a selectable X11 session', (tester) async {
       DesktopEnvironmentSpec? picked;
       await tester.pumpWidget(MaterialApp(
         home: Scaffold(
           body: DesktopPickerBody(onSelected: (d) => picked = d),
         ),
       ));
-      await tester.scrollUntilVisible(
-          find.byKey(const ValueKey('desktop-niri')), 200,
-          scrollable: find.byType(Scrollable));
-      await tester.tap(find.byKey(const ValueKey('desktop-niri')),
-          warnIfMissed: false);
-      expect(picked, isNull);
+      expect(find.byKey(const ValueKey('desktop-niri')), findsNothing);
+      expect(find.byKey(const ValueKey('desktop-cosmic')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('desktop-xfce4')));
+      expect(picked?.id, 'xfce4');
     });
 
     testWidgets('formats package manager text dynamically based on distro', (tester) async {

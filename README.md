@@ -65,7 +65,7 @@ A picker with two sections:
 | Desktop Environments | XFCE4, LXQt, MATE, LXDE, Enlightenment, Cinnamon |
 | Window Managers | i3, Openbox, Fluxbox, IceWM, awesome, bspwm |
 
-niri and COSMIC (Wayland) are listed but disabled as previews. The chosen session is written to `~/.intelnode-session`, and `start-desktop` launches it. Only XFCE4 has been tested on every distribution (see [Status](#status)); the other sessions are defined in `lib/desktop_environments.dart` but have not been run on a device.
+The chosen session is written to `~/.intelnode-session`, and `start-desktop` launches it. Only XFCE4 has been tested on every distribution (see [Status](#status)); the other sessions are defined in `lib/desktop_environments.dart` but have not been run on a device.
 
 <div align="center">
 <img src="images/picker-mock.svg" alt="Mock of the stage 2 picker" width="70%">

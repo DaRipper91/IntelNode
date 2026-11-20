@@ -3,6 +3,22 @@ import 'package:da_ripped_tiny_computer/container_installer.dart';
 import 'package:da_ripped_tiny_computer/desktop_environments.dart';
 import 'package:da_ripped_tiny_computer/distros.dart';
 
+// A made-up experimental session. The real Wayland previews (niri, COSMIC) were
+// removed, but blocking of experimental desktops is still exercised with this.
+const _experimental = DesktopEnvironmentSpec(
+  id: 'test-experimental',
+  displayName: 'Test Experimental',
+  description: 'A made-up experimental session for tests.',
+  tier: DesktopTier.experimental,
+  sessionType: SessionType.wayland,
+  packagesByFamily: {
+    PackageManagerFamily.pacman: ['test-session'],
+  },
+  xinitrcExec: 'test-session',
+  xdgDesktopName: 'Test',
+  experimentalCaveat: 'Not proven under this display path.',
+);
+
 void main() {
   group('ContainerInstaller.plan', () {
     test('is not blocked for a verified distro + stable desktop', () {
@@ -19,7 +35,7 @@ void main() {
     test('is blocked for an experimental desktop even on a verified distro', () {
       final plan = ContainerInstaller.plan(
         distro: Distros.byId('archlinux'),
-        desktop: DesktopEnvironments.byId('niri'),
+        desktop: _experimental,
         containerName: 'test',
       );
       expect(plan.blocked, isTrue);
@@ -61,7 +77,7 @@ void main() {
       );
       final plan = ContainerInstaller.plan(
         distro: unverified,
-        desktop: DesktopEnvironments.byId('cosmic'),
+        desktop: _experimental,
         containerName: 'test',
       );
       expect(plan.steps, isNotEmpty);
@@ -91,7 +107,7 @@ void main() {
     test('throws StateError instead of running a blocked plan', () async {
       final plan = ContainerInstaller.plan(
         distro: Distros.byId('archlinux'),
-        desktop: DesktopEnvironments.byId('niri'),
+        desktop: _experimental,
         containerName: 'test',
       );
       final ran = <String>[];
