@@ -119,6 +119,16 @@ void main() {
       }
     });
 
+    test('installs dbus-1-daemon because Leap 16 ships dbus-broker only', () {
+      expect(ContainerInstaller.zypperDesktopSupportPackages, contains('dbus-1-daemon'));
+      final s = ContainerInstaller.zypperDesktopInstallScript(['patterns-xfce-xfce']);
+      expect(s, contains('install patterns-xfce-xfce dbus-1-daemon'));
+    });
+
+    test('post-install check requires a real dbus-daemon', () {
+      expect(ContainerInstaller.dbusDaemonCheckScript, contains('command -v dbus-daemon'));
+    });
+
     test('does not accept zypper failure codes', () {
       final ok = ContainerInstaller.acceptedInstallExitCodes(PackageManagerFamily.zypper);
       for (final bad in [1, 2, 4, 5, 104, 107]) {

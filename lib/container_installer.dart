@@ -476,6 +476,16 @@ echo "checksum ok: \$calc"
           "(${desktop.xinitrcExec.split(' ').first}); some packages were skipped",
         );
       }
+      // start-arch.sh and dbus-launch both need a real dbus-daemon. openSUSE
+      // Leap 16 ships dbus-broker instead, so a desktop can install cleanly and
+      // still never start a session (X11 opens, nothing runs on it).
+      code = await run(prootRun(rootfs: containerDir, script: dbusDaemonCheckScript));
+      if (code != 0) {
+        throw Exception(
+          "${desktop.displayName} installed but the guest has no dbus-daemon, "
+          "so its session cannot start",
+        );
+      }
     }
     log("\r\n== Writing session files");
     code = await run(prootRun(rootfs: containerDir, script: sessionFilesScript(desktop)));
@@ -493,6 +503,16 @@ echo "checksum ok: \$calc"
   static Set<int> acceptedInstallExitCodes(PackageManagerFamily family) =>
       family == PackageManagerFamily.zypper ? {0, 106} : {0};
 
+  @visibleForTesting
+  static const String dbusDaemonCheckScript = "command -v dbus-daemon >/dev/null 2>&1";
+
+  /// Packages the openSUSE desktop needs that the XFCE/LXQt/... patterns do not
+  /// pull in. Leap 16 uses dbus-broker; the session scripts need dbus-daemon.
+  /// A zypper dry run on a Nothing Phone 2a showed dbus-1-daemon installs as one
+  /// new 243 KiB package with no conflict against dbus-broker.
+  @visibleForTesting
+  static const List<String> zypperDesktopSupportPackages = ["dbus-1-daemon"];
+
   /// openSUSE ships six repos, including -debug and -source variants and
   /// openh264 (which failed to refresh on a Nothing Phone 2a and made zypper
   /// exit 106). None are needed for a desktop, and refreshing them downloads
@@ -501,7 +521,7 @@ echo "checksum ok: \$calc"
   static String zypperDesktopInstallScript(List<String> packages) => """
 repos=\$(zypper lr | awk -F'|' '\$2 ~ /debug|source|openh264/ {gsub(/ /,"",\$2); print \$2}')
 if [ -n "\$repos" ]; then zypper --non-interactive modifyrepo --disable \$repos; fi
-zypper --non-interactive --gpg-auto-import-keys install ${packages.join(' ')}
+zypper --non-interactive --gpg-auto-import-keys install ${[...packages, ...zypperDesktopSupportPackages].join(' ')}
 """;
 
   /// apt desktops: download the debs, then unpack them without dpkg (dpkg cannot
