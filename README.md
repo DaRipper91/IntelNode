@@ -121,7 +121,7 @@ Grab a build from [Releases](https://github.com/DaRipper91/IntelNode/releases). 
 
 </details>
 
-Extra containers: Settings -> New Container builds other distro/desktop combinations on the device (experimental).
+Extra containers: Settings -> New Container builds other distro/desktop combinations on the device (experimental). Distros defined in `lib/distros.dart`: Arch Linux ARM, Ubuntu, Debian, Fedora, openSUSE, Alpine, Void and Kali. Installed containers are listed in the Containers tab.
 
 ## Status
 
@@ -131,7 +131,7 @@ Extra containers: Settings -> New Container builds other distro/desktop combinat
 
 - The two-stage flow (download with resume, md5, extract, provision, picker, XFCE4 install, session file) ran end to end on a Pixel 10 Pro, build `6133f9c`, CI run 43879730575.
 - On that build `xfce4-session`, `xfwm4`, `xfce4-panel`, `xfsettingsd`, Thunar and a session dbus were running, with no ANR and no `Function not implemented` errors in `boot.log`. This comes from the on-device debugging session's report; I have not re-checked it on the phone.
-- Not yet seen: a screenshot of the XFCE desktop. Known follow-ups: an icon theme package looks missing, and `am start` on a running app re-runs the workflow and starts the X server twice.
+- A later commit (`172c51d`) records the XFCE desktop as verified on screen on the device; I have not re-checked that on the phone. Known follow-ups: an icon theme package looks missing, and `am start` on a running app re-runs the workflow and starts the X server twice.
 - The browser noVNC / AVNC display path is not wired for the Arch container.
 
 One earlier first run, reconstructed from adb timestamps. The build on the phone then was the old bundled-rootfs flow, not the two-stage one, and the stage names are inferred from timing:
