@@ -111,6 +111,31 @@ void main() {
     });
   });
 
+  group('ContainerInstaller zypper desktop install', () {
+    test('treats zypper exit 106 (repos skipped) as installed, but no other family', () {
+      expect(ContainerInstaller.acceptedInstallExitCodes(PackageManagerFamily.zypper), containsAll([0, 106]));
+      for (final f in PackageManagerFamily.values.where((f) => f != PackageManagerFamily.zypper)) {
+        expect(ContainerInstaller.acceptedInstallExitCodes(f), {0}, reason: '$f must stay strict');
+      }
+    });
+
+    test('does not accept zypper failure codes', () {
+      final ok = ContainerInstaller.acceptedInstallExitCodes(PackageManagerFamily.zypper);
+      for (final bad in [1, 2, 4, 5, 104, 107]) {
+        expect(ok, isNot(contains(bad)));
+      }
+    });
+
+    test('disables debug, source and openh264 repos before installing', () {
+      final s = ContainerInstaller.zypperDesktopInstallScript(['patterns-xfce-xfce', 'dbus-1-x11']);
+      expect(s, contains('debug|source|openh264'));
+      expect(s, contains('modifyrepo --disable'));
+      expect(s.indexOf('modifyrepo'), lessThan(s.indexOf(' install ')));
+      expect(s, contains('install patterns-xfce-xfce dbus-1-x11'));
+      expect(s, isNot(contains('--allow-unsigned-rpm')));
+    });
+  });
+
   group('ContainerInstaller.aptDesktopInstallScript', () {
     final script = ContainerInstaller.aptDesktopInstallScript(['xfce4', 'dbus-x11']);
 

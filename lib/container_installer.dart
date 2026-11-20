@@ -442,23 +442,27 @@ echo "checksum ok: \$calc"
     // distros, download .debs with --download-only (no dpkg involved) then
     // extract them directly with dpkg-deb --extract, bypassing dpkg's backup
     // mechanism entirely. For other distros, use the normal install command.
-    final installScript =
-        distro.packageManager == PackageManagerFamily.apt
-            ? aptDesktopInstallScript(packages)
-            : distro.installCommand(packages);
+    final installScript = switch (distro.packageManager) {
+      PackageManagerFamily.apt => aptDesktopInstallScript(packages),
+      PackageManagerFamily.zypper => zypperDesktopInstallScript(packages),
+      _ => distro.installCommand(packages),
+    };
     var code = await run(
       prootRun(
         rootfs: containerDir,
         script: installScript,
       ),
     );
-    if (code != 0) {
+    if (!acceptedInstallExitCodes(distro.packageManager).contains(code)) {
       throw Exception("${desktop.displayName} install failed (exit code $code)");
     }
-    // dnf installs with --skip-broken and apt extracts debs by hand, the two ways
-    // a desktop can be installed with parts of it silently dropped.
+    // dnf installs with --skip-broken, apt extracts debs by hand, and zypper can
+    // exit 106 with a skipped repo: the ways a desktop can be installed with
+    // parts of it silently dropped, or look failed when it is not. Check that
+    // the session command exists instead of trusting the exit code alone.
     if (distro.packageManager == PackageManagerFamily.dnf ||
-        distro.packageManager == PackageManagerFamily.apt) {
+        distro.packageManager == PackageManagerFamily.apt ||
+        distro.packageManager == PackageManagerFamily.zypper) {
       log("\r\n== Checking the ${desktop.displayName} session");
       code = await run(
         prootRun(
@@ -480,6 +484,25 @@ echo "checksum ok: \$calc"
     }
     log("\r\n== ${desktop.displayName} installed");
   }
+
+  /// Exit codes of the desktop install step that still count as installed.
+  /// zypper returns 106 (ZYPPER_EXIT_INF_REPOS_SKIPPED) when a repo could not be
+  /// refreshed even though the transaction completed; the session check that
+  /// follows is what proves the desktop is really there.
+  @visibleForTesting
+  static Set<int> acceptedInstallExitCodes(PackageManagerFamily family) =>
+      family == PackageManagerFamily.zypper ? {0, 106} : {0};
+
+  /// openSUSE ships six repos, including -debug and -source variants and
+  /// openh264 (which failed to refresh on a Nothing Phone 2a and made zypper
+  /// exit 106). None are needed for a desktop, and refreshing them downloads
+  /// hundreds of MB, so they are disabled before the install.
+  @visibleForTesting
+  static String zypperDesktopInstallScript(List<String> packages) => """
+repos=\$(zypper lr | awk -F'|' '\$2 ~ /debug|source|openh264/ {gsub(/ /,"",\$2); print \$2}')
+if [ -n "\$repos" ]; then zypper --non-interactive modifyrepo --disable \$repos; fi
+zypper --non-interactive --gpg-auto-import-keys install ${packages.join(' ')}
+""";
 
   /// apt desktops: download the debs, then unpack them without dpkg (dpkg cannot
   /// create its backup files under proot). Two hazards this guards against:
