@@ -444,7 +444,7 @@ echo "checksum ok: \$calc"
     // mechanism entirely. For other distros, use the normal install command.
     final installScript =
         distro.packageManager == PackageManagerFamily.apt
-            ? "set -e\napt-get update\napt-get install -y --download-only --no-install-recommends ${packages.join(' ')}\nfor deb in /var/cache/apt/archives/*.deb; do [ -f \"\$deb\" ] && dpkg-deb --fsys-tarfile \"\$deb\" | tar --no-same-permissions --no-same-owner -x -C / || true; done\nldconfig 2>/dev/null || true"
+            ? aptDesktopInstallScript(packages)
             : distro.installCommand(packages);
     var code = await run(
       prootRun(
@@ -455,9 +455,10 @@ echo "checksum ok: \$calc"
     if (code != 0) {
       throw Exception("${desktop.displayName} install failed (exit code $code)");
     }
-    // Only dnf installs with --skip-broken, the one way a desktop can be installed
-    // with parts of it silently dropped.
-    if (distro.packageManager == PackageManagerFamily.dnf) {
+    // dnf installs with --skip-broken and apt extracts debs by hand, the two ways
+    // a desktop can be installed with parts of it silently dropped.
+    if (distro.packageManager == PackageManagerFamily.dnf ||
+        distro.packageManager == PackageManagerFamily.apt) {
       log("\r\n== Checking the ${desktop.displayName} session");
       code = await run(
         prootRun(
@@ -479,6 +480,28 @@ echo "checksum ok: \$calc"
     }
     log("\r\n== ${desktop.displayName} installed");
   }
+
+  /// apt desktops: download the debs, then unpack them without dpkg (dpkg cannot
+  /// create its backup files under proot). Two hazards this guards against:
+  /// - Debian 12 is usr-merged (/lib -> usr/lib). Plain `tar -x -C /` replaces
+  ///   that symlink with a real directory when a deb ships a ./lib/ entry, which
+  ///   removes the ELF loader path and breaks every dynamic binary in the guest
+  ///   (seen on a Nothing Phone 2a: "tar: not found", "execve: Function not
+  ///   implemented"). --keep-directory-symlink keeps the symlink.
+  /// - A failed unpack must fail the install instead of being swallowed.
+  @visibleForTesting
+  static String aptDesktopInstallScript(List<String> packages) => """
+set -e
+apt-get update
+apt-get install -y --download-only --no-install-recommends ${packages.join(' ')}
+failed=0
+for deb in /var/cache/apt/archives/*.deb; do
+  [ -f "\$deb" ] || continue
+  dpkg-deb --fsys-tarfile "\$deb" | tar --keep-directory-symlink --no-same-permissions --no-same-owner -x -C / || { echo "unpack failed: \$deb" >&2; failed=1; }
+done
+ldconfig 2>/dev/null || true
+[ "\$failed" = 0 ]
+""";
 
   /// `.intelnode-session` is what start-desktop launches first; `.xinitrc`
   /// keeps the xinit path working too.

@@ -110,4 +110,23 @@ void main() {
       expect(ran, isEmpty, reason: 'a blocked plan must not touch the device');
     });
   });
+
+  group('ContainerInstaller.aptDesktopInstallScript', () {
+    final script = ContainerInstaller.aptDesktopInstallScript(['xfce4', 'dbus-x11']);
+
+    test('keeps directory symlinks so a usr-merged /lib survives extraction', () {
+      expect(script, contains('tar --keep-directory-symlink'));
+    });
+
+    test('does not swallow a failed unpack', () {
+      expect(script, isNot(contains('|| true; done')));
+      expect(script, contains('failed=1'));
+      expect(script, contains('[ "\$failed" = 0 ]'));
+    });
+
+    test('downloads the requested packages without dpkg installing them', () {
+      expect(script, contains('--download-only --no-install-recommends xfce4 dbus-x11'));
+      expect(script, isNot(contains('dpkg -i')));
+    });
+  });
 }
