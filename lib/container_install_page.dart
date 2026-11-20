@@ -47,6 +47,9 @@ class _ContainerInstallPageState extends State<ContainerInstallPage> {
         onProgress: (m) => session.terminal.write(
           m.startsWith("Connection lost") ? "\r\n$m\r\n" : "\x1b[2K\r$m",
         ),
+        englishCommands:
+            Localizations.localeOf(G.homePageStateContext).languageCode !=
+            'zh',
       );
       session.log("\r\n== ${widget.plan.containerName} is ready");
       _finish(_InstallState.done);

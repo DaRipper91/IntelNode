@@ -70,9 +70,9 @@ void main() {
   group('D.getCommandsForPackageManager', () {
     test('returns the collection for each package manager', () {
       expect(_commandsOf(D.getCommandsForPackageManager('pacman')),
-          contains('pacman -Syu --noconfirm'));
+          contains('sudo pacman -Syu --noconfirm'));
       expect(_commandsOf(D.getCommandsForPackageManager('apt')),
-          contains('apt update -y && apt upgrade -y'));
+          contains('sudo apt update -y && sudo apt upgrade -y'));
       expect(_commandsOf(D.getCommandsForPackageManager('dnf')),
           contains('sudo dnf -y update'));
       expect(_commandsOf(D.getCommandsForPackageManager('zypper')).first,
@@ -115,6 +115,41 @@ void main() {
           expect(cmd.contains('logo_900_2.png'), isFalse, reason: cmd);
         }
       }
+    });
+
+    // F6: boot runs as uid 1000, so anything that changes the system needs sudo,
+    // and a quick command may only call tools some package list installs.
+    test('system-modifying package-manager commands run through sudo', () {
+      final mutating = RegExp(
+        r'^(pacman|apt|apt-get|dnf|zypper|apk|xbps-install|xbps-remove)\b',
+      );
+      for (final list in [
+        D.commands,
+        D.commands4En,
+        for (final pm in ['pacman', 'apt', 'dnf', 'zypper', 'apk', 'xbps'])
+          D.getCommandsForPackageManager(pm),
+      ]) {
+        for (final cmd in _commandsOf(list)) {
+          for (final part in cmd.split('&&')) {
+            expect(mutating.hasMatch(part.trim()), isFalse, reason: cmd);
+          }
+        }
+      }
+    });
+
+    test('neofetch is only invoked where a quick command installs it', () {
+      final lists = {
+        'zh pacman': D.commands,
+        'en pacman': D.commands4En,
+        for (final pm in ['pacman', 'apt', 'dnf', 'zypper', 'apk', 'xbps'])
+          pm: D.getCommandsForPackageManager(pm),
+      };
+      lists.forEach((name, list) {
+        final cmds = _commandsOf(list).toList();
+        final installs = cmds.any((c) => RegExp(r'(add|install)\b.*\bneofetch').hasMatch(c));
+        final runs = cmds.any((c) => c.startsWith('neofetch'));
+        if (runs) expect(installs, isTrue, reason: '$name runs neofetch without installing it');
+      });
     });
 
     test('deb-only apps are extracted with bsdtar rather than installed', () {

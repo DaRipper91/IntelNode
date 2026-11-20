@@ -15,7 +15,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see http://www.gnu.org/licenses/.
 
-// ignore_for_file: use_build_context_synchronously
 import 'dart:io';
 import 'dart:async';
 import 'dart:convert';
@@ -68,10 +67,32 @@ class DownloadHttpException implements Exception {
 }
 
 class Util {
-  static Future<void> copyAsset(String src, String dst) async {
+  static Future<void> copyAsset(
+    String src,
+    String dst, {
+    bool executable = false,
+  }) async {
     await File(
       dst,
     ).writeAsBytes((await rootBundle.load(src)).buffer.asUint8List());
+    if (executable) {
+      await makeExecutable(dst);
+    }
+  }
+
+  /// writeAsBytes creates files 0644, so scripts the guest runs directly
+  /// (e.g. `to_vault` bind-mounted onto PATH) would hit EACCES without this.
+  static Future<void> makeExecutable(String path) async {
+    final String chmod = File('/system/bin/chmod').existsSync()
+        ? '/system/bin/chmod'
+        : 'chmod';
+    final ProcessResult result = await Process.run(chmod, ['755', path]);
+    if (result.exitCode != 0) {
+      throw FileSystemException(
+        'chmod 755 failed (exit ${result.exitCode}): ${result.stderr}',
+        path,
+      );
+    }
   }
 
   // rootBundle.load reads a whole asset into memory. The rootfs ships as ~14 chunks of
@@ -686,8 +707,26 @@ class D {
     },
   ];
 
-  static String _debInstall(String urlExpr, String tmp, {String after = ""}) =>
-      "wget $urlExpr -O /tmp/$tmp.deb && bsdtar -xOf /tmp/$tmp.deb 'data.tar*' | sudo bsdtar -xf - -C /$after; rm /tmp/$tmp.deb";
+  // Third-party .debs are installed as guest root, so each one must match a pinned
+  // SHA-256 before it is unpacked; a mismatch aborts the chain (`&&`) and the
+  // trailing `rm` still cleans up. Only fixed, versioned URLs can be pinned: the
+  // QQ/WeChat/DingTalk/CAJViewer/EdrawMax installs were dropped because they used a
+  // scraped, redirected or unversioned URL (or one whose hash could not be
+  // obtained). Re-add one only together with its own pin.
+  // _wpsDebSha256: sha256 of the third-party-archives release asset below, as
+  // published by GitHub's release-asset digest (2026-11-19).
+  static const String _wpsDebSha256 =
+      "172d8bcf3e3bc756994ae5adf66f63f22691e1ab0d18986c50bb6b6ab7f62948";
+
+  static String _debInstall(
+    String urlExpr,
+    String tmp, {
+    required String sha256,
+    String after = "",
+  }) {
+    assert(RegExp(r'^[0-9a-f]{64}$').hasMatch(sha256), "sha256 must be 64 lowercase hex");
+    return "wget $urlExpr -O /tmp/$tmp.deb && echo '$sha256  /tmp/$tmp.deb' | sha256sum -c - && bsdtar -xOf /tmp/$tmp.deb 'data.tar*' | sudo bsdtar -xf - -C /$after; rm /tmp/$tmp.deb";
+  }
 
   //默认快捷指令
   static final commands = [
@@ -695,7 +734,7 @@ class D {
       "name": "检查更新并升级",
       "command": "sudo pacman -Syu --noconfirm && sudo pacman -Sc --noconfirm",
     },
-    {"name": "查看系统信息", "command": "neofetch -L && neofetch --off"},
+    {"name": "查看系统信息", "command": "uname -a"},
     {"name": "清屏", "command": "clear"},
     {"name": "中断任务", "command": "\x03"},
     {"name": "安装图形处理软件Krita", "command": "sudo pacman -S --noconfirm krita"},
@@ -712,6 +751,7 @@ class D {
       "command": _debInstall(
         "https://github.com/tiny-computer/third-party-archives/releases/download/archives/wps-office_11.1.0.11720_arm64.deb",
         "wps",
+        sha256: _wpsDebSha256,
       ),
     },
     {
@@ -719,23 +759,8 @@ class D {
       "command": "sudo rm -rf /opt/kingsoft/wps-office",
     },
     {
-      "name": "安装CAJViewer",
-      "command": _debInstall(
-        "https://download.cnki.net/cajPackage/tongxinUOS/signed_cajviewer_9.5.0-25268_arm64.deb",
-        "caj",
-      ),
-    },
-    {
       "name": "卸载CAJViewer",
       "command": "sudo rm -rf /opt/apps/cajviewer",
-    },
-    {
-      "name": "安装亿图图示",
-      "command": _debInstall(
-        "https://cc-download.wondershare.cc/business/prd/edrawmax_13.1.0-1_arm64_binner.deb",
-        "edraw",
-        after: """ && bash /home/tiny/.local/share/tiny/edraw/postinst""",
-      ),
     },
     {
       "name": "卸载亿图图示",
@@ -743,41 +768,13 @@ class D {
           "sudo rm -rf /opt/apps/edrawmax /home/tiny/.local/share/tiny/edraw",
     },
     {
-      "name": "安装QQ",
-      "command": _debInstall(
-        """\$(curl -s https://cdn-go.cn/qq-web/im.qq.com_new/latest/rainbow/linuxConfig.js | grep -oP '"armDownloadUrl":{[^}]*"deb":"\\K[^"]+')""",
-        "qq",
-        after:
-            """ && sudo sed -i 's#Exec=/opt/QQ/qq %U#Exec=/opt/QQ/qq --no-sandbox %U#g' /usr/share/applications/qq.desktop""",
-      ),
-    },
-    {
       "name": "卸载QQ",
       "command": "sudo rm -rf /opt/QQ /usr/share/applications/qq.desktop",
-    },
-    {
-      "name": "安装微信",
-      "command": _debInstall(
-        "https://dldir1v6.qq.com/weixin/Universal/Linux/WeChatLinux_arm64.deb",
-        "wechat",
-        after:
-            """ && echo '安装完成。如果你使用微信只是为了传输文件，那么可以考虑使用支持SAF的文件管理器（如：质感文件），直接访问小小电脑所有文件。'""",
-      ),
     },
     {
       "name": "卸载微信",
       "command":
           "sudo rm -rf /opt/wechat /usr/share/applications/wechat.desktop /usr/share/applications/com.tencent.wechatappex.desktop /usr/share/doc/wechat /usr/share/icons/hicolor/*/apps/wechat*.png",
-    },
-    {
-      "name": "安装钉钉",
-      "command": "sudo pacman -S --noconfirm --needed freeglut glu && " +
-          _debInstall(
-            "\$(curl -sw %{redirect_url} https://www.dingtalk.com/win/d/qd=linux_arm64)",
-            "dingtalk",
-            after:
-                """ && sudo sed -i 's#\\./com.alibabainc.dingtalk#\\./com.alibabainc.dingtalk --no-sandbox#g' /opt/apps/com.alibabainc.dingtalk/files/Elevator.sh""",
-          ),
     },
     {
       "name": "卸载钉钉",
@@ -798,7 +795,7 @@ class D {
       "name": "Update Packages",
       "command": "sudo pacman -Syu --noconfirm && sudo pacman -Sc --noconfirm",
     },
-    {"name": "System Info", "command": "neofetch -L && neofetch --off"},
+    {"name": "System Info", "command": "uname -a"},
     {"name": "Clear", "command": "clear"},
     {"name": "Interrupt", "command": "\x03"},
     {
@@ -830,20 +827,12 @@ class D {
       "command": _debInstall(
         "https://github.com/tiny-computer/third-party-archives/releases/download/archives/wps-office_11.1.0.11720_arm64.deb",
         "wps",
+        sha256: _wpsDebSha256,
       ),
     },
     {
       "name": "Uninstall WPS",
       "command": "sudo rm -rf /opt/kingsoft/wps-office",
-    },
-    {
-      "name": "Install EdrawMax",
-      "command": _debInstall(
-        "https://cc-download.wondershare.cc/business/prd/edrawmax_13.1.0-1_arm64_binner.deb",
-        "edraw",
-        after:
-            """ && bash /home/tiny/.local/share/tiny/edraw/postinst && sudo sed -i 's/<Language V="cn"\\/>/<Language V="en"\\/>/g' /opt/apps/edrawmax/config/settings.xml""",
-      ),
     },
     {
       "name": "Uninstall EdrawMax",
@@ -859,6 +848,19 @@ class D {
     {"name": "Power Off", "command": "stopvnc\nexit\nexit"},
     {"name": "???", "command": "timeout 8 cmatrix"},
   ];
+
+  /// What the long-press "reset commands" action restores: the pacman defaults
+  /// keep their original lists, every other package manager gets its own set
+  /// (resetting a Fedora/Debian/... container to pacman commands would break it).
+  static List<Map<String, dynamic>> defaultCommandsFor(
+    String packageManager, {
+    required bool english,
+  }) {
+    if (packageManager.toLowerCase().contains('pacman')) {
+      return List<Map<String, dynamic>>.from(english ? commands4En : commands);
+    }
+    return getCommandsForPackageManager(packageManager, english: english);
+  }
 
   //以下为不同包管理器的快捷指令集合
   /// Get commands appropriate for the given package manager
@@ -895,9 +897,9 @@ class D {
   static final List<Map<String, dynamic>> _commands4Pacman = [
     {
       "name": "更新和升级",
-      "command": "pacman -Syu --noconfirm",
+      "command": "sudo pacman -Syu --noconfirm",
     },
-    {"name": "查看系统信息", "command": "neofetch -L && neofetch --off"},
+    {"name": "查看系统信息", "command": "uname -a"},
     {"name": "清屏", "command": "clear"},
     {"name": "中断任务", "command": "\x03"},
     {"name": "安装图形处理软件Krita", "command": "sudo pacman -S --noconfirm krita"},
@@ -914,6 +916,7 @@ class D {
       "command": _debInstall(
         "https://github.com/tiny-computer/third-party-archives/releases/download/archives/wps-office_11.1.0.11720_arm64.deb",
         "wps",
+        sha256: _wpsDebSha256,
       ),
     },
     {
@@ -921,54 +924,18 @@ class D {
       "command": "sudo rm -rf /opt/kingsoft/wps-office",
     },
     {
-      "name": "安装亿图图示",
-      "command": _debInstall(
-        "https://cc-download.wondershare.cc/business/prd/edrawmax_13.1.0-1_arm64_binner.deb",
-        "edraw",
-        after: """ && bash /home/tiny/.local/share/tiny/edraw/postinst""",
-      ),
-    },
-    {
       "name": "卸载亿图图示",
       "command":
           "sudo rm -rf /opt/apps/edrawmax /home/tiny/.local/share/tiny/edraw",
-    },
-    {
-      "name": "安装QQ",
-      "command": _debInstall(
-        """\$(curl -s https://cdn-go.cn/qq-web/im.qq.com_new/latest/rainbow/linuxConfig.js | grep -oP '"armDownloadUrl":{[^}]*"deb":"\\K[^"]+')""",
-        "qq",
-        after:
-            """ && sudo sed -i 's#Exec=/opt/QQ/qq %U#Exec=/opt/QQ/qq --no-sandbox %U#g' /usr/share/applications/qq.desktop""",
-      ),
     },
     {
       "name": "卸载QQ",
       "command": "sudo rm -rf /opt/QQ /usr/share/applications/qq.desktop",
     },
     {
-      "name": "安装微信",
-      "command": _debInstall(
-        "https://dldir1v6.qq.com/weixin/Universal/Linux/WeChatLinux_arm64.deb",
-        "wechat",
-        after:
-            """ && echo '安装完成。如果你使用微信只是为了传输文件，那么可以考虑使用支持SAF的文件管理器（如：质感文件），直接访问小小电脑所有文件。'""",
-      ),
-    },
-    {
       "name": "卸载微信",
       "command":
           "sudo rm -rf /opt/wechat /usr/share/applications/wechat.desktop /usr/share/applications/com.tencent.wechatappex.desktop /usr/share/doc/wechat /usr/share/icons/hicolor/*/apps/wechat*.png",
-    },
-    {
-      "name": "安装钉钉",
-      "command": "sudo pacman -S --noconfirm --needed freeglut glu && " +
-          _debInstall(
-            "\$(curl -sw %{redirect_url} https://www.dingtalk.com/win/d/qd=linux_arm64)",
-            "dingtalk",
-            after:
-                """ && sudo sed -i 's#\\./com.alibabainc.dingtalk#\\./com.alibabainc.dingtalk --no-sandbox#g' /opt/apps/com.alibabainc.dingtalk/files/Elevator.sh""",
-          ),
     },
     {
       "name": "卸载钉钉",
@@ -982,9 +949,9 @@ class D {
   static final List<Map<String, dynamic>> _commandsForApt = [
     {
       "name": "更新和升级",
-      "command": "apt update -y && apt upgrade -y",
+      "command": "sudo apt update -y && sudo apt upgrade -y",
     },
-    {"name": "查看系统信息", "command": "neofetch -L && neofetch --off"},
+    {"name": "查看系统信息", "command": "uname -a"},
     {"name": "清屏", "command": "clear"},
     {"name": "中断任务", "command": "\x03"},
     {"name": "安装图形处理软件Krita", "command": "sudo apt install -y krita"},
@@ -998,40 +965,18 @@ class D {
     {"name": "卸载Octave", "command": "sudo apt remove -y octave"},
     {
       "name": "安装WPS",
-      "command": r"""cat << 'EOF' | sh && sudo apt-get install -y /tmp/wps.deb
-wget https://github.com/tiny-computer/third-party-archives/releases/download/archives/wps-office_11.1.0.11720_arm64.deb -O /tmp/wps.deb
-EOF
-rm /tmp/wps.deb""",
+      "command":
+          "wget https://github.com/tiny-computer/third-party-archives/releases/download/archives/wps-office_11.1.0.11720_arm64.deb -O /tmp/wps.deb && echo '$_wpsDebSha256  /tmp/wps.deb' | sha256sum -c - && sudo apt-get install -y /tmp/wps.deb; rm /tmp/wps.deb",
     },
     {"name": "卸载WPS", "command": "sudo apt remove -y wps-office"},
-    {
-      "name": "安装亿图图示",
-      "command":
-          "wget https://cc-download.wondershare.cc/business/prd/edrawmax_13.1.0-1_arm64_binner.deb -O /tmp/edraw.deb && sudo apt -y install /tmp/edraw.deb; rm /tmp/edraw.deb",
-    },
     {"name": "卸载亿图图示", "command": "sudo apt -y remove --autoremove edrawmax"},
-    {
-      "name": "安装QQ",
-      "command":
-          """wget \$(curl -s https://cdn-go.cn/qq-web/im.qq.com_new/latest/rainbow/linuxConfig.js | grep -oP '"armDownloadUrl":{[^}]*"deb":"\\K[^"]+') -O /tmp/qq.deb && sudo apt -y install /tmp/qq.deb; rm /tmp/qq.deb""",
-    },
     {
       "name": "卸载QQ",
       "command": "sudo apt -y remove -y linuxqq",
     },
     {
-      "name": "安装微信",
-      "command":
-          """wget \$(curl -s https://cdn-go.cn/weixin.qq.com/wiki/image/zh_cn/logo_900_2.png) -O /tmp/wechat.deb && sudo apt -y install /tmp/wechat.deb; rm /tmp/wechat.deb""",
-    },
-    {
       "name": "卸载微信",
       "command": "sudo apt -y remove -y wechat",
-    },
-    {
-      "name": "安装钉钉",
-      "command":
-          """wget \$(curl -sw %{redirect_url} https://www.dingtalk.com/win/d/qd=linux_arm64) -O /tmp/dingtalk.deb && sudo apt -y install /tmp/dingtalk.deb libglut3.12 libglu1-mesa; rm /tmp/dingtalk.deb""",
     },
     {
       "name": "卸载钉钉",
@@ -1047,7 +992,7 @@ rm /tmp/wps.deb""",
       "name": "更新和升级",
       "command": "sudo dnf -y update",
     },
-    {"name": "查看系统信息", "command": "neofetch -L && neofetch --off"},
+    {"name": "查看系统信息", "command": "uname -a"},
     {"name": "清屏", "command": "clear"},
     {"name": "中断任务", "command": "\x03"},
     {"name": "安装图形处理软件Krita", "command": "sudo dnf -y install krita"},
@@ -1065,6 +1010,7 @@ rm /tmp/wps.deb""",
           _debInstall(
             "https://github.com/tiny-computer/third-party-archives/releases/download/archives/wps-office_11.1.0.11720_arm64.deb",
             "wps",
+            sha256: _wpsDebSha256,
           ),
     },
     {
@@ -1072,51 +1018,18 @@ rm /tmp/wps.deb""",
       "command": "sudo rm -rf /opt/kingsoft/wps-office",
     },
     {
-      "name": "安装亿图图示",
-      "command": "sudo dnf -y install bsdtar && " +
-          _debInstall(
-            "https://cc-download.wondershare.cc/business/prd/edrawmax_13.1.0-1_arm64_binner.deb",
-            "edraw",
-            after: """ && bash /home/tiny/.local/share/tiny/edraw/postinst""",
-          ),
-    },
-    {
       "name": "卸载亿图图示",
       "command":
           "sudo rm -rf /opt/apps/edrawmax /home/tiny/.local/share/tiny/edraw",
-    },
-    {
-      "name": "安装QQ",
-      "command":
-          """wget \$(curl -s https://cdn-go.cn/qq-web/im.qq.com_new/latest/rainbow/linuxConfig.js | grep -oP '"armDownloadUrl":{[^}]*"rpm":"\\K[^"]+') -O /tmp/qq.rpm && sudo dnf -y --nogpgcheck install /tmp/qq.rpm && sudo sed -i 's#Exec=/opt/QQ/qq %U#Exec=/opt/QQ/qq --no-sandbox %U#g' /usr/share/applications/qq.desktop; rm /tmp/qq.rpm""",
     },
     {
       "name": "卸载QQ",
       "command": "sudo dnf -y remove linuxqq",
     },
     {
-      "name": "安装微信",
-      "command": "sudo dnf -y install bsdtar && " +
-          _debInstall(
-            "https://dldir1v6.qq.com/weixin/Universal/Linux/WeChatLinux_arm64.deb",
-            "wechat",
-          ),
-    },
-    {
       "name": "卸载微信",
       "command":
           "sudo rm -rf /opt/wechat /usr/share/applications/wechat.desktop /usr/share/applications/com.tencent.wechatappex.desktop /usr/share/doc/wechat /usr/share/icons/hicolor/*/apps/wechat*.png",
-    },
-    {
-      "name": "安装钉钉",
-      "command":
-          "sudo dnf -y install bsdtar && sudo dnf -y install freeglut mesa-libGLU && " +
-              _debInstall(
-                "\$(curl -sw %{redirect_url} https://www.dingtalk.com/win/d/qd=linux_arm64)",
-                "dingtalk",
-                after:
-                    """ && sudo sed -i 's#\\./com.alibabainc.dingtalk#\\./com.alibabainc.dingtalk --no-sandbox#g' /opt/apps/com.alibabainc.dingtalk/files/Elevator.sh""",
-              ),
     },
     {
       "name": "卸载钉钉",
@@ -1133,7 +1046,7 @@ rm /tmp/wps.deb""",
       "command":
           "sudo zypper --non-interactive refresh && sudo zypper --non-interactive update",
     },
-    {"name": "查看系统信息", "command": "neofetch -L && neofetch --off"},
+    {"name": "查看系统信息", "command": "uname -a"},
     {"name": "清屏", "command": "clear"},
     {"name": "中断任务", "command": "\x03"},
     {
@@ -1166,6 +1079,7 @@ rm /tmp/wps.deb""",
           _debInstall(
             "https://github.com/tiny-computer/third-party-archives/releases/download/archives/wps-office_11.1.0.11720_arm64.deb",
             "wps",
+            sha256: _wpsDebSha256,
           ),
     },
     {
@@ -1173,51 +1087,18 @@ rm /tmp/wps.deb""",
       "command": "sudo rm -rf /opt/kingsoft/wps-office",
     },
     {
-      "name": "安装亿图图示",
-      "command": "sudo zypper --non-interactive install bsdtar && " +
-          _debInstall(
-            "https://cc-download.wondershare.cc/business/prd/edrawmax_13.1.0-1_arm64_binner.deb",
-            "edraw",
-            after: """ && bash /home/tiny/.local/share/tiny/edraw/postinst""",
-          ),
-    },
-    {
       "name": "卸载亿图图示",
       "command":
           "sudo rm -rf /opt/apps/edrawmax /home/tiny/.local/share/tiny/edraw",
-    },
-    {
-      "name": "安装QQ",
-      "command":
-          """wget \$(curl -s https://cdn-go.cn/qq-web/im.qq.com_new/latest/rainbow/linuxConfig.js | grep -oP '"armDownloadUrl":{[^}]*"rpm":"\\K[^"]+') -O /tmp/qq.rpm && sudo zypper --non-interactive --no-gpg-checks install /tmp/qq.rpm && sudo sed -i 's#Exec=/opt/QQ/qq %U#Exec=/opt/QQ/qq --no-sandbox %U#g' /usr/share/applications/qq.desktop; rm /tmp/qq.rpm""",
     },
     {
       "name": "卸载QQ",
       "command": "sudo zypper --non-interactive remove linuxqq",
     },
     {
-      "name": "安装微信",
-      "command": "sudo zypper --non-interactive install bsdtar && " +
-          _debInstall(
-            "https://dldir1v6.qq.com/weixin/Universal/Linux/WeChatLinux_arm64.deb",
-            "wechat",
-          ),
-    },
-    {
       "name": "卸载微信",
       "command":
           "sudo rm -rf /opt/wechat /usr/share/applications/wechat.desktop /usr/share/applications/com.tencent.wechatappex.desktop /usr/share/doc/wechat /usr/share/icons/hicolor/*/apps/wechat*.png",
-    },
-    {
-      "name": "安装钉钉",
-      "command":
-          "sudo zypper --non-interactive install bsdtar && sudo zypper --non-interactive install freeglut libGLU1 && " +
-              _debInstall(
-                "\$(curl -sw %{redirect_url} https://www.dingtalk.com/win/d/qd=linux_arm64)",
-                "dingtalk",
-                after:
-                    """ && sudo sed -i 's#\\./com.alibabainc.dingtalk#\\./com.alibabainc.dingtalk --no-sandbox#g' /opt/apps/com.alibabainc.dingtalk/files/Elevator.sh""",
-              ),
     },
     {
       "name": "卸载钉钉",
@@ -1540,14 +1421,17 @@ class Workflow {
     await Util.copyAsset(
       "assets/scripts/start-arch.sh",
       "${G.dataPath}/tiny/extra/start-arch.sh",
+      executable: true,
     );
     await Util.copyAsset(
       "assets/scripts/start-desktop",
       "${G.dataPath}/tiny/extra/start-desktop",
+      executable: true,
     );
     await Util.copyAsset(
       "assets/scripts/to_vault",
       "${G.dataPath}/tiny/extra/to_vault",
+      executable: true,
     );
 
     final List<String> binSymlinks = [
@@ -1645,6 +1529,7 @@ fi
 
 /system/bin/chmod -R +x bin/* || true
 /system/bin/chmod -R +x libexec/proot/* 2>/dev/null || true
+/system/bin/chmod -R +x tiny/extra/* 2>/dev/null || true
 /system/bin/chmod 1777 tmp
 
 \$DATA_DIR/bin/busybox rm -rf assets.zip patch.tar.gz
@@ -1677,6 +1562,7 @@ fi
     await setupBootstrap();
 
     final distro =
+    // ignore: use_build_context_synchronously (G.homePageStateContext is the long-lived home page context, not a widget-local one)
         selectedDistro ?? await showDistroPicker(G.homePageStateContext);
 
     // Stage 1: bare base system, downloaded and verified. Stage 2 (the desktop) is
@@ -1699,6 +1585,7 @@ fi
 
     G.updateText.value = "Base system ready";
     final desktop = selectedDesktop ??
+    // ignore: use_build_context_synchronously (G.homePageStateContext is the long-lived home page context, not a widget-local one)
         await showDesktopPicker(G.homePageStateContext, distro: distro);
     if (desktop == null) {
       G.updateText.value = "Desktop selection cancelled";
@@ -1722,6 +1609,7 @@ fi
         D.getCommandsForPackageManager(
       packageManager,
       english:
+    // ignore: use_build_context_synchronously (G.homePageStateContext is the long-lived home page context, not a widget-local one)
           Localizations.localeOf(G.homePageStateContext).languageCode != 'zh',
     );
     await G.prefs.setStringList("containersInfo", [
@@ -1738,6 +1626,7 @@ fi
     ]);
 
     G.updateText.value = AppLocalizations.of(
+    // ignore: use_build_context_synchronously (G.homePageStateContext is the long-lived home page context, not a widget-local one)
       G.homePageStateContext,
     )!
         .installationComplete;
@@ -1794,6 +1683,7 @@ fi
     // Check if bootstrap needs re-installation
     if (Util.getGlobal("reinstallBootstrap")) {
       G.updateText.value = AppLocalizations.of(
+    // ignore: use_build_context_synchronously (G.homePageStateContext is the long-lived home page context, not a widget-local one)
         G.homePageStateContext,
       )!
           .reinstallingBootPackage;
@@ -1824,6 +1714,7 @@ fi
   static Future<void> _runFirstTimeSetup() async {
     await initForFirstTime();
 
+    // ignore: use_build_context_synchronously (G.homePageStateContext is the long-lived home page context, not a widget-local one)
     if (Localizations.localeOf(G.homePageStateContext).languageCode != 'zh') {
       G.settings.isTerminalWriteEnabled = true;
       G.settings.isTerminalCommandsEnabled = true;
@@ -1872,12 +1763,27 @@ exit
         .join(' ');
   }
 
+  /// Turns a user-edited option string such as "GDK_SCALE=2 QT_FONT_DPI=192" into
+  /// shell-safe `env` arguments for the boot line. Like [virglServerArguments] it
+  /// tokenizes first and quotes each token, so quotes, `;`, `$(...)` and backticks
+  /// stay literal text. Only NAME=value tokens are kept: a bare word would
+  /// otherwise become the command `env` runs instead of start-arch.sh.
+  static String envAssignmentArguments(String options) {
+    final assignment = RegExp(r'^[A-Za-z_][A-Za-z0-9_]*=');
+    return options
+        .split(RegExp(r'\s+'))
+        .where(assignment.hasMatch)
+        .map(Util.escapeShellArgument)
+        .join(' ');
+  }
+
   static Future<void> refreshDesktopStartupScript(String dataPath) async {
     final extra = Directory("$dataPath/tiny/extra");
     await extra.create(recursive: true);
     await Util.copyAsset(
       "assets/scripts/start-desktop",
       "${extra.path}/start-desktop",
+      executable: true,
     );
   }
 
@@ -1902,7 +1808,7 @@ exit
 
     // Configure Display Scaling
     if (Util.getGlobal("isHidpiEnabled")) {
-      extraOpt += "${Util.getGlobal("defaultHidpiOpt")} ";
+      extraOpt += "${envAssignmentArguments(Util.getGlobal("defaultHidpiOpt").toString())} ";
     }
 
     // Configure Hardware Acceleration (VirGL)
@@ -1919,12 +1825,12 @@ export LD_LIBRARY_PATH=\$DATA_DIR/lib
 export CONTAINER_DIR=\$DATA_DIR/containers/${G.currentContainer}
 \$DATA_DIR/bin/virgl_test_server $arguments""",
       );
-      extraOpt += "${Util.getGlobal("defaultVirglOpt")} ";
+      extraOpt += "${envAssignmentArguments(Util.getGlobal("defaultVirglOpt").toString())} ";
     }
 
     // Configure Adreno Turnip Drivers
     if (Util.getGlobal("turnip")) {
-      extraOpt += "${Util.getGlobal("defaultTurnipOpt")} ";
+      extraOpt += "${envAssignmentArguments(Util.getGlobal("defaultTurnipOpt").toString())} ";
       if (!(Util.getGlobal("dri3"))) {
         extraOpt += "MESA_VK_WSI_DEBUG=sw ";
       }
@@ -2104,15 +2010,30 @@ clear""");
     if (Util.getGlobal("autoLaunchVnc") as bool) {
       if (G.wasX11Enabled) {
         await Util.waitForXServer();
-        launchGUIBackend();
-        launchX11();
+        await launchGUIBackend();
+        // Not awaited: the plugin call can stay pending while the X11 page is open.
+        // Its failure must still be recorded rather than become an unhandled error.
+        unawaited(
+          launchX11().catchError(
+            (Object e, StackTrace st) => _launchFailed('launchX11', e, st),
+          ),
+        );
         return;
       }
-      launchGUIBackend();
-      waitForConnection().then(
-        (value) => G.wasAvncEnabled ? launchAvnc() : launchBrowser(),
+      await launchGUIBackend();
+      unawaited(
+        waitForConnection()
+            .then((value) => G.wasAvncEnabled ? launchAvnc() : launchBrowser())
+            .catchError(
+              (Object e, StackTrace st) => _launchFailed('GUI launch', e, st),
+            ),
       );
     }
+  }
+
+  static void _launchFailed(String what, Object error, StackTrace stack) {
+    BootLog.event('$what failed: $error');
+    debugPrint('$what failed: $error\n$stack');
   }
 }
 

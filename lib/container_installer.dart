@@ -110,6 +110,7 @@ class ContainerInstaller {
     required Future<int> Function(String script) run,
     required void Function(String line) log,
     required void Function(String progress) onProgress,
+    bool englishCommands = true,
   }) async {
     if (installPlan.blocked) {
       throw StateError(
@@ -144,7 +145,7 @@ class ContainerInstaller {
       await run(rmrf("${G.dataPath}/containers/$containerIndex"));
       rethrow;
     }
-    await _registerContainer(installPlan, existing);
+    await _registerContainer(installPlan, existing, englishCommands);
   }
 
   /// Fails unless the desktop's session command is in the rootfs. dnf runs with
@@ -230,31 +231,116 @@ mv ${Util.escapeShellArgument(stagingDir)} ${Util.escapeShellArgument(containerD
 rm -f ${Util.escapeShellArgument(tarballPath)}
 """;
 
-  /// Checks [tarballPath] against the checksum the distro publishes next to
-  /// [url] (md5 for Arch Linux ARM, SHA256SUMS for Ubuntu cloud images).
-  /// Returns null for sources that publish none.
-  static Future<String?> _checksumScript(String url, String tarballPath) async {
-    final String? sumsUrl;
-    final String tool;
-    if (url.contains("archlinuxarm.org")) {
-      sumsUrl = "$url.md5";
-      tool = "md5sum";
-    } else if (url.contains("cloud-images.ubuntu.com")) {
-      sumsUrl = "${url.substring(0, url.lastIndexOf('/'))}/SHA256SUMS";
-      tool = "sha256sum";
-    } else {
-      return null;
+  /// Where the expected hash for [url] comes from. A pin in
+  /// [RootfsSource.sha256] wins; otherwise [RootfsSource.checksumKind] names a
+  /// sidecar file. Throws [StateError] when neither exists: an unverifiable
+  /// download is refused, never silently accepted. Pure (no I/O) so it can be
+  /// tested; the scheme comes from the manifest, never from substrings of [url].
+  @visibleForTesting
+  static ({String? pinnedSha256, String? sumsUrl, String? tool}) checksumSource(
+    RootfsSource rootfs,
+    String url,
+  ) {
+    final pinned = rootfs.sha256[url];
+    if (pinned != null) return (pinnedSha256: pinned, sumsUrl: null, tool: "sha256sum");
+    final uri = Uri.parse(url);
+    switch (rootfs.checksumKind) {
+      case ChecksumKind.md5Sidecar:
+        // Mirrors share a file name: fetch the sum from the first listed
+        // origin so one rogue fallback mirror cannot vouch for its own file.
+        var origin = uri;
+        final first = rootfs.directUrl;
+        if (first != null) {
+          final firstUri = Uri.parse(first);
+          if (firstUri.pathSegments.isNotEmpty &&
+              uri.pathSegments.isNotEmpty &&
+              firstUri.pathSegments.last == uri.pathSegments.last) {
+            origin = firstUri;
+          }
+        }
+        return (
+          pinnedSha256: null,
+          sumsUrl: Uri(
+            scheme: origin.scheme,
+            host: origin.host,
+            port: origin.hasPort ? origin.port : null,
+            path: "${origin.path}.md5",
+          ).toString(),
+          tool: "md5sum",
+        );
+      case ChecksumKind.sha256Sums:
+        return (
+          pinnedSha256: null,
+          sumsUrl: uri.resolve("SHA256SUMS").toString(),
+          tool: "sha256sum",
+        );
+      case ChecksumKind.none:
+        throw StateError(
+          "No pinned SHA-256 or checksum scheme for $url; refusing an unverified download.",
+        );
     }
-    final resp = await http.get(Uri.parse(sumsUrl));
+  }
+
+  /// Builds the busybox verification script for [url]: the pin when there is
+  /// one, otherwise the hash fetched from its sidecar (see [checksumSource]).
+  static Future<String> _checksumScript(
+    RootfsSource rootfs,
+    String url,
+    String tarballPath, {
+    http.Client? client,
+  }) async {
+    final source = checksumSource(rootfs, url);
+    final pinned = source.pinnedSha256;
+    if (pinned != null) return checksumScript(pinned, tarballPath, "sha256sum");
+    final sumsUrl = source.sumsUrl!;
+    final c = client ?? http.Client();
+    final http.Response resp;
+    try {
+      resp = await c.get(Uri.parse(sumsUrl));
+    } finally {
+      if (client == null) c.close();
+    }
     if (resp.statusCode != 200) {
       throw Exception("Could not fetch checksum $sumsUrl (HTTP ${resp.statusCode})");
     }
-    final fileName = url.substring(url.lastIndexOf('/') + 1);
+    final fileName = Uri.parse(url).pathSegments.last;
     final hash = checksumFor(resp.body, fileName);
     if (hash == null) {
       throw Exception("No checksum for $fileName in $sumsUrl");
     }
-    return checksumScript(hash, tarballPath, tool);
+    return checksumScript(hash, tarballPath, source.tool!);
+  }
+
+  /// `tar` flag for the archive at [url], from the extension of its path only
+  /// (a query string or fragment cannot change it). Unknown extensions throw
+  /// instead of silently falling back to gzip.
+  @visibleForTesting
+  static String tarFlagForUrl(String url) {
+    final path = Uri.parse(url).path.toLowerCase();
+    if (path.endsWith(".tar.xz") || path.endsWith(".txz")) return "J";
+    if (path.endsWith(".tar.gz") || path.endsWith(".tgz")) return "z";
+    if (path.endsWith(".tar.bz2") || path.endsWith(".tbz2")) return "j";
+    throw StateError("Unsupported rootfs archive type (expected .tar.xz, .tar.gz or .tar.bz2): $url");
+  }
+
+  /// Partial-download path named after its source so a resume (Range) can only
+  /// continue bytes fetched for the same artifact: the first 16 hex of the pin
+  /// when there is one, otherwise a 64-bit FNV-1a of the URL. Never the
+  /// container index, so Fedora's leftovers cannot be grafted onto Alpine.
+  @visibleForTesting
+  static String tarballPathFor(String dataPath, String url, {String? pinnedSha256}) {
+    final key = pinnedSha256 != null
+        ? pinnedSha256.substring(0, 16)
+        : _fnv1a64Hex(url);
+    return "$dataPath/new_rootfs_$key.tar";
+  }
+
+  static String _fnv1a64Hex(String s) {
+    var h = 0xcbf29ce484222325;
+    for (final b in utf8.encode(s)) {
+      h = (h ^ b) * 0x100000001b3;
+    }
+    return h.toUnsigned(64).toRadixString(16).padLeft(16, "0");
   }
 
   /// Returns the first of [urls] that answers a HEAD request quickly, so a mirror that
@@ -337,10 +423,10 @@ echo "checksum ok: \$calc"
     required Future<int> Function(String script) run,
     required void Function(String line) log,
     required void Function(String progress) onProgress,
+    http.Client? client,
   }) async {
     final containerDir = "${G.dataPath}/containers/$containerIndex";
     final stagingDir = "${containerDir}_staging";
-    final tarballPath = "${G.dataPath}/new_rootfs_$containerIndex.tar";
 
     Future<void> step(String what, String script, {String? failure}) async {
       log("\r\n== $what");
@@ -350,34 +436,44 @@ echo "checksum ok: \$calc"
 
     try {
       log("== Resolving ${distro.displayName} rootfs");
-      final url = await pickReachable(await distro.rootfs.candidates(), log: log);
+      final url = await pickReachable(
+        await distro.rootfs.candidates(),
+        log: log,
+        client: client,
+      );
       log(url);
-      final letter = url.endsWith('.xz') ? 'J' : url.endsWith('.bz2') ? 'j' : 'z';
+      final letter = tarFlagForUrl(url);
+      final pin = checksumSource(distro.rootfs, url).pinnedSha256;
+      // Named by source (pin or URL), not by container index; see tarballPathFor.
+      final tarball = tarballPathFor(G.dataPath, url, pinnedSha256: pin);
+      // Resolve the expected hash before downloading so a missing pin or an
+      // unreachable sidecar fails fast instead of after hundreds of MB.
+      final checksum = await _checksumScript(distro.rootfs, url, tarball, client: client);
 
       log("== Downloading");
-      await Util.downloadFile(url, tarballPath, onProgress: onProgress);
+      await Util.downloadFile(url, tarball, onProgress: onProgress, client: client);
 
-      final checksum = await _checksumScript(url, tarballPath);
-      if (checksum != null) {
-        log("\r\n== Verifying checksum");
-        final code = await run(checksum);
-        if (code == 3) {
-          // Genuinely corrupt (or a stale partial): do not resume it next time.
-          await run("rm -f ${Util.escapeShellArgument(tarballPath)}");
-          throw Exception("Checksum mismatch: the download is corrupt and will be fetched again on retry");
-        }
-        if (code != 0) {
-          throw Exception("Checksum tool failed (exit code $code); the download was kept");
-        }
+      log("\r\n== Verifying checksum");
+      final code = await run(checksum);
+      if (code == 3) {
+        // Genuinely corrupt (or a stale partial): do not resume it next time.
+        await run("rm -f ${Util.escapeShellArgument(tarball)}");
+        throw Exception("Checksum mismatch: the download is corrupt and will be fetched again on retry");
+      }
+      if (code != 0) {
+        throw Exception("Checksum tool failed (exit code $code); the download was kept");
       }
 
-      await step("Extracting rootfs", extractScript(stagingDir, tarballPath, letter));
+      // Every download reaching this point passed the hash check above (an
+      // unverifiable source is refused before download), so the tarball is kept
+      // on later failures: a retry reuses it instead of starting over.
+      await step("Extracting rootfs", extractScript(stagingDir, tarball, letter));
       await step(
         "Provisioning base system (keys, user, sudo, locale)",
         prootRun(rootfs: stagingDir, script: distro.firstBootScript(username)),
         failure: "Base provisioning",
       );
-      await step("Finalizing", finalizeScript(stagingDir, containerDir, tarballPath));
+      await step("Finalizing", finalizeScript(stagingDir, containerDir, tarball));
       await step(
         "Verifying the base system boots",
         prootRun(rootfs: containerDir, script: _verifyScript(distro)),
@@ -488,19 +584,37 @@ export PROOT_LOADER_32=\$DATA_DIR/applib/libproot-loader32.so
 \$DATA_DIR/bin/proot -0 -r ${Util.escapeShellArgument(rootfs)} -b /proc -b /sys -b /dev /usr/bin/env -i PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin HOME=/root LANG=C /bin/sh -c ${Util.escapeShellArgument("$_gpgCleanupTrap$script")}
 """;
 
-  static Future<void> _registerContainer(
-    InstallPlan installPlan,
-    List<String> existing,
-  ) async {
-    final info = ContainerInfo(
+  /// The record for a freshly installed container. It carries the distro's real
+  /// package manager and that manager's quick commands, as the first-run path does;
+  /// the ContainerInfo default would tag every added container as pacman with an
+  /// empty command bar.
+  @visibleForTesting
+  static ContainerInfo containerInfoFor(
+    InstallPlan installPlan, {
+    bool english = true,
+  }) {
+    final String packageManager = installPlan.distro.packageManager.name;
+    return ContainerInfo(
       name: installPlan.containerName,
       boot: Workflow.getBootCommand(),
       vnc: "start-desktop &",
       vncPassword: Util.generateRandomPassword(),
       vncUrl: "",
       vncUri: "",
-      commands: [],
+      commands: D.getCommandsForPackageManager(
+        packageManager,
+        english: english,
+      ),
+      packageManager: packageManager,
     );
+  }
+
+  static Future<void> _registerContainer(
+    InstallPlan installPlan,
+    List<String> existing,
+    bool english,
+  ) async {
+    final info = containerInfoFor(installPlan, english: english);
     final updated = [...existing, jsonEncode(info.toJson())];
     await G.prefs.setStringList("containersInfo", updated);
   }

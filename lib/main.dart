@@ -1162,6 +1162,9 @@ class _SettingPageState extends State<SettingPage> {
                         D.androidChannel.invokeMethod("startStreaming", {
                           "path":
                               "${G.dataPath}/containers/${G.currentContainer}$path",
+                        }).catchError((Object e) {
+                          debugPrint("startStreaming failed: $e");
+                          return null;
                         });
                         Util.termWrite("""
 pactl load-module module-null-sink sink_name=AndroidSink sink_properties=device.description="Android_Audio_Stream"
@@ -1175,7 +1178,10 @@ tiny_virtual_mic $path AndroidSink &""");
 pactl list short modules | grep "Android" | cut -f1 | xargs -L1 pactl unload-module
 pkill -f tiny_virtual_mic""");
                       G.pageIndex.value = 0;
-                      D.androidChannel.invokeMethod("stopStreaming", {});
+                      D.androidChannel.invokeMethod("stopStreaming", {}).catchError((Object e) {
+                        debugPrint("stopStreaming failed: $e");
+                        return null;
+                      });
                     }
                     G.isStreaming = value;
                     setState(() {});
@@ -2320,10 +2326,16 @@ class _FastCommandsState extends State<FastCommands> {
                           onPressed: () async {
                             await Util.setCurrentProp(
                               "commands",
-                              Localizations.localeOf(context).languageCode ==
-                                      'zh'
-                                  ? D.commands
-                                  : D.commands4En,
+                              D.defaultCommandsFor(
+                                Util.getCurrentProp("packageManager")
+                                        ?.toString() ??
+                                    'pacman',
+                                english:
+                                    Localizations.localeOf(
+                                      context,
+                                    ).languageCode !=
+                                    'zh',
+                              ),
                             );
                             setState(() {});
                             if (!context.mounted) return;

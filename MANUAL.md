@@ -15,6 +15,7 @@
 2. [Installation Guide](#2-installation-guide)
    - [Install from APK (End Users)](#21-install-from-apk-end-users)
    - [Permissions & Android 16+ Hacks](#22-permissions--android-16-hacks)
+   - [Trust Model: What the Container Can Reach](#23-trust-model-what-the-container-can-reach)
 3. [Customization Guide](#3-customization-guide)
    - [Hardware Acceleration (VirGL)](#31-hardware-acceleration-virgl)
    - [High-Fidelity Audio (PipeWire)](#32-high-fidelity-audio-pipewire)
@@ -71,6 +72,14 @@ Download the latest release from GitHub and install it on your device. Ensure yo
 On Android 13-16+, standard storage permissions may not be enough for PRoot to operate.
 - **Shizuku:** Using Shizuku via the `rish` shell bypasses common SELinux "Permission Denied" errors when extracting the rootfs.
 - **All Files Access:** If prompted, granting "All Files Access" ensures the container can manage its internal state files without system interference.
+
+### 2.3 Trust Model: What the Container Can Reach
+
+The container runs through proot as IntelNode's own Android user id, so it is not isolated from the app's data.
+- **Mounts:** the boot command binds `/system`, `/apex`, `/sys`, `/data`, `/storage`, `/proc` and `/dev` from the phone into the container, and shared storage at `/media/sd`. Android decides which files under those paths the app's uid may open; that has not been confirmed on a device.
+- **Root inside the container:** the container user has passwordless `sudo` and a permissive polkit rule. That is root inside the container only, not on the phone.
+- **Consequence:** software you run in the container, including packages and quick-command installs, can in principle read what the app can read: its settings, other containers' files and shared storage. Only install software you trust.
+- **Status:** these mounts are not narrowed yet; this section documents the current behaviour.
 
 ---
 
