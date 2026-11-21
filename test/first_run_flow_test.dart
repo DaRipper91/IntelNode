@@ -119,16 +119,15 @@ void main() {
           body: DistroPickerBody(onSelected: (d) => picked = d),
         ),
       ));
-      // Scroll to Kali (now verified after on-device testing)
+      // Kali has no checksum scheme, so the installer would refuse it anyway.
       await tester.scrollUntilVisible(
         find.byKey(const ValueKey('distro-kali')),
         200,
         scrollable: find.byType(Scrollable),
       );
-      expect(find.textContaining('Preview, unverified source'), findsNothing);
+      expect(find.textContaining('Preview, unverified source'), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('distro-kali')));
-      expect(picked, isNotNull);
-      expect(picked!.id, 'kali');
+      expect(picked, isNull);
     });
   });
 
