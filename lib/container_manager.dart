@@ -57,6 +57,31 @@ class ContainerManager {
     return null;
   }
 
+  /// What tapping [index] in the Containers tab does. `G.currentContainer` is the
+  /// container that is running (its terminal, its folder, the delete guard and the
+  /// renumbering all key on it), so a tap never moves it: it only chooses which
+  /// container the next launch starts.
+  static ({bool setDefault, String message}) tapOutcome(
+    int index, {
+    required String name,
+    required int running,
+    required int defaultContainer,
+  }) {
+    if (index == running) {
+      return (setDefault: false, message: "$name is running now.");
+    }
+    if (index == defaultContainer) {
+      return (
+        setDefault: false,
+        message: "$name already starts on the next launch.",
+      );
+    }
+    return (
+      setDefault: true,
+      message: "$name will start on the next launch. Restart the app to switch.",
+    );
+  }
+
   static List<ContainerEntry> entries(
     List<String> infos, {
     required int current,

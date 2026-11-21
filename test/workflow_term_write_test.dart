@@ -63,6 +63,13 @@ void main() {
       expect(writtenString, '\n');
     });
 
+    test('drops the write instead of throwing when the container has no terminal', () {
+      G.currentContainer = 1; // only container 0 has a TermPty
+
+      expect(() => Util.termWrite('echo lost'), returnsNormally);
+      expect(mockPty.writtenData, isEmpty);
+    });
+
     test('handles multiple consecutive writes', () {
       Util.termWrite('command1');
       Util.termWrite('command2');
