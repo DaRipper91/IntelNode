@@ -1946,16 +1946,20 @@ clear""");
     return "$containerPath/usr/share/X11/xkb";
   }
 
-  static Future<void> startContainerForegroundService() async {
-    try {
-      await D.androidChannel.invokeMethod("startContainerService");
-    } catch (_) {}
-  }
+  static Future<void> startContainerForegroundService() =>
+      _invokeService("startContainerService");
 
-  static Future<void> stopContainerForegroundService() async {
+  static Future<void> stopContainerForegroundService() =>
+      _invokeService("stopContainerService");
+
+  /// Boot must not depend on the service, but a failure to start it is the
+  /// "X11 freezes in the background" symptom, so it has to leave a trace.
+  static Future<void> _invokeService(String method) async {
     try {
-      await D.androidChannel.invokeMethod("stopContainerService");
-    } catch (_) {}
+      await D.androidChannel.invokeMethod(method);
+    } catch (e) {
+      BootLog.event('$method failed: $e');
+    }
   }
 
   static Future<void> launchXServer() async {
