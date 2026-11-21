@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -158,6 +159,40 @@ void main() {
     test('ignores the echoed command and other runs', () {
       expect(SetupSession.parseExitMarker('echo "@@INTELNODE-2@@ \$?"', '@@INTELNODE-2@@'), isNull);
       expect(SetupSession.parseExitMarker('@@INTELNODE-1@@ 0', '@@INTELNODE-2@@'), isNull);
+    });
+
+    test('ignores a marker forged without the session nonce', () {
+      final token = SetupSession.markerToken('a1b2c3d4e5f6', 2);
+      expect(token, '@@INTELNODE-a1b2c3d4e5f6-2@@');
+      expect(SetupSession.parseExitMarker('@@INTELNODE-2@@ 0', token), isNull);
+      expect(SetupSession.parseExitMarker('@@INTELNODE-ffffffffffff-2@@ 0', token), isNull);
+      expect(SetupSession.parseExitMarker('$token 0', token), 0);
+    });
+  });
+
+  group('SetupSession.awaitStep', () {
+    test('passes through the exit code of a step that finishes in time', () async {
+      var interrupted = false;
+      final code = await SetupSession.awaitStep(
+        Future.value(3),
+        const Duration(seconds: 5),
+        onTimeout: () => interrupted = true,
+      );
+      expect(code, 3);
+      expect(interrupted, isFalse);
+    });
+
+    test('a step that never reports fails with the timeout code and interrupts the shell', () async {
+      var interrupted = false;
+      final never = Completer<int>().future;
+      final code = await SetupSession.awaitStep(
+        never,
+        const Duration(milliseconds: 20),
+        onTimeout: () => interrupted = true,
+      );
+      expect(code, SetupSession.timeoutExitCode);
+      expect(code, isNot(0));
+      expect(interrupted, isTrue);
     });
   });
 }
