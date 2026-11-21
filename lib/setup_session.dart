@@ -5,6 +5,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_pty/flutter_pty.dart';
@@ -45,7 +46,45 @@ class SetupSession {
   String? _pendingToken;
   String _tail = "";
 
-  /// Matches the completion marker a run prints: `@@INTELNODE-<n>@@ <code>`.
+  /// Exit code reported for a step that ran past its timeout. 124 is what
+  /// coreutils `timeout` uses, so logs read the same as a shell timeout.
+  static const int timeoutExitCode = 124;
+
+  /// Ceiling for a single setup step. Downloads have their own stall timeout in
+  /// Dart; this covers what runs in the shell (extract, dpkg/apt, dnf, ...), so a
+  /// hung step ends in a visible failure instead of waiting forever.
+  static const Duration defaultStepTimeout = Duration(minutes: 45);
+
+  /// Random per-session part of every completion marker, so a process inside the
+  /// rootfs that echoes `@@INTELNODE-<n>@@ 0` cannot guess a step's marker.
+  final String _nonce = _newNonce();
+
+  static String _newNonce() {
+    final rng = Random.secure();
+    return List.generate(
+      12,
+      (_) => rng.nextInt(16).toRadixString(16),
+    ).join();
+  }
+
+  /// The marker token for step [n]: `@@INTELNODE-<nonce>-<n>@@`.
+  static String markerToken(String nonce, int n) => "@@INTELNODE-$nonce-$n@@";
+
+  /// Waits for [step], giving up after [timeout]. On expiry it calls [onTimeout]
+  /// (to interrupt the shell) and resolves to [timeoutExitCode], never to 0.
+  static Future<int> awaitStep(
+    Future<int> step,
+    Duration timeout, {
+    required void Function() onTimeout,
+  }) => step.timeout(
+    timeout,
+    onTimeout: () {
+      onTimeout();
+      return timeoutExitCode;
+    },
+  );
+
+  /// Matches the completion marker a run prints: `@@INTELNODE-<nonce>-<n>@@ <code>`.
   /// The marker echoed back with the literal `$?` never matches, only the
   /// expanded exit code does.
   static int? parseExitMarker(String text, String token) {
@@ -77,15 +116,16 @@ class SetupSession {
     BootLog.event(line.trim());
   }
 
-  /// Runs [script] in the visible shell and returns its exit code.
-  Future<int> run(String script) async {
+  /// Runs [script] in the visible shell and returns its exit code, or
+  /// [timeoutExitCode] if it is still running after [timeout].
+  Future<int> run(String script, {Duration timeout = defaultStepTimeout}) async {
     if (_pending != null) {
       throw StateError("A setup script is already running");
     }
     final n = ++_runs;
     final dir = Directory("$dataPath/setup")..createSync(recursive: true);
     final file = File("${dir.path}/step$n.sh")..writeAsStringSync(script);
-    final token = "@@INTELNODE-$n@@";
+    final token = markerToken(_nonce, n);
     _pendingToken = token;
     _tail = "";
     final pending = _pending = Completer<int>();
@@ -95,7 +135,19 @@ class SetupSession {
           "/system/bin/sh ${file.path}; echo \"$token \$?\"\n",
         ),
       );
-      final code = await pending.future;
+      final code = await awaitStep(
+        pending.future,
+        timeout,
+        onTimeout: () {
+          log(
+            "\r\n== setup step $n timed out after ${timeout.inMinutes} min; "
+            "interrupting it",
+          );
+          // Ctrl-C the foreground job. The shell's trailing marker echo is then
+          // ignored, because _pendingToken is cleared below.
+          pty.write(const Utf8Encoder().convert("\x03"));
+        },
+      );
       BootLog.flush('setup');
       BootLog.event('setup step $n finished with exit code $code');
       return code;
