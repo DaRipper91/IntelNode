@@ -77,6 +77,36 @@ void main() {
     });
   });
 
+  group('ContainerManager.tapOutcome', () {
+    test('tapping the running container changes nothing', () {
+      final o = ContainerManager.tapOutcome(1, name: 'Fedora', running: 1, defaultContainer: 1);
+      expect(o.setDefault, isFalse);
+      expect(o.message, contains('running now'));
+    });
+
+    test('tapping the container already chosen for next launch changes nothing', () {
+      final o = ContainerManager.tapOutcome(0, name: 'Arch', running: 1, defaultContainer: 0);
+      expect(o.setDefault, isFalse);
+      expect(o.message, contains('already starts'));
+    });
+
+    test('tapping another container only chooses the next launch', () {
+      final o = ContainerManager.tapOutcome(2, name: 'Debian', running: 1, defaultContainer: 1);
+      expect(o.setDefault, isTrue);
+      expect(o.message, contains('Debian'));
+      expect(o.message, contains('next launch'));
+    });
+
+    test('the running container stays undeletable after another is chosen for next launch', () {
+      // Container 1 is running (the invariant: it is also `current`), container 0
+      // was tapped, so it is now the default. Neither may be deleted, and nothing
+      // below the running one may be renumbered.
+      expect(ContainerManager.blockedReason(1, current: 1, defaultContainer: 0), isNotNull);
+      expect(ContainerManager.blockedReason(0, current: 1, defaultContainer: 0), isNotNull);
+      expect(ContainerManager.blockedReason(2, current: 1, defaultContainer: 0), isNull);
+    });
+  });
+
   group('ContainerManager.entries', () {
     test('reads names and says why a container cannot be deleted', () {
       final entries = ContainerManager.entries(

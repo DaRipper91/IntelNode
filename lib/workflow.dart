@@ -245,9 +245,14 @@ class Util {
   }
 
   static void termWrite(String str) {
-    G.termPtys[G.currentContainer]!.pty.write(
-      const Utf8Encoder().convert("$str\n"),
-    );
+    final termPty = G.termPtys[G.currentContainer];
+    if (termPty == null) {
+      BootLog.event(
+        'termWrite dropped: no terminal for container ${G.currentContainer}',
+      );
+      return;
+    }
+    termPty.pty.write(const Utf8Encoder().convert("$str\n"));
   }
 
   //所有key

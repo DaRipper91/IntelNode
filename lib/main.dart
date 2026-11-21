@@ -38,6 +38,7 @@ import 'package:da_ripped_tiny_computer/setup_session.dart';
 import 'package:da_ripped_tiny_computer/setup_terminal.dart';
 import 'package:da_ripped_tiny_computer/workflow.dart';
 import 'package:da_ripped_tiny_computer/container_delete_dialog.dart';
+import 'package:da_ripped_tiny_computer/container_manager.dart';
 import 'package:da_ripped_tiny_computer/container_setup_page.dart';
 import 'package:da_ripped_tiny_computer/theme.dart';
 
@@ -1976,8 +1977,12 @@ class TerminalPage extends StatelessWidget {
             child: ValueListenableBuilder(
               valueListenable: G.termFontScale,
               builder: (context, value, child) {
+                final termPty = G.termPtys[G.currentContainer];
+                if (termPty == null) {
+                  return const Center(child: Text("Terminal not started yet."));
+                }
                 return TerminalView(
-                  G.termPtys[G.currentContainer]!.terminal,
+                  termPty.terminal,
                   textScaler: TextScaler.linear(G.termFontScale.value),
                   keyboardType: TextInputType.multiline,
                 );
@@ -2039,7 +2044,7 @@ class TerminalPage extends StatelessWidget {
                                 return OutlinedButton(
                                   style: D.controlButtonStyle,
                                   onPressed: () {
-                                    G.termPtys[G.currentContainer]!.terminal
+                                    G.termPtys[G.currentContainer]?.terminal
                                         .keyInput(
                                           D.termCommands[index]["key"]!
                                               as TerminalKey,
@@ -2392,11 +2397,25 @@ class _ContainerListPageState extends State<ContainerListPage> {
             ),
             title: Text(info['name'] ?? 'Unknown Container'),
             subtitle: Text(info['packageManager'] ?? ''),
-            trailing: isCurrent ? const Icon(Icons.check) : null,
-            onTap: () async {
-              G.currentContainer = index;
-              G.settings.defaultContainer = index;
-              await Workflow.launchCurrentContainer();
+            trailing: isCurrent
+                ? const Icon(Icons.check)
+                : (index == G.settings.defaultContainer
+                      ? const Icon(Icons.schedule)
+                      : null),
+            onTap: () {
+              final outcome = ContainerManager.tapOutcome(
+                index,
+                name: info['name'] ?? 'Unknown Container',
+                running: G.currentContainer,
+                defaultContainer: G.settings.defaultContainer,
+              );
+              if (outcome.setDefault) {
+                G.settings.defaultContainer = index;
+                setState(() {});
+              }
+              ScaffoldMessenger.of(context)
+                ..hideCurrentSnackBar()
+                ..showSnackBar(SnackBar(content: Text(outcome.message)));
             },
           );
         },
