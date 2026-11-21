@@ -130,8 +130,10 @@ void main() {
       expect(Distros.byId('void').rootfs.verified, isTrue);
     });
 
-    test('kali is now verified after on-device testing', () {
-      expect(Distros.byId('kali').rootfs.verified, isTrue);
+    test('kali stays unverified: its simplestreams source has no checksum', () {
+      // On a Nothing Phone 2a the install was refused after resolving the URL
+      // ("No pinned SHA-256 or checksum scheme"), so the picker must not offer it.
+      expect(Distros.byId('kali').rootfs.verified, isFalse);
     });
 
     test('direct source describes its literal URL', () {
@@ -146,6 +148,15 @@ void main() {
   });
 
   group('first-boot provisioning scripts', () {
+    test('alpine keeps a valid sudoers includedir directive', () {
+      final script = Distros.byId('alpine').firstBootScript('tiny');
+      // sudo only accepts `#includedir` or `@includedir`; a bare `includedir`
+      // is a syntax error (/etc/sudoers:140:26 on a real Alpine boot).
+      expect(script, contains("echo '#includedir /etc/sudoers.d'"));
+      expect(script, isNot(contains('s/^#includedir/includedir/')));
+      expect(script, isNot(contains('echo "includedir')));
+    });
+
     test('create the expected user and remove Termux profile scripts', () {
       for (final distro in Distros.all) {
         final script = distro.firstBootScript('tiny');

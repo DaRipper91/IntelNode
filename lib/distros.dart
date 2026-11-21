@@ -393,8 +393,7 @@ printf 'nameserver 1.1.1.1\\nnameserver 8.8.8.8\\n' > /etc/resolv.conf
 apk update
 apk add --no-cache bash sudo shadow dbus
 mkdir -p /etc/sudoers.d
-grep -q '^#includedir /etc/sudoers.d' /etc/sudoers && sed -i 's/^#includedir/includedir/' /etc/sudoers || true
-grep -q '^includedir /etc/sudoers.d' /etc/sudoers || echo "includedir /etc/sudoers.d" >> /etc/sudoers
+grep -qE '^[#@]includedir[[:space:]]+/etc/sudoers.d' /etc/sudoers || echo '#includedir /etc/sudoers.d' >> /etc/sudoers
 ${_commonUserSetup(username)}""";
 
 String _voidFirstBoot(String username) =>
@@ -604,7 +603,7 @@ class Distros {
       rootfs: const RootfsSource.simplestreams(
         base: "https://images.linuxcontainers.org",
         product: "kali:current:arm64:default",
-        verified: true,
+        verified: false,
         notes:
             "Kali Linux rootfs source requires confirmation against mobile container runtime before being marked verified for install.",
       ),
